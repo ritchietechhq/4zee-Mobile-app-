@@ -7,6 +7,7 @@ export const Colors = {
   textPrimary: '#1F2937',
   textSecondary: '#6B7280',
   textMuted: '#9CA3AF',
+  textTertiary: '#9CA3AF',
   border: '#E5E7EB',
   borderLight: '#F3F4F6',
   success: '#16A34A',

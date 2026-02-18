@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Dimensions } from 'react-nati
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { Property } from '@/types';
+import type { Property } from '@/types';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Colors, Spacing, BorderRadius, Typography } from '@/constants/theme';
@@ -11,7 +11,6 @@ import { formatCurrency } from '@/utils/formatCurrency';
 
 interface PropertyCardProps {
   property: Property;
-  onFavoritePress?: (id: string) => void;
   variant?: 'horizontal' | 'vertical';
 }
 
@@ -20,19 +19,18 @@ const CARD_WIDTH = SCREEN_WIDTH - Spacing.xl * 2;
 
 export function PropertyCard({
   property,
-  onFavoritePress,
   variant = 'vertical',
 }: PropertyCardProps) {
   const handlePress = () => {
     router.push(`/(client)/properties/${property.id}`);
   };
 
-  const statusVariant =
-    property.status === 'available'
+  const availabilityVariant =
+    property.availability === 'AVAILABLE'
       ? 'success'
-      : property.status === 'reserved'
+      : property.availability === 'RESERVED'
         ? 'warning'
-        : property.status === 'sold'
+        : property.availability === 'SOLD'
           ? 'error'
           : 'info';
 
@@ -41,7 +39,7 @@ export function PropertyCard({
       <TouchableOpacity onPress={handlePress} activeOpacity={0.8}>
         <Card style={styles.horizontalCard}>
           <Image
-            source={{ uri: property.images[0] }}
+            source={{ uri: property.images?.[0] }}
             style={styles.horizontalImage}
             contentFit="cover"
             placeholder="L6PZfSi_.AyE_3t7t7R**0o#DgR4"
@@ -54,27 +52,29 @@ export function PropertyCard({
             <View style={styles.locationRow}>
               <Ionicons name="location-outline" size={14} color={Colors.textMuted} />
               <Text style={styles.location} numberOfLines={1}>
-                {property.address.city}, {property.address.state}
+                {property.city}, {property.state}
               </Text>
             </View>
-            <Text style={styles.price}>
-              {formatCurrency(property.price, property.currency)}
-            </Text>
+            <Text style={styles.price}>{formatCurrency(property.price)}</Text>
             <View style={styles.featuresRow}>
-              <View style={styles.feature}>
-                <Ionicons name="bed-outline" size={14} color={Colors.textMuted} />
-                <Text style={styles.featureText}>{property.bedrooms}</Text>
-              </View>
-              <View style={styles.feature}>
-                <Ionicons name="water-outline" size={14} color={Colors.textMuted} />
-                <Text style={styles.featureText}>{property.bathrooms}</Text>
-              </View>
-              <View style={styles.feature}>
-                <Ionicons name="resize-outline" size={14} color={Colors.textMuted} />
-                <Text style={styles.featureText}>
-                  {property.area} {property.areaUnit}
-                </Text>
-              </View>
+              {property.bedrooms != null && (
+                <View style={styles.feature}>
+                  <Ionicons name="bed-outline" size={14} color={Colors.textMuted} />
+                  <Text style={styles.featureText}>{property.bedrooms}</Text>
+                </View>
+              )}
+              {property.bathrooms != null && (
+                <View style={styles.feature}>
+                  <Ionicons name="water-outline" size={14} color={Colors.textMuted} />
+                  <Text style={styles.featureText}>{property.bathrooms}</Text>
+                </View>
+              )}
+              {property.area != null && (
+                <View style={styles.feature}>
+                  <Ionicons name="resize-outline" size={14} color={Colors.textMuted} />
+                  <Text style={styles.featureText}>{property.area} sqm</Text>
+                </View>
+              )}
             </View>
           </View>
         </Card>
@@ -87,64 +87,48 @@ export function PropertyCard({
       <Card style={styles.verticalCard} padding="xs">
         <View style={styles.imageContainer}>
           <Image
-            source={{ uri: property.images[0] }}
+            source={{ uri: property.images?.[0] }}
             style={styles.verticalImage}
             contentFit="cover"
             placeholder="L6PZfSi_.AyE_3t7t7R**0o#DgR4"
             transition={200}
           />
           <View style={styles.imageOverlay}>
-            <Badge label={property.status.replace('_', ' ')} variant={statusVariant} />
-            {onFavoritePress && (
-              <TouchableOpacity
-                onPress={() => onFavoritePress(property.id)}
-                style={styles.favoriteButton}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              >
-                <Ionicons
-                  name={property.isFavorite ? 'heart' : 'heart-outline'}
-                  size={22}
-                  color={property.isFavorite ? Colors.error : Colors.white}
-                />
-              </TouchableOpacity>
-            )}
+            <Badge label={property.availability} variant={availabilityVariant} />
           </View>
-          {property.installmentAvailable && (
-            <View style={styles.installmentBadge}>
-              <Text style={styles.installmentText}>Installment Available</Text>
-            </View>
-          )}
         </View>
 
         <View style={styles.verticalContent}>
-          <Text style={styles.price}>
-            {formatCurrency(property.price, property.currency)}
-          </Text>
+          <Text style={styles.price}>{formatCurrency(property.price)}</Text>
           <Text style={styles.title} numberOfLines={1}>
             {property.title}
           </Text>
           <View style={styles.locationRow}>
             <Ionicons name="location-outline" size={14} color={Colors.textMuted} />
             <Text style={styles.location} numberOfLines={1}>
-              {property.address.city}, {property.address.state}
+              {property.city}, {property.state}
             </Text>
           </View>
           <View style={styles.divider} />
           <View style={styles.featuresRow}>
-            <View style={styles.feature}>
-              <Ionicons name="bed-outline" size={16} color={Colors.textMuted} />
-              <Text style={styles.featureText}>{property.bedrooms} Beds</Text>
-            </View>
-            <View style={styles.feature}>
-              <Ionicons name="water-outline" size={16} color={Colors.textMuted} />
-              <Text style={styles.featureText}>{property.bathrooms} Baths</Text>
-            </View>
-            <View style={styles.feature}>
-              <Ionicons name="resize-outline" size={16} color={Colors.textMuted} />
-              <Text style={styles.featureText}>
-                {property.area} {property.areaUnit}
-              </Text>
-            </View>
+            {property.bedrooms != null && (
+              <View style={styles.feature}>
+                <Ionicons name="bed-outline" size={16} color={Colors.textMuted} />
+                <Text style={styles.featureText}>{property.bedrooms} Beds</Text>
+              </View>
+            )}
+            {property.bathrooms != null && (
+              <View style={styles.feature}>
+                <Ionicons name="water-outline" size={16} color={Colors.textMuted} />
+                <Text style={styles.featureText}>{property.bathrooms} Baths</Text>
+              </View>
+            )}
+            {property.area != null && (
+              <View style={styles.feature}>
+                <Ionicons name="resize-outline" size={16} color={Colors.textMuted} />
+                <Text style={styles.featureText}>{property.area} sqm</Text>
+              </View>
+            )}
           </View>
         </View>
       </Card>
@@ -163,44 +147,21 @@ const styles = StyleSheet.create({
   },
   verticalImage: {
     width: '100%',
-    height: 200,
+    height: 180,
     borderTopLeftRadius: BorderRadius.lg,
     borderTopRightRadius: BorderRadius.lg,
   },
   imageOverlay: {
     position: 'absolute',
-    top: Spacing.md,
-    left: Spacing.md,
-    right: Spacing.md,
+    top: Spacing.sm,
+    left: Spacing.sm,
+    right: Spacing.sm,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
   },
-  favoriteButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(0,0,0,0.3)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  installmentBadge: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: 'rgba(30, 64, 175, 0.9)',
-    paddingVertical: Spacing.xs,
-    paddingHorizontal: Spacing.md,
-  },
-  installmentText: {
-    ...Typography.small,
-    color: Colors.white,
-    fontWeight: '600',
-    textAlign: 'center',
-  },
   verticalContent: {
-    padding: Spacing.lg,
+    padding: Spacing.md,
   },
 
   // Horizontal card
@@ -220,10 +181,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 
-  // Shared
+  // Common
   title: {
     ...Typography.bodySemiBold,
     color: Colors.textPrimary,
+    marginBottom: 2,
   },
   price: {
     ...Typography.h4,
@@ -233,18 +195,18 @@ const styles = StyleSheet.create({
   locationRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.xs,
-    marginTop: Spacing.xs,
+    gap: 4,
+    marginBottom: Spacing.sm,
   },
   location: {
     ...Typography.caption,
-    color: Colors.textSecondary,
+    color: Colors.textMuted,
     flex: 1,
   },
   divider: {
     height: 1,
-    backgroundColor: Colors.borderLight,
-    marginVertical: Spacing.md,
+    backgroundColor: Colors.border,
+    marginVertical: Spacing.sm,
   },
   featuresRow: {
     flexDirection: 'row',
@@ -253,12 +215,10 @@ const styles = StyleSheet.create({
   feature: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.xs,
+    gap: 4,
   },
   featureText: {
     ...Typography.caption,
-    color: Colors.textSecondary,
+    color: Colors.textMuted,
   },
 });
-
-export default PropertyCard;

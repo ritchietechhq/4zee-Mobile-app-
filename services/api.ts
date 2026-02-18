@@ -4,15 +4,16 @@ import axios, {
   InternalAxiosRequestConfig,
 } from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import 'react-native-get-random-values';
-import { v4 as uuid } from 'uuid';
+import * as Crypto from 'expo-crypto';
 import type { ApiResponse } from '@/types';
+
+const uuid = () => Crypto.randomUUID();
 
 // ---------------------------------------------------------------------------
 // Config
 // ---------------------------------------------------------------------------
 const API_BASE_URL =
-  process.env.EXPO_PUBLIC_API_URL || 'https://api.4zeeproperties.com';
+  process.env.EXPO_PUBLIC_API_URL || 'https://fourzeeproperties-backend.onrender.com/api/v1';
 const REQUEST_TIMEOUT = 30_000;
 
 const ACCESS_TOKEN_KEY = '4zee_access_token';

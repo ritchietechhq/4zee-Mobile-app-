@@ -6,6 +6,8 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Dimensions,
+  ViewStyle,
+  TextStyle,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -74,7 +76,6 @@ export default function MapScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Map */}
       <MapView
         ref={mapRef}
         style={styles.map}
@@ -97,13 +98,13 @@ export default function MapScreen() {
             >
               <Callout onPress={() => handlePropertyPress(property)}>
                 <View style={styles.callout}>
-                  <Text style={styles.calloutTitle} numberOfLines={1}>
+                  <Text style={textStyles.calloutTitle} numberOfLines={1}>
                     {property.title}
                   </Text>
-                  <Text style={styles.calloutPrice}>
+                  <Text style={textStyles.calloutPrice}>
                     {formatCurrency(property.price)}
                   </Text>
-                  <Text style={styles.calloutLocation}>
+                  <Text style={textStyles.calloutLocation}>
                     {property.city}
                   </Text>
                 </View>
@@ -115,12 +116,14 @@ export default function MapScreen() {
 
       {/* Top Bar */}
       <SafeAreaView style={styles.topBar} edges={['top']}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+        <TouchableOpacity onPress={() => router.back()} style={viewStyles.backButton}>
           <Ionicons name="arrow-back" size={24} color={Colors.textPrimary} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Property Map</Text>
+        <View style={viewStyles.headerTitleContainer}>
+          <Text style={textStyles.headerTitle}>Property Map</Text>
+        </View>
         <TouchableOpacity
-          style={styles.myLocationButton}
+          style={viewStyles.myLocationButton}
           onPress={() => {
             mapRef.current?.animateToRegion(DEFAULT_REGION, 500);
           }}
@@ -133,14 +136,14 @@ export default function MapScreen() {
       {isLoading && (
         <View style={styles.loadingOverlay}>
           <ActivityIndicator size="large" color={Colors.primary} />
-          <Text style={styles.loadingText}>Loading properties...</Text>
+          <Text style={textStyles.loadingText}>Loading properties...</Text>
         </View>
       )}
 
       {/* Property Count Badge */}
       {!isLoading && properties.length > 0 && (
         <View style={styles.countBadge}>
-          <Text style={styles.countText}>
+          <Text style={textStyles.countText}>
             {properties.length} {properties.length === 1 ? 'property' : 'properties'}
           </Text>
         </View>
@@ -149,19 +152,19 @@ export default function MapScreen() {
       {/* Selected Property Card */}
       {selectedProperty && (
         <TouchableOpacity
-          style={styles.propertyCard}
+          style={viewStyles.propertyCard}
           onPress={() => handlePropertyPress(selectedProperty)}
           activeOpacity={0.9}
         >
           <View style={styles.propertyCardContent}>
             <View style={styles.propertyCardInfo}>
-              <Text style={styles.propertyCardTitle} numberOfLines={1}>
+              <Text style={textStyles.propertyCardTitle} numberOfLines={1}>
                 {selectedProperty.title}
               </Text>
-              <Text style={styles.propertyCardLocation} numberOfLines={1}>
+              <Text style={textStyles.propertyCardLocation} numberOfLines={1}>
                 {selectedProperty.city}, {selectedProperty.state}
               </Text>
-              <Text style={styles.propertyCardPrice}>
+              <Text style={textStyles.propertyCardPrice}>
                 {formatCurrency(selectedProperty.price)}
               </Text>
             </View>
@@ -169,19 +172,19 @@ export default function MapScreen() {
               {selectedProperty.bedrooms != null && (
                 <View style={styles.metaItem}>
                   <Ionicons name="bed-outline" size={14} color={Colors.textTertiary} />
-                  <Text style={styles.metaText}>{selectedProperty.bedrooms}</Text>
+                  <Text style={textStyles.metaText}>{selectedProperty.bedrooms}</Text>
                 </View>
               )}
               {selectedProperty.bathrooms != null && (
                 <View style={styles.metaItem}>
                   <Ionicons name="water-outline" size={14} color={Colors.textTertiary} />
-                  <Text style={styles.metaText}>{selectedProperty.bathrooms}</Text>
+                  <Text style={textStyles.metaText}>{selectedProperty.bathrooms}</Text>
                 </View>
               )}
               {selectedProperty.area != null && (
                 <View style={styles.metaItem}>
                   <Ionicons name="resize-outline" size={14} color={Colors.textTertiary} />
-                  <Text style={styles.metaText}>{selectedProperty.area} sqm</Text>
+                  <Text style={textStyles.metaText}>{selectedProperty.area} sqm</Text>
                 </View>
               )}
             </View>
@@ -198,6 +201,7 @@ export default function MapScreen() {
   );
 }
 
+// Styles that use only ViewStyle (safe for StyleSheet.create)
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -216,34 +220,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.xl,
     paddingBottom: Spacing.md,
   },
-  backButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: Colors.white,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...Shadows.md,
-  },
-  headerTitle: {
-    ...Typography.h4,
-    color: Colors.textPrimary,
-    backgroundColor: Colors.white,
-    paddingVertical: Spacing.sm,
-    paddingHorizontal: Spacing.lg,
-    borderRadius: BorderRadius.full,
-    overflow: 'hidden',
-    ...Shadows.sm,
-  },
-  myLocationButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: Colors.white,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...Shadows.md,
-  },
   loadingOverlay: {
     position: 'absolute',
     top: '50%',
@@ -254,12 +230,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.xl,
     borderRadius: BorderRadius.lg,
     alignItems: 'center',
-    ...Shadows.lg,
-  },
-  loadingText: {
-    ...Typography.caption,
-    color: Colors.textSecondary,
-    marginTop: Spacing.sm,
+    shadowColor: Colors.black,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 5,
   },
   countBadge: {
     position: 'absolute',
@@ -269,41 +244,17 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.sm,
     paddingHorizontal: Spacing.lg,
     borderRadius: BorderRadius.full,
-    ...Shadows.md,
-  },
-  countText: {
-    ...Typography.captionMedium,
-    color: Colors.white,
-  },
-  propertyCard: {
-    position: 'absolute',
-    bottom: Spacing.xxl + 40,
-    left: Spacing.xl,
-    right: Spacing.xl,
-    backgroundColor: Colors.white,
-    borderRadius: BorderRadius.lg,
-    padding: Spacing.lg,
-    flexDirection: 'row',
-    ...Shadows.lg,
+    shadowColor: Colors.black,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 3,
   },
   propertyCardContent: {
     flex: 1,
   },
   propertyCardInfo: {
     marginBottom: Spacing.sm,
-  },
-  propertyCardTitle: {
-    ...Typography.bodySemiBold,
-    color: Colors.textPrimary,
-  },
-  propertyCardLocation: {
-    ...Typography.caption,
-    color: Colors.textSecondary,
-  },
-  propertyCardPrice: {
-    ...Typography.h4,
-    color: Colors.primary,
-    marginTop: 2,
   },
   propertyCardMeta: {
     flexDirection: 'row',
@@ -313,10 +264,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-  },
-  metaText: {
-    ...Typography.caption,
-    color: Colors.textTertiary,
   },
   closeCard: {
     width: 28,
@@ -331,6 +278,80 @@ const styles = StyleSheet.create({
     maxWidth: 200,
     padding: 4,
   },
+});
+
+// ViewStyles that include Shadows (must be typed separately)
+const viewStyles: Record<string, ViewStyle> = {
+  backButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: Colors.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...Shadows.md,
+  },
+  headerTitleContainer: {
+    backgroundColor: Colors.white,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.lg,
+    borderRadius: BorderRadius.full,
+    ...Shadows.sm,
+  },
+  myLocationButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: Colors.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...Shadows.md,
+  },
+  propertyCard: {
+    position: 'absolute',
+    bottom: Spacing.xxl + 40,
+    left: Spacing.xl,
+    right: Spacing.xl,
+    backgroundColor: Colors.white,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.lg,
+    flexDirection: 'row',
+    ...Shadows.lg,
+  },
+};
+
+// TextStyles that include Typography (must be typed separately)
+const textStyles: Record<string, TextStyle> = {
+  headerTitle: {
+    ...Typography.h4,
+    color: Colors.textPrimary,
+  },
+  loadingText: {
+    ...Typography.caption,
+    color: Colors.textSecondary,
+    marginTop: Spacing.sm,
+  },
+  countText: {
+    ...Typography.captionMedium,
+    color: Colors.white,
+  },
+  propertyCardTitle: {
+    ...Typography.bodySemiBold,
+    color: Colors.textPrimary,
+  },
+  propertyCardLocation: {
+    ...Typography.caption,
+    color: Colors.textSecondary,
+  },
+  propertyCardPrice: {
+    ...Typography.h4,
+    color: Colors.primary,
+    marginTop: 2,
+  },
+  metaText: {
+    ...Typography.caption,
+    color: Colors.textTertiary,
+  },
   calloutTitle: {
     ...Typography.captionMedium,
     color: Colors.textPrimary,
@@ -343,4 +364,4 @@ const styles = StyleSheet.create({
     ...Typography.small,
     color: Colors.textSecondary,
   },
-});
+};
