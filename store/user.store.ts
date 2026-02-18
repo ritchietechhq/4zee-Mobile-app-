@@ -29,8 +29,8 @@ export const useUserStore = create<UserState>((set) => ({
   updateProfile: async (data: UpdateProfileRequest) => {
     set({ isLoading: true, error: null });
     try {
-      const updated = await userService.updateProfile(data);
-      set({ profile: updated, isLoading: false });
+      await userService.updateProfile(data);
+      set({ isLoading: false });
     } catch (error: unknown) {
       const message =
         error instanceof Error ? error.message : 'Failed to update profile.';

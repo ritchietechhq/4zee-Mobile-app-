@@ -16,6 +16,9 @@ export interface User {
   is2FAEnabled: boolean;
   profilePicture?: string;
   createdAt: string;
+  // Role-specific IDs from the backend
+  clientId?: string;   // Present for CLIENT users
+  realtorId?: string;  // Present for REALTOR users
 }
 
 export interface AuthTokens {
@@ -45,10 +48,14 @@ export function is2FARequired(response: LoginResponse): response is Auth2FARequi
 export interface RegisterRequest {
   email: string;
   password: string;
-  firstName: string;
-  lastName: string;
-  phone: string;
   role: 'CLIENT' | 'REALTOR';
+  // CLIENT only fields
+  firstName?: string;
+  lastName?: string;
+  phone?: string;
+  // REALTOR required field
+  dob?: string; // ISO date: "YYYY-MM-DD" — required for REALTOR
+  // Optional for both
   referralCode?: string;
 }
 

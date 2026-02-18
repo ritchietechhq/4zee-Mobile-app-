@@ -42,10 +42,17 @@ export default function ClientLayout() {
           }}
         />
       ))}
-      <Tabs.Screen
-        name="properties"
-        options={{ href: null }}
-      />
+      {/* Hidden screens - accessible via navigation but not shown in tab bar */}
+      <Tabs.Screen name="properties" options={{ href: null }} />
+      <Tabs.Screen name="edit-profile" options={{ href: null }} />
+      <Tabs.Screen name="inquiries" options={{ href: null }} />
+      <Tabs.Screen name="change-password" options={{ href: null }} />
+      <Tabs.Screen name="notifications" options={{ href: null }} />
+      <Tabs.Screen name="help" options={{ href: null }} />
+      <Tabs.Screen name="support" options={{ href: null }} />
+      <Tabs.Screen name="privacy" options={{ href: null }} />
+      <Tabs.Screen name="terms" options={{ href: null }} />
+      <Tabs.Screen name="payments" options={{ href: null }} />
     </Tabs>
   );
 }

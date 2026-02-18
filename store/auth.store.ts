@@ -34,6 +34,10 @@ interface AuthState {
   verify2FA: (userId: string, code: string) => Promise<void>;
   logout: (logoutAll?: boolean) => Promise<void>;
   loadSession: () => Promise<void>;
+  /** Light refresh — re-fetches /auth/me WITHOUT setting isLoading (no splash) */
+  refreshUser: () => Promise<void>;
+  /** Locally update user fields without API call */
+  updateUser: (partial: Partial<User>) => void;
   setRole: (role: UserRole) => Promise<void>;
   loadRole: () => Promise<UserRole | null>;
   clearError: () => void;
@@ -163,6 +167,23 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         isLoading: false,
       });
     }
+  },
+
+  refreshUser: async () => {
+    try {
+      const token = await api.getAccessToken();
+      if (!token) return;
+      const user = await authService.getMe();
+      set({ user });
+    } catch {
+      // Silently fail — user stays as-is
+    }
+  },
+
+  updateUser: (partial) => {
+    set((state) => ({
+      user: state.user ? { ...state.user, ...partial } : null,
+    }));
   },
 
   setRole: async (role: UserRole) => {

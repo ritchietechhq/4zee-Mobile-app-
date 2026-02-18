@@ -4,27 +4,28 @@
 // ============================================================
 
 export interface ClientDashboard {
-  applications: {
-    total: number;
-    pending: number;
-    approved: number;
-    rejected: number;
+  profile: {
+    email: string;
+    firstName: string;
+    lastName: string;
+    kycStatus: string;
+    memberSince: string;
   };
-  purchases: {
+  applicationsSummary: {
+    PENDING: number;
+    APPROVED: number;
+    REJECTED: number;
     total: number;
-    totalAmount: number;
   };
-  recentApplications: Array<{
-    id: string;
-    status: string;
-    property: {
-      title: string;
-      price: number;
-      images: string[];
-    };
-    createdAt: string;
-  }>;
-  featuredProperties: Array<import('./property').Property>;
+  financials: {
+    totalSpent: number;
+    activePaymentPlans: number;
+  };
+  upcomingInstallments: Array<Record<string, unknown>>;
+  recentPayments: Array<Record<string, unknown>>;
+  kycDocuments: Array<Record<string, unknown>>;
+  unreadNotifications: number;
+  unreadMessages: number;
 }
 
 export interface RealtorDashboard {

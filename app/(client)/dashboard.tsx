@@ -147,9 +147,9 @@ export default function DashboardScreen() {
           {/* ── Quick Stats ── */}
           {clientData && (
             <View style={styles.statsRow}>
-              <StatCard icon="document-text-outline" label="Applications" value={clientData.applications.total} color="#6366F1" bgColor="#EEF2FF" />
-              <StatCard icon="checkmark-circle-outline" label="Approved" value={clientData.applications.approved} color="#16A34A" bgColor="#DCFCE7" />
-              <StatCard icon="bag-handle-outline" label="Purchases" value={clientData.purchases.total} color="#F59E0B" bgColor="#FEF3C7" />
+              <StatCard icon="document-text-outline" label="Applications" value={clientData.applicationsSummary?.total ?? 0} color="#6366F1" bgColor="#EEF2FF" />
+              <StatCard icon="checkmark-circle-outline" label="Approved" value={clientData.applicationsSummary?.APPROVED ?? 0} color="#16A34A" bgColor="#DCFCE7" />
+              <StatCard icon="wallet-outline" label="Spent" value={clientData.financials?.totalSpent ?? 0} color="#F59E0B" bgColor="#FEF3C7" />
             </View>
           )}
 

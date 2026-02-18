@@ -9,6 +9,7 @@ import api from './api';
 import type {
   User,
   AuthTokens,
+  Auth2FARequired,
   LoginResponse,
   RegisterRequest,
   LoginRequest,
@@ -23,11 +24,52 @@ import type {
   TwoFASetupResponse,
 } from '@/types';
 
+/**
+ * Normalize a raw user object from the backend.
+ * Backend may return `userId` instead of `id`, and may nest
+ * client/realtor profile data inside a `client` or `realtor` key.
+ */
+function normalizeUser(raw: any): User {
+  // The backend uses `userId` as the primary key in some responses
+  const id = raw.id || raw.userId;
+  const role = raw.role;
+
+  // Backend may nest profile fields inside `client` or `realtor`
+  const nested = raw.client || raw.realtor || {};
+
+  return {
+    id,
+    email: raw.email,
+    firstName: raw.firstName || nested.firstName || '',
+    lastName: raw.lastName || nested.lastName || '',
+    phone: raw.phone || nested.phone || '',
+    role,
+    isEmailVerified: raw.isEmailVerified ?? raw.emailVerified ?? false,
+    is2FAEnabled: raw.is2FAEnabled ?? raw.twoFactorEnabled ?? false,
+    profilePicture: raw.profilePicture || nested.profilePicture || undefined,
+    createdAt: raw.createdAt || '',
+    // Role-specific sub-record IDs
+    clientId: raw.clientId || raw.client?.id || undefined,
+    realtorId: raw.realtorId || raw.realtor?.id || undefined,
+  };
+}
+
+/** Normalize the tokens+user envelope from login/register/2fa */
+function normalizeAuthTokens(raw: any): AuthTokens {
+  return {
+    accessToken: raw.accessToken,
+    refreshToken: raw.refreshToken,
+    expiresIn: raw.expiresIn,
+    refreshExpiresIn: raw.refreshExpiresIn,
+    user: normalizeUser(raw.user),
+  };
+}
+
 class AuthService {
   /** POST /auth/register */
   async register(payload: RegisterRequest): Promise<AuthTokens> {
-    const res = await api.post<AuthTokens>('/auth/register', payload);
-    const tokens = res.data!;
+    const res = await api.post<any>('/auth/register', payload);
+    const tokens = normalizeAuthTokens(res.data!);
     await api.setAccessToken(tokens.accessToken);
     await api.setRefreshToken(tokens.refreshToken);
     return tokens;
@@ -35,20 +77,22 @@ class AuthService {
 
   /** POST /auth/login — may return 2FA challenge or full tokens */
   async login(credentials: LoginRequest): Promise<LoginResponse> {
-    const res = await api.post<LoginResponse>('/auth/login', credentials);
+    const res = await api.post<any>('/auth/login', credentials);
     const data = res.data!;
     // Only store tokens if this is NOT a 2FA challenge
     if ('accessToken' in data) {
-      await api.setAccessToken(data.accessToken);
-      await api.setRefreshToken(data.refreshToken);
+      const tokens = normalizeAuthTokens(data);
+      await api.setAccessToken(tokens.accessToken);
+      await api.setRefreshToken(tokens.refreshToken);
+      return tokens;
     }
-    return data;
+    return data as Auth2FARequired;
   }
 
   /** POST /auth/2fa/verify-login */
   async verify2FA(payload: Verify2FARequest): Promise<AuthTokens> {
-    const res = await api.post<AuthTokens>('/auth/2fa/verify-login', payload);
-    const tokens = res.data!;
+    const res = await api.post<any>('/auth/2fa/verify-login', payload);
+    const tokens = normalizeAuthTokens(res.data!);
     await api.setAccessToken(tokens.accessToken);
     await api.setRefreshToken(tokens.refreshToken);
     return tokens;
@@ -71,8 +115,10 @@ class AuthService {
 
   /** GET /auth/me */
   async getMe(): Promise<User> {
-    const res = await api.get<User>('/auth/me');
-    return res.data!;
+    const res = await api.get<any>('/auth/me');
+    const raw = res.data!;
+    console.log('=== /auth/me RAW ===', JSON.stringify(raw, null, 2));
+    return normalizeUser(raw);
   }
 
   /** GET /auth/sessions */

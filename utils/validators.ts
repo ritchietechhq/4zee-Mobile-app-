@@ -40,6 +40,8 @@ export function validateSignupForm(data: {
   phone: string;
   password: string;
   confirmPassword: string;
+  dob?: string;
+  role?: 'CLIENT' | 'REALTOR';
 }): Record<string, string> {
   const errors: Record<string, string> = {};
 
@@ -53,6 +55,20 @@ export function validateSignupForm(data: {
   }
   if (data.password !== data.confirmPassword) {
     errors.confirmPassword = 'Passwords do not match.';
+  }
+
+  // DOB is required for REALTOR registration
+  if (data.role === 'REALTOR') {
+    if (!data.dob || !data.dob.trim()) {
+      errors.dob = 'Date of birth is required for realtors.';
+    } else if (!/^\d{4}-\d{2}-\d{2}$/.test(data.dob.trim())) {
+      errors.dob = 'Date of birth must be in YYYY-MM-DD format.';
+    } else {
+      const parsed = new Date(data.dob.trim());
+      if (isNaN(parsed.getTime())) {
+        errors.dob = 'Please enter a valid date.';
+      }
+    }
   }
 
   return errors;

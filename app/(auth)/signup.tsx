@@ -32,6 +32,7 @@ export default function SignupScreen() {
     password: '',
     confirmPassword: '',
     referralCode: '',
+    dob: '',
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -48,22 +49,38 @@ export default function SignupScreen() {
 
   const handleSignup = async () => {
     clearError();
-    const validation = validateSignupForm(form);
+    const validation = validateSignupForm({
+      ...form,
+      dob: form.dob,
+      role: role === 'REALTOR' ? 'REALTOR' : 'CLIENT',
+    });
     if (Object.keys(validation).length > 0) {
       setErrors(validation);
       return;
     }
     setErrors({});
 
-    const payload: RegisterRequest = {
-      firstName: form.firstName.trim(),
-      lastName: form.lastName.trim(),
-      email: form.email.trim(),
-      phone: form.phone.trim(),
-      password: form.password,
-      role: role === 'REALTOR' ? 'REALTOR' : 'CLIENT',
-      referralCode: form.referralCode.trim() || undefined,
-    };
+    // Build payload per API contract:
+    // CLIENT: email, password, role, firstName?, lastName?, phone?
+    // REALTOR: email, password, role, dob (required), referralCode?
+    // Backend rejects unknown fields (whitelist: true)
+    const payload: RegisterRequest = role === 'REALTOR'
+      ? {
+          email: form.email.trim(),
+          password: form.password,
+          role: 'REALTOR' as const,
+          dob: form.dob.trim(),
+          referralCode: form.referralCode.trim() || undefined,
+        }
+      : {
+          email: form.email.trim(),
+          password: form.password,
+          role: 'CLIENT' as const,
+          firstName: form.firstName.trim() || undefined,
+          lastName: form.lastName.trim() || undefined,
+          phone: form.phone.trim() || undefined,
+          referralCode: form.referralCode.trim() || undefined,
+        };
 
     // DEBUG: Log exactly what we're sending
     console.log('=== REGISTER PAYLOAD ===');
@@ -199,6 +216,19 @@ export default function SignupScreen() {
               error={errors.confirmPassword}
               required
             />
+
+            {role === 'REALTOR' && (
+              <Input
+                label="Date of Birth"
+                placeholder="YYYY-MM-DD"
+                leftIcon="calendar-outline"
+                value={form.dob}
+                onChangeText={(v) => updateField('dob', v)}
+                error={errors.dob}
+                required
+                hint="Format: YYYY-MM-DD (e.g. 1990-05-15)"
+              />
+            )}
 
             {role === 'CLIENT' && (
               <Input
