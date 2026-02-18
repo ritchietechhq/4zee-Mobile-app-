@@ -176,10 +176,10 @@ export default function EditProfileScreen() {
       formData.append('category', 'PROFILE_PHOTO');
 
       const url = await userService.uploadProfilePicture(formData);
-      // Update auth store locally — instant UI feedback, no splash
+      // Update auth store locally — instant UI feedback
+      // NOTE: Do NOT call refreshUser() here — /auth/me doesn't return
+      // profilePicture, so it would overwrite the URL we just set.
       updateUser({ profilePicture: url });
-      // Also refresh from server in background (no isLoading → no splash)
-      refreshUser();
       Alert.alert('Success', 'Profile picture updated!');
     } catch (error: any) {
       Alert.alert(

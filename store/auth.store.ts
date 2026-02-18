@@ -17,6 +17,7 @@ import authService from '@/services/auth.service';
 import api, { setForceLogoutCallback } from '@/services/api';
 
 const ROLE_KEY = '4zee_user_role';
+const PROFILE_PIC_KEY = '4zee_profile_picture';
 
 interface AuthState {
   user: User | null;
@@ -153,6 +154,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
       const user = await authService.getMe();
       const savedRole = (await AsyncStorage.getItem(ROLE_KEY)) as UserRole | null;
+
+      // /auth/me does NOT return profilePicture — restore from local storage
+      const savedPic = await AsyncStorage.getItem(PROFILE_PIC_KEY);
+      if (savedPic && !user.profilePicture) {
+        user.profilePicture = savedPic;
+      }
+
       set({
         user,
         isAuthenticated: true,
@@ -173,8 +181,19 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       const token = await api.getAccessToken();
       if (!token) return;
-      const user = await authService.getMe();
-      set({ user });
+      const freshUser = await authService.getMe();
+      // Merge with existing state — preserve fields the API doesn't return
+      // (e.g. profilePicture is NOT in /auth/me response)
+      set((state) => ({
+        user: state.user
+          ? {
+              ...state.user,
+              ...freshUser,
+              profilePicture:
+                freshUser.profilePicture || state.user.profilePicture,
+            }
+          : freshUser,
+      }));
     } catch {
       // Silently fail — user stays as-is
     }
@@ -184,6 +203,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set((state) => ({
       user: state.user ? { ...state.user, ...partial } : null,
     }));
+    // Persist profilePicture to AsyncStorage (survives app restart)
+    if (partial.profilePicture) {
+      AsyncStorage.setItem(PROFILE_PIC_KEY, partial.profilePicture).catch(() => {});
+    }
   },
 
   setRole: async (role: UserRole) => {

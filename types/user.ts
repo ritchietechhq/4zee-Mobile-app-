@@ -13,5 +13,8 @@ export interface UpdateProfileRequest {
 }
 
 export interface ProfilePictureResponse {
+  id: string;
   url: string;
+  publicUrl?: string;
+  fileName?: string;
 }

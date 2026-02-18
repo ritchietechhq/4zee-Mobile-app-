@@ -24,7 +24,8 @@ class UserService {
       '/uploads/direct',
       formData,
     );
-    const url = res.data!.url;
+    // Prefer publicUrl (permanent/displayable) over url (may be signed/internal)
+    const url = res.data!.publicUrl || res.data!.url;
     return url;
   }
 }
