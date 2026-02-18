@@ -32,8 +32,9 @@ class NotificationService {
 
   /** GET /notifications/unread-count */
   async getUnreadCount(): Promise<number> {
-    const res = await api.get<UnreadCountResponse>('/notifications/unread-count');
-    return res.data!.unreadCount;
+    const res = await api.get<any>('/notifications/unread-count');
+    // Backend may return { count } or { unreadCount }
+    return res.data?.count ?? res.data?.unreadCount ?? 0;
   }
 
   /** PATCH /notifications/:id/read */
@@ -41,9 +42,9 @@ class NotificationService {
     await api.patch(`/notifications/${notificationId}/read`);
   }
 
-  /** PATCH /notifications/read-all */
+  /** PATCH /notifications/mark-all-read */
   async markAllAsRead(): Promise<void> {
-    await api.patch('/notifications/read-all');
+    await api.patch('/notifications/mark-all-read');
   }
 
   /** DELETE /notifications/:id */

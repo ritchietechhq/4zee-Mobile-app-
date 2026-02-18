@@ -1,6 +1,6 @@
 // ============================================================
 // User Store — Zustand
-// Profile management via PATCH /clients/profile
+// Profile management via PUT /kyc/info, PATCH /clients/me
 // ============================================================
 
 import { create } from 'zustand';

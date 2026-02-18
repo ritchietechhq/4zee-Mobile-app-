@@ -149,7 +149,7 @@ export default function DashboardScreen() {
             <View style={styles.statsRow}>
               <StatCard icon="document-text-outline" label="Applications" value={clientData.applicationsSummary?.total ?? 0} color="#6366F1" bgColor="#EEF2FF" />
               <StatCard icon="checkmark-circle-outline" label="Approved" value={clientData.applicationsSummary?.APPROVED ?? 0} color="#16A34A" bgColor="#DCFCE7" />
-              <StatCard icon="wallet-outline" label="Spent" value={clientData.financials?.totalSpent ?? 0} color="#F59E0B" bgColor="#FEF3C7" />
+              <StatCard icon="hourglass-outline" label="Pending" value={clientData.applicationsSummary?.PENDING ?? 0} color="#F59E0B" bgColor="#FEF3C7" />
             </View>
           )}
 
