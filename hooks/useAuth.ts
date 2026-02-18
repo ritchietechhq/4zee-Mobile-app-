@@ -39,9 +39,9 @@ export function useAuth() {
         // Navigate based on role
         const currentRole = useAuthStore.getState().role;
         if (currentRole === 'REALTOR') {
-          router.replace('/(realtor)/dashboard');
+          router.replace('/dashboard' as const);
         } else {
-          router.replace('/(client)/dashboard');
+          router.replace('/dashboard' as const);
         }
       } catch {
         // Error is set in store
@@ -56,9 +56,9 @@ export function useAuth() {
         await register(payload);
         const currentRole = useAuthStore.getState().role;
         if (currentRole === 'REALTOR') {
-          router.replace('/(realtor)/dashboard');
+          router.replace('/dashboard' as const);
         } else {
-          router.replace('/(client)/dashboard');
+          router.replace('/dashboard' as const);
         }
       } catch {
         // Error is set in store
@@ -73,9 +73,9 @@ export function useAuth() {
         await verify2FA(userId, code);
         const currentRole = useAuthStore.getState().role;
         if (currentRole === 'REALTOR') {
-          router.replace('/(realtor)/dashboard');
+          router.replace('/dashboard' as const);
         } else {
-          router.replace('/(client)/dashboard');
+          router.replace('/dashboard' as const);
         }
       } catch {
         // Error is set in store
@@ -86,7 +86,7 @@ export function useAuth() {
 
   const handleLogout = useCallback(async () => {
     await logout();
-    router.replace('/(auth)/login');
+    router.replace('/login');
   }, [logout]);
 
   return {

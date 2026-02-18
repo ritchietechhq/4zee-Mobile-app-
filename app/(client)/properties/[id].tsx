@@ -1,192 +1,137 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
   View,
   Text,
-  StyleSheet,
   ScrollView,
+  StyleSheet,
   TouchableOpacity,
   ActivityIndicator,
   Share,
-  Alert,
+  Animated,
+  Dimensions,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { usePropertyStore } from '@/store/property.store';
-import { useApplications } from '@/hooks/useApplications';
 import { PropertyGallery } from '@/components/property/PropertyGallery';
-import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
+import { ProgressBar } from '@/components/ui/ProgressBar';
+import { Colors, Spacing, Typography, Shadows, BorderRadius } from '@/constants/theme';
 import { formatCurrency } from '@/utils/formatCurrency';
-import { Colors, Spacing, Typography, BorderRadius, Shadows } from '@/constants/theme';
+import type { Property } from '@/types';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export default function PropertyDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const {
-    selectedProperty: property,
-    isLoadingDetail,
-    fetchPropertyById,
-    clearSelectedProperty,
-  } = usePropertyStore();
-  const { createApplication, isLoading: isApplying } = useApplications();
-  const [isApplySuccess, setIsApplySuccess] = useState(false);
+  const insets = useSafeAreaInsets();
+  const { selectedProperty: property, isLoadingDetail, fetchPropertyById, clearSelectedProperty } = usePropertyStore();
+  const fadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     if (id) fetchPropertyById(id);
     return () => clearSelectedProperty();
   }, [id]);
 
+  useEffect(() => {
+    if (property) {
+      Animated.spring(fadeAnim, { toValue: 1, useNativeDriver: true, tension: 50, friction: 12 }).start();
+    }
+  }, [property]);
+
+  const handleShare = async () => {
+    if (!property) return;
+    try {
+      await Share.share({ message: `Check out "${property.title}" on 4Zee Properties — ${formatCurrency(property.price)}` });
+    } catch { /* noop */ }
+  };
+
   if (isLoadingDetail || !property) {
     return (
-      <View style={styles.loader}>
-        <ActivityIndicator size="large" color={Colors.primary} />
+      <View style={[styles.loaderWrap, { paddingTop: insets.top }]}>
+        <View style={styles.loaderContent}>
+          <ActivityIndicator size="large" color={Colors.primary} />
+          <Text style={styles.loaderText}>Loading property...</Text>
+        </View>
       </View>
     );
   }
 
-  const handleShare = async () => {
-    try {
-      await Share.share({
-        message: `Check out this property: ${property.title} - ${formatCurrency(property.price)}`,
-      });
-    } catch {
-      // Silently fail
-    }
-  };
-
-  const handleApply = async () => {
-    try {
-      const app = await createApplication(property.id);
-      setIsApplySuccess(true);
-      Alert.alert(
-        'Application Submitted!',
-        'Your application has been submitted successfully. You will be notified when it is reviewed.',
-        [
-          {
-            text: 'View Application',
-            onPress: () =>
-              router.push({
-                pathname: '/(client)/applications/[id]',
-                params: { id: app.id },
-              }),
-          },
-          { text: 'OK' },
-        ],
-      );
-    } catch {
-      Alert.alert('Error', 'Failed to submit application. Please try again.');
-    }
-  };
-
-  const getAvailabilityVariant = (availability: string) => {
-    switch (availability) {
-      case 'AVAILABLE':
-        return 'success' as const;
-      case 'SOLD':
-        return 'error' as const;
-      case 'RESERVED':
-        return 'warning' as const;
-      default:
-        return 'default' as const;
-    }
-  };
+  const availabilityVariant =
+    property.availability === 'AVAILABLE' ? 'success'
+    : property.availability === 'RESERVED' ? 'warning' : 'error';
 
   return (
     <View style={styles.container}>
-      <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Gallery */}
+      {/* ── Floating header ── */}
+      <View style={[styles.floatingHeader, { top: insets.top + Spacing.sm }]}>
+        <TouchableOpacity style={styles.floatingBtn} onPress={() => router.back()}>
+          <Ionicons name="arrow-back" size={22} color={Colors.textPrimary} />
+        </TouchableOpacity>
+        <View style={styles.floatingRight}>
+          <TouchableOpacity style={styles.floatingBtn} onPress={() => { /* TODO: toggle save */ }}>
+            <Ionicons name="heart-outline" size={22} color={Colors.error} />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.floatingBtn} onPress={handleShare}>
+            <Ionicons name="share-outline" size={22} color={Colors.textPrimary} />
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
+        {/* ── Gallery ── */}
         <PropertyGallery images={property.images} height={320} />
 
-        {/* Back & Actions overlay */}
-        <SafeAreaView style={styles.overlayHeader} edges={['top']}>
-          <TouchableOpacity
-            style={styles.overlayButton}
-            onPress={() => router.back()}
-          >
-            <Ionicons name="arrow-back" size={22} color={Colors.white} />
-          </TouchableOpacity>
-          <View style={styles.overlayActions}>
-            <TouchableOpacity style={styles.overlayButton} onPress={handleShare}>
-              <Ionicons name="share-outline" size={22} color={Colors.white} />
-            </TouchableOpacity>
-          </View>
-        </SafeAreaView>
-
-        {/* Content */}
-        <View style={styles.content}>
-          {/* Price & Availability */}
+        <Animated.View style={[styles.content, {
+          opacity: fadeAnim,
+          transform: [{ translateY: fadeAnim.interpolate({ inputRange: [0, 1], outputRange: [30, 0] }) }],
+        }]}>
+          {/* ── Price + Badge ── */}
           <View style={styles.priceRow}>
-            <Text style={styles.price}>
-              {formatCurrency(property.price)}
-            </Text>
-            <Badge
-              label={property.availability}
-              variant={getAvailabilityVariant(property.availability)}
-              size="md"
-            />
-          </View>
-
-          <Text style={styles.title}>{property.title}</Text>
-
-          <View style={styles.locationRow}>
-            <Ionicons name="location-outline" size={16} color={Colors.textMuted} />
-            <Text style={styles.locationText}>
-              {property.address}, {property.city}, {property.state}
-            </Text>
-          </View>
-
-          {/* Features Grid */}
-          <View style={styles.featuresGrid}>
-            {property.bedrooms !== undefined && (
-              <View style={styles.featureItem}>
-                <Ionicons name="bed-outline" size={24} color={Colors.primary} />
-                <Text style={styles.featureValue}>{property.bedrooms}</Text>
-                <Text style={styles.featureLabel}>Bedrooms</Text>
-              </View>
-            )}
-            {property.bathrooms !== undefined && (
-              <View style={styles.featureItem}>
-                <Ionicons name="water-outline" size={24} color={Colors.primary} />
-                <Text style={styles.featureValue}>{property.bathrooms}</Text>
-                <Text style={styles.featureLabel}>Bathrooms</Text>
-              </View>
-            )}
-            {property.toilets !== undefined && (
-              <View style={styles.featureItem}>
-                <Ionicons name="flask-outline" size={24} color={Colors.primary} />
-                <Text style={styles.featureValue}>{property.toilets}</Text>
-                <Text style={styles.featureLabel}>Toilets</Text>
-              </View>
-            )}
-            {property.area !== undefined && (
-              <View style={styles.featureItem}>
-                <Ionicons name="resize-outline" size={24} color={Colors.primary} />
-                <Text style={styles.featureValue}>{property.area}</Text>
-                <Text style={styles.featureLabel}>sqm</Text>
-              </View>
-            )}
-            <View style={styles.featureItem}>
-              <Ionicons name="home-outline" size={24} color={Colors.primary} />
-              <Text style={styles.featureValue}>{property.type}</Text>
-              <Text style={styles.featureLabel}>Type</Text>
+            <View>
+              <Text style={styles.price}>{formatCurrency(property.price)}</Text>
+              <Text style={styles.priceLabel}>Total price</Text>
             </View>
+            <Badge label={property.availability} variant={availabilityVariant} size="md" />
           </View>
 
-          {/* Description */}
-          <View style={styles.section}>
+          {/* ── Title & Location ── */}
+          <Text style={styles.title}>{property.title}</Text>
+          <TouchableOpacity style={styles.locationRow} activeOpacity={0.7}>
+            <View style={styles.locationIcon}>
+              <Ionicons name="location" size={16} color={Colors.primary} />
+            </View>
+            <Text style={styles.locationText}>{property.address}, {property.city}, {property.state}</Text>
+          </TouchableOpacity>
+
+          {/* ── Features Grid ── */}
+          <View style={styles.featuresGrid}>
+            {property.bedrooms != null && <FeatureItem icon="bed-outline" label="Bedrooms" value={String(property.bedrooms)} />}
+            {property.bathrooms != null && <FeatureItem icon="water-outline" label="Bathrooms" value={String(property.bathrooms)} />}
+            {property.toilets != null && <FeatureItem icon="flask-outline" label="Toilets" value={String(property.toilets)} />}
+            {property.area != null && <FeatureItem icon="resize-outline" label="Area" value={`${property.area} sqm`} />}
+            <FeatureItem icon="pricetag-outline" label="Type" value={property.type} />
+            <FeatureItem icon="eye-outline" label="Views" value={String(property.viewCount)} />
+          </View>
+
+          {/* ── Description ── */}
+          <View style={styles.descriptionSection}>
             <Text style={styles.sectionTitle}>Description</Text>
             <Text style={styles.description}>{property.description}</Text>
           </View>
 
-          {/* Amenities */}
+          {/* ── Amenities ── */}
           {property.amenities.length > 0 && (
-            <View style={styles.section}>
+            <View style={styles.amenitiesSection}>
               <Text style={styles.sectionTitle}>Amenities</Text>
-              <View style={styles.amenitiesGrid}>
+              <View style={styles.amenitiesWrap}>
                 {property.amenities.map((amenity, idx) => (
-                  <View key={idx} style={styles.amenityItem}>
-                    <Ionicons name="checkmark-circle" size={18} color={Colors.success} />
+                  <View key={idx} style={styles.amenityChip}>
+                    <Ionicons name="checkmark-circle" size={16} color={Colors.success} />
                     <Text style={styles.amenityText}>{amenity}</Text>
                   </View>
                 ))}
@@ -194,209 +139,112 @@ export default function PropertyDetailScreen() {
             </View>
           )}
 
-          {/* Property Stats */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Property Info</Text>
-            <Card variant="outlined" padding="lg">
-              <View style={styles.infoGrid}>
-                <View style={styles.infoItem}>
-                  <Ionicons name="eye-outline" size={16} color={Colors.textMuted} />
-                  <Text style={styles.infoLabel}>Views</Text>
-                  <Text style={styles.infoValue}>{property.viewCount}</Text>
-                </View>
-                {property.isFeatured && (
-                  <View style={styles.infoItem}>
-                    <Ionicons name="star" size={16} color={Colors.warning} />
-                    <Text style={styles.infoLabel}>Featured</Text>
-                    <Text style={styles.infoValue}>Yes</Text>
-                  </View>
-                )}
-                <View style={styles.infoItem}>
-                  <Ionicons name="calendar-outline" size={16} color={Colors.textMuted} />
-                  <Text style={styles.infoLabel}>Listed</Text>
-                  <Text style={styles.infoValue}>
-                    {new Date(property.createdAt).toLocaleDateString()}
-                  </Text>
-                </View>
-              </View>
-            </Card>
-          </View>
-        </View>
+          {/* ── Installment Plan Teaser ── */}
+          <InstallmentTeaser property={property} />
+
+          <View style={{ height: Spacing.xxxxl + 80 }} />
+        </Animated.View>
       </ScrollView>
 
-      {/* Bottom CTA */}
-      {property.availability === 'AVAILABLE' && (
-        <View style={styles.bottomCTA}>
-          <View style={styles.ctaPriceContainer}>
-            <Text style={styles.ctaPriceLabel}>Price</Text>
-            <Text style={styles.ctaPrice}>
-              {formatCurrency(property.price)}
-            </Text>
-          </View>
-          <Button
-            title={isApplySuccess ? 'Applied ✓' : 'Apply Now'}
-            onPress={handleApply}
-            loading={isApplying}
-            disabled={isApplySuccess}
-            size="lg"
-            style={styles.ctaButton}
-          />
-        </View>
-      )}
+      {/* ── Bottom CTA ── */}
+      <View style={[styles.bottomCTA, { paddingBottom: insets.bottom + Spacing.md }]}>
+        <TouchableOpacity style={styles.callBtn} activeOpacity={0.7}>
+          <Ionicons name="call-outline" size={22} color={Colors.primary} />
+        </TouchableOpacity>
+        <Button title="Contact Realtor" onPress={() => {}} variant="primary" size="lg" style={styles.ctaButton} icon={<Ionicons name="chatbubble-outline" size={18} color={Colors.white} />} />
+      </View>
     </View>
   );
 }
 
+/* ────────── Sub-components ────────── */
+
+function FeatureItem({ icon, label, value }: { icon: keyof typeof Ionicons.glyphMap; label: string; value: string }) {
+  return (
+    <View style={styles.featureItem}>
+      <View style={styles.featureIcon}><Ionicons name={icon} size={20} color={Colors.primary} /></View>
+      <Text style={styles.featureValue}>{value}</Text>
+      <Text style={styles.featureLabel}>{label}</Text>
+    </View>
+  );
+}
+
+function InstallmentTeaser({ property }: { property: Property }) {
+  return (
+    <Card style={styles.installmentCard} variant="outlined">
+      <LinearGradient colors={[Colors.primaryLight + '60', Colors.primaryLight + '20']} style={styles.installmentGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
+      <View style={styles.installmentHeader}>
+        <View style={styles.installmentBadge}>
+          <Ionicons name="card-outline" size={16} color={Colors.primary} />
+          <Text style={styles.installmentBadgeText}>Installment Available</Text>
+        </View>
+      </View>
+      <Text style={styles.installmentDesc}>This property supports installment payments. Apply to view the full payment plan and schedule.</Text>
+      <View style={styles.installmentPreview}>
+        <View style={styles.installmentRow}>
+          <Text style={styles.installmentLabel}>Total Price</Text>
+          <Text style={styles.installmentValue}>{formatCurrency(property.price)}</Text>
+        </View>
+      </View>
+      <ProgressBar progress={0} label="Payment Progress" showPercentage style={styles.progressBar} />
+      <Button title="View Installment Plan" variant="outline" size="md" onPress={() => {}} style={styles.installmentButton} icon={<Ionicons name="arrow-forward" size={16} color={Colors.primary} />} iconPosition="right" />
+    </Card>
+  );
+}
+
+/* ────────── Styles ────────── */
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
-  loader: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  overlayHeader: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.sm,
-  },
-  overlayButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  overlayActions: {
-    flexDirection: 'row',
-    gap: Spacing.sm,
-  },
-  content: {
-    padding: Spacing.xl,
-  },
-  priceRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: Spacing.sm,
-  },
-  price: {
-    ...Typography.h2,
-    color: Colors.primary,
-  },
-  title: {
-    ...Typography.h3,
-    color: Colors.textPrimary,
-    marginBottom: Spacing.sm,
-  },
-  locationRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.xs,
-    marginBottom: Spacing.xl,
-  },
-  locationText: {
-    ...Typography.body,
-    color: Colors.textSecondary,
-    flex: 1,
-  },
-  featuresGrid: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    backgroundColor: Colors.surface,
-    borderRadius: BorderRadius.lg,
-    padding: Spacing.xl,
-    marginBottom: Spacing.xxl,
-    flexWrap: 'wrap',
-    gap: Spacing.md,
-  },
-  featureItem: {
-    alignItems: 'center',
-    gap: 4,
-  },
-  featureValue: {
-    ...Typography.bodySemiBold,
-    color: Colors.textPrimary,
-  },
-  featureLabel: {
-    ...Typography.small,
-    color: Colors.textMuted,
-    textTransform: 'capitalize',
-  },
-  section: {
-    marginBottom: Spacing.xxl,
-  },
-  sectionTitle: {
-    ...Typography.h4,
-    color: Colors.textPrimary,
-    marginBottom: Spacing.md,
-  },
-  description: {
-    ...Typography.body,
-    color: Colors.textSecondary,
-    lineHeight: 24,
-  },
-  amenitiesGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing.md,
-  },
-  amenityItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-    width: '47%',
-  },
-  amenityText: {
-    ...Typography.body,
-    color: Colors.textPrimary,
-  },
-  infoGrid: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-  },
-  infoItem: {
-    alignItems: 'center',
-    gap: 4,
-  },
-  infoLabel: {
-    ...Typography.small,
-    color: Colors.textMuted,
-  },
-  infoValue: {
-    ...Typography.captionMedium,
-    color: Colors.textPrimary,
-  },
-  bottomCTA: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.xl,
-    paddingVertical: Spacing.lg,
-    borderTopWidth: 1,
-    borderTopColor: Colors.border,
-    backgroundColor: Colors.white,
-    ...Shadows.lg,
-  },
-  ctaPriceContainer: {
-    flex: 1,
-  },
-  ctaPriceLabel: {
-    ...Typography.caption,
-    color: Colors.textSecondary,
-  },
-  ctaPrice: {
-    ...Typography.h4,
-    color: Colors.textPrimary,
-  },
-  ctaButton: {
-    flex: 1,
-  },
+  container: { flex: 1, backgroundColor: Colors.background },
+  loaderWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.background },
+  loaderContent: { alignItems: 'center', gap: Spacing.md },
+  loaderText: { ...Typography.caption, color: Colors.textMuted },
+
+  floatingHeader: { position: 'absolute', left: Spacing.lg, right: Spacing.lg, flexDirection: 'row', justifyContent: 'space-between', zIndex: 10 },
+  floatingBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: 'rgba(255,255,255,0.95)', alignItems: 'center', justifyContent: 'center', ...Shadows.md, borderWidth: 1, borderColor: Colors.borderLight },
+  floatingRight: { flexDirection: 'row', gap: Spacing.sm },
+
+  content: { paddingHorizontal: Spacing.xl, paddingTop: Spacing.xl, borderTopLeftRadius: BorderRadius.xxl, borderTopRightRadius: BorderRadius.xxl, marginTop: -20, backgroundColor: Colors.background },
+
+  priceRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: Spacing.md },
+  price: { ...Typography.h2, color: Colors.primary },
+  priceLabel: { ...Typography.small, color: Colors.textMuted, marginTop: 2 },
+
+  title: { ...Typography.h3, color: Colors.textPrimary, marginBottom: Spacing.sm },
+  locationRow: { flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.xxl, gap: Spacing.sm },
+  locationIcon: { width: 32, height: 32, borderRadius: 16, backgroundColor: Colors.primaryLight, alignItems: 'center', justifyContent: 'center' },
+  locationText: { ...Typography.caption, color: Colors.textSecondary, flex: 1 },
+
+  featuresGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm, marginBottom: Spacing.xxl },
+  featureItem: { width: '31%', backgroundColor: Colors.surface, borderRadius: BorderRadius.xl, padding: Spacing.md, alignItems: 'center', borderWidth: 1, borderColor: Colors.borderLight },
+  featureIcon: { width: 44, height: 44, borderRadius: 22, backgroundColor: Colors.primaryLight, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.xs },
+  featureValue: { ...Typography.bodySemiBold, color: Colors.textPrimary },
+  featureLabel: { ...Typography.small, color: Colors.textMuted, marginTop: 2 },
+
+  descriptionSection: { marginBottom: Spacing.xxl },
+  sectionTitle: { ...Typography.h4, color: Colors.textPrimary, marginBottom: Spacing.md },
+  description: { ...Typography.body, color: Colors.textSecondary, lineHeight: 24 },
+
+  amenitiesSection: { marginBottom: Spacing.xxl },
+  amenitiesWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
+  amenityChip: { flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.successLight, borderRadius: BorderRadius.full, paddingHorizontal: Spacing.md, paddingVertical: Spacing.xs + 2, gap: Spacing.xs },
+  amenityText: { ...Typography.caption, color: Colors.success, fontWeight: '500' },
+
+  installmentCard: { marginBottom: Spacing.xxl, position: 'relative', overflow: 'hidden' },
+  installmentGradient: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: BorderRadius.lg },
+  installmentHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.md },
+  installmentBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.primaryLight, paddingHorizontal: Spacing.md, paddingVertical: Spacing.xs, borderRadius: BorderRadius.full, gap: Spacing.xs },
+  installmentBadgeText: { ...Typography.captionMedium, color: Colors.primary },
+  installmentDesc: { ...Typography.caption, color: Colors.textSecondary, marginBottom: Spacing.md, lineHeight: 20 },
+  installmentPreview: { marginBottom: Spacing.md },
+  installmentRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: Spacing.xs },
+  installmentLabel: { ...Typography.caption, color: Colors.textMuted },
+  installmentValue: { ...Typography.captionMedium, color: Colors.textPrimary },
+  progressBar: { marginBottom: Spacing.md },
+  installmentButton: {},
+
+  bottomCTA: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: Colors.white, paddingHorizontal: Spacing.xl, paddingTop: Spacing.md, flexDirection: 'row', gap: Spacing.md, alignItems: 'center', ...Shadows.lg, borderTopWidth: 1, borderTopColor: Colors.borderLight },
+  callBtn: { width: 52, height: 52, borderRadius: BorderRadius.xl, borderWidth: 1.5, borderColor: Colors.primary, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.primaryLight },
+  ctaButton: { flex: 1 },
 });
+

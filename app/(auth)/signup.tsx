@@ -7,6 +7,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   TouchableOpacity,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -68,6 +69,8 @@ export default function SignupScreen() {
   };
 
   const displayRole = role === 'REALTOR' ? 'Realtor' : 'Client';
+  const roleBadgeColor = role === 'REALTOR' ? '#059669' : Colors.primary;
+  const roleBadgeBg = role === 'REALTOR' ? '#D1FAE5' : '#DBEAFE';
 
   return (
     <SafeAreaView style={styles.container}>
@@ -80,34 +83,48 @@ export default function SignupScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {/* Back button */}
-          <TouchableOpacity
-            onPress={() => router.back()}
-            style={styles.backButton}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          >
-            <Ionicons name="arrow-back" size={24} color={Colors.textPrimary} />
-          </TouchableOpacity>
+          {/* Top bar */}
+          <View style={styles.topBar}>
+            <TouchableOpacity
+              onPress={() => router.back()}
+              style={styles.backButton}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Ionicons name="arrow-back" size={24} color={Colors.textPrimary} />
+            </TouchableOpacity>
+            <View style={[styles.roleBadge, { backgroundColor: roleBadgeBg }]}>
+              <View style={[styles.roleDot, { backgroundColor: roleBadgeColor }]} />
+              <Text style={[styles.roleBadgeText, { color: roleBadgeColor }]}>
+                {displayRole}
+              </Text>
+            </View>
+          </View>
 
           {/* Header */}
           <View style={styles.header}>
+            <Image
+              source={require('../../assets/logo.png')}
+              style={styles.logo}
+              resizeMode="contain"
+            />
             <Text style={styles.title}>Create Account</Text>
             <Text style={styles.subtitle}>
-              Join 4Zee Properties as a{' '}
-              <Text style={styles.roleHighlight}>{displayRole}</Text>
+              Join 4Zee Properties and start your journey
             </Text>
           </View>
 
           {/* Error banner */}
           {error && (
             <View style={styles.errorBanner}>
-              <Ionicons name="alert-circle" size={18} color={Colors.error} />
+              <View style={styles.errorIconWrap}>
+                <Ionicons name="alert-circle" size={18} color={Colors.error} />
+              </View>
               <Text style={styles.errorText}>{error}</Text>
             </View>
           )}
 
-          {/* Form */}
-          <View style={styles.form}>
+          {/* Form Card */}
+          <View style={styles.formCard}>
             <View style={styles.row}>
               <Input
                 label="First Name"
@@ -195,10 +212,18 @@ export default function SignupScreen() {
             />
           </View>
 
+          {/* Terms */}
+          <Text style={styles.termsText}>
+            By creating an account, you agree to our{' '}
+            <Text style={styles.termsLink}>Terms of Service</Text>
+            {' '}and{' '}
+            <Text style={styles.termsLink}>Privacy Policy</Text>
+          </Text>
+
           {/* Footer */}
           <View style={styles.footer}>
             <Text style={styles.footerText}>Already have an account?</Text>
-            <TouchableOpacity onPress={() => router.push('/(auth)/login')}>
+            <TouchableOpacity onPress={() => router.push('/login')}>
               <Text style={styles.footerLink}> Sign In</Text>
             </TouchableOpacity>
           </View>
@@ -219,30 +244,59 @@ const styles = StyleSheet.create({
   scroll: {
     flexGrow: 1,
     paddingHorizontal: Spacing.xxl,
-    paddingVertical: Spacing.xxl,
+    paddingVertical: Spacing.lg,
+  },
+  topBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: Spacing.lg,
   },
   backButton: {
     width: 44,
     height: 44,
+    borderRadius: 22,
+    backgroundColor: Colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: Spacing.lg,
+  },
+  roleBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: Spacing.xs + 2,
+    paddingHorizontal: Spacing.md,
+    borderRadius: BorderRadius.full,
+    gap: Spacing.xs,
+  },
+  roleDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  roleBadgeText: {
+    ...Typography.captionMedium,
+    fontWeight: '600',
   },
   header: {
+    alignItems: 'center',
     marginBottom: Spacing.xxl,
   },
+  logo: {
+    width: 56,
+    height: 56,
+    marginBottom: Spacing.md,
+  },
   title: {
-    ...Typography.h2,
+    fontSize: 26,
+    fontWeight: '700',
     color: Colors.textPrimary,
-    marginBottom: Spacing.sm,
+    marginBottom: Spacing.xs,
+    letterSpacing: -0.5,
   },
   subtitle: {
     ...Typography.body,
     color: Colors.textSecondary,
-  },
-  roleHighlight: {
-    color: Colors.primary,
-    fontWeight: '600',
+    textAlign: 'center',
   },
   errorBanner: {
     flexDirection: 'row',
@@ -253,13 +307,27 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.lg,
     gap: Spacing.sm,
   },
+  errorIconWrap: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: Colors.error + '15',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   errorText: {
     ...Typography.caption,
     color: Colors.error,
     flex: 1,
   },
-  form: {
-    marginBottom: Spacing.xxl,
+  formCard: {
+    backgroundColor: Colors.white,
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.xxl,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+    ...Shadows.sm,
+    marginBottom: Spacing.lg,
   },
   row: {
     flexDirection: 'row',
@@ -268,11 +336,22 @@ const styles = StyleSheet.create({
   halfInput: {
     flex: 1,
   },
+  termsText: {
+    ...Typography.caption,
+    color: Colors.textMuted,
+    textAlign: 'center',
+    marginBottom: Spacing.xxl,
+    lineHeight: 20,
+  },
+  termsLink: {
+    color: Colors.primary,
+    fontWeight: '500',
+  },
   footer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    paddingBottom: Spacing.xxl,
+    paddingBottom: Spacing.lg,
   },
   footerText: {
     ...Typography.body,

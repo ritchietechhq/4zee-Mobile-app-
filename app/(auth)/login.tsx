@@ -7,6 +7,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   TouchableOpacity,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -45,25 +46,31 @@ export default function LoginScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {/* Header */}
+          {/* Logo & Header */}
           <View style={styles.header}>
-            <View style={styles.logoContainer}>
-              <Ionicons name="home" size={32} color={Colors.white} />
-            </View>
+            <Image
+              source={require('../../assets/logo.png')}
+              style={styles.logo}
+              resizeMode="contain"
+            />
             <Text style={styles.title}>Welcome Back</Text>
-            <Text style={styles.subtitle}>Sign in to your 4Zee Properties account</Text>
+            <Text style={styles.subtitle}>
+              Sign in to your 4Zee Properties account
+            </Text>
           </View>
 
           {/* Error banner */}
           {error && (
             <View style={styles.errorBanner}>
-              <Ionicons name="alert-circle" size={18} color={Colors.error} />
+              <View style={styles.errorIconWrap}>
+                <Ionicons name="alert-circle" size={18} color={Colors.error} />
+              </View>
               <Text style={styles.errorText}>{error}</Text>
             </View>
           )}
 
-          {/* Form */}
-          <View style={styles.form}>
+          {/* Form Card */}
+          <View style={styles.formCard}>
             <Input
               label="Email Address"
               placeholder="you@example.com"
@@ -89,7 +96,7 @@ export default function LoginScreen() {
             />
 
             <TouchableOpacity
-              onPress={() => router.push('/(auth)/forgot-password')}
+              onPress={() => router.push('/forgot-password')}
               style={styles.forgotLink}
             >
               <Text style={styles.forgotText}>Forgot Password?</Text>
@@ -104,10 +111,27 @@ export default function LoginScreen() {
             />
           </View>
 
+          {/* Divider */}
+          <View style={styles.dividerRow}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>or</Text>
+            <View style={styles.dividerLine} />
+          </View>
+
+          {/* Secondary action */}
+          <TouchableOpacity
+            style={styles.secondaryButton}
+            onPress={() => router.push('/role-select')}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="swap-horizontal-outline" size={20} color={Colors.primary} />
+            <Text style={styles.secondaryButtonText}>Switch Role</Text>
+          </TouchableOpacity>
+
           {/* Footer */}
           <View style={styles.footer}>
             <Text style={styles.footerText}>Don't have an account?</Text>
-            <TouchableOpacity onPress={() => router.push('/(auth)/signup')}>
+            <TouchableOpacity onPress={() => router.push('/signup')}>
               <Text style={styles.footerLink}> Sign Up</Text>
             </TouchableOpacity>
           </View>
@@ -133,22 +157,19 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: 'center',
-    marginBottom: Spacing.xxxl,
+    marginBottom: Spacing.xxl,
   },
-  logoContainer: {
-    width: 64,
-    height: 64,
-    borderRadius: BorderRadius.lg,
-    backgroundColor: Colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
+  logo: {
+    width: 72,
+    height: 72,
     marginBottom: Spacing.lg,
-    ...Shadows.md,
   },
   title: {
-    ...Typography.h2,
+    fontSize: 28,
+    fontWeight: '700',
     color: Colors.textPrimary,
-    marginBottom: Spacing.sm,
+    marginBottom: Spacing.xs,
+    letterSpacing: -0.5,
   },
   subtitle: {
     ...Typography.body,
@@ -164,22 +185,71 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.lg,
     gap: Spacing.sm,
   },
+  errorIconWrap: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: Colors.error + '15',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   errorText: {
     ...Typography.caption,
     color: Colors.error,
     flex: 1,
   },
-  form: {
+  formCard: {
+    backgroundColor: Colors.white,
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.xxl,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+    ...Shadows.sm,
     marginBottom: Spacing.xxl,
   },
   forgotLink: {
     alignSelf: 'flex-end',
-    marginBottom: Spacing.xxl,
+    marginBottom: Spacing.xl,
     marginTop: -Spacing.sm,
   },
   forgotText: {
     ...Typography.captionMedium,
     color: Colors.primary,
+  },
+  dividerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: Spacing.lg,
+    gap: Spacing.md,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: Colors.border,
+  },
+  dividerText: {
+    ...Typography.caption,
+    color: Colors.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+  secondaryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.xl,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1.5,
+    borderColor: Colors.primary + '30',
+    backgroundColor: Colors.primaryLight,
+    gap: Spacing.sm,
+    marginBottom: Spacing.xxl,
+  },
+  secondaryButtonText: {
+    ...Typography.bodySemiBold,
+    color: Colors.primary,
+    fontSize: 15,
   },
   footer: {
     flexDirection: 'row',

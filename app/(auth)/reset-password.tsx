@@ -7,6 +7,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   TouchableOpacity,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -15,7 +16,7 @@ import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import authService from '@/services/auth.service';
 import { isValidPassword } from '@/utils/validators';
-import { Colors, Spacing, Typography, BorderRadius } from '@/constants/theme';
+import { Colors, Spacing, Typography, BorderRadius, Shadows } from '@/constants/theme';
 
 export default function ResetPasswordScreen() {
   const { token } = useLocalSearchParams<{ token: string }>();
@@ -50,7 +51,9 @@ export default function ResetPasswordScreen() {
       setIsSuccess(true);
     } catch (error: unknown) {
       const message =
-        error instanceof Error ? error.message : 'Failed to reset password. Please try again.';
+        error instanceof Error
+          ? error.message
+          : 'Failed to reset password. Please try again.';
       setApiError(message);
     } finally {
       setIsLoading(false);
@@ -61,16 +64,23 @@ export default function ResetPasswordScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.successContent}>
-          <View style={styles.successIcon}>
-            <Ionicons name="checkmark-circle" size={48} color={Colors.success} />
+          <View style={styles.successIconOuter}>
+            <View style={styles.successIconInner}>
+              <Ionicons
+                name="checkmark-circle"
+                size={44}
+                color={Colors.success}
+              />
+            </View>
           </View>
           <Text style={styles.successTitle}>Password Reset!</Text>
           <Text style={styles.successText}>
-            Your password has been successfully reset. You can now sign in with your new password.
+            Your password has been successfully updated. You can now sign in with
+            your new password.
           </Text>
           <Button
-            title="Sign In"
-            onPress={() => router.replace('/(auth)/login')}
+            title="Continue to Sign In"
+            onPress={() => router.replace('/login')}
             fullWidth
             size="lg"
           />
@@ -88,56 +98,135 @@ export default function ResetPasswordScreen() {
         <ScrollView
           contentContainerStyle={styles.scroll}
           keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
+          {/* Back button */}
           <TouchableOpacity
             onPress={() => router.back()}
             style={styles.backButton}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
             <Ionicons name="arrow-back" size={24} color={Colors.textPrimary} />
           </TouchableOpacity>
 
+          {/* Header */}
           <View style={styles.header}>
-            <Text style={styles.title}>Reset Password</Text>
-            <Text style={styles.subtitle}>Enter your new password below.</Text>
+            <Image
+              source={require('../../assets/logo.png')}
+              style={styles.logo}
+              resizeMode="contain"
+            />
+            <Text style={styles.title}>Create New Password</Text>
+            <Text style={styles.subtitle}>
+              Your new password must be different from your previously used
+              password.
+            </Text>
           </View>
 
+          {/* Error */}
           {apiError && (
             <View style={styles.errorBanner}>
-              <Ionicons name="alert-circle" size={18} color={Colors.error} />
+              <View style={styles.errorIconWrap}>
+                <Ionicons name="alert-circle" size={18} color={Colors.error} />
+              </View>
               <Text style={styles.errorText}>{apiError}</Text>
             </View>
           )}
 
-          <Input
-            label="New Password"
-            placeholder="Min 8 characters"
-            leftIcon="lock-closed-outline"
-            secureTextEntry
-            value={password}
-            onChangeText={setPassword}
-            error={errors.password}
-            hint="At least 8 characters, 1 uppercase, 1 number"
-            required
-          />
+          {/* Form Card */}
+          <View style={styles.formCard}>
+            {/* Password strength hints */}
+            <View style={styles.hintBox}>
+              <Text style={styles.hintTitle}>Password requirements:</Text>
+              <View style={styles.hintRow}>
+                <Ionicons
+                  name={
+                    password.length >= 8
+                      ? 'checkmark-circle'
+                      : 'ellipse-outline'
+                  }
+                  size={16}
+                  color={password.length >= 8 ? Colors.success : Colors.textMuted}
+                />
+                <Text
+                  style={[
+                    styles.hintText,
+                    password.length >= 8 && styles.hintTextMet,
+                  ]}
+                >
+                  At least 8 characters
+                </Text>
+              </View>
+              <View style={styles.hintRow}>
+                <Ionicons
+                  name={
+                    /[A-Z]/.test(password)
+                      ? 'checkmark-circle'
+                      : 'ellipse-outline'
+                  }
+                  size={16}
+                  color={/[A-Z]/.test(password) ? Colors.success : Colors.textMuted}
+                />
+                <Text
+                  style={[
+                    styles.hintText,
+                    /[A-Z]/.test(password) && styles.hintTextMet,
+                  ]}
+                >
+                  One uppercase letter
+                </Text>
+              </View>
+              <View style={styles.hintRow}>
+                <Ionicons
+                  name={
+                    /[0-9]/.test(password)
+                      ? 'checkmark-circle'
+                      : 'ellipse-outline'
+                  }
+                  size={16}
+                  color={/[0-9]/.test(password) ? Colors.success : Colors.textMuted}
+                />
+                <Text
+                  style={[
+                    styles.hintText,
+                    /[0-9]/.test(password) && styles.hintTextMet,
+                  ]}
+                >
+                  One number
+                </Text>
+              </View>
+            </View>
 
-          <Input
-            label="Confirm New Password"
-            placeholder="Re-enter your password"
-            leftIcon="lock-closed-outline"
-            secureTextEntry
-            value={confirmPassword}
-            onChangeText={setConfirmPassword}
-            error={errors.confirmPassword}
-            required
-          />
+            <Input
+              label="New Password"
+              placeholder="Enter new password"
+              leftIcon="lock-closed-outline"
+              secureTextEntry
+              value={password}
+              onChangeText={setPassword}
+              error={errors.password}
+              required
+            />
 
-          <Button
-            title="Reset Password"
-            onPress={handleSubmit}
-            loading={isLoading}
-            fullWidth
-            size="lg"
-          />
+            <Input
+              label="Confirm New Password"
+              placeholder="Re-enter your password"
+              leftIcon="lock-closed-outline"
+              secureTextEntry
+              value={confirmPassword}
+              onChangeText={setConfirmPassword}
+              error={errors.confirmPassword}
+              required
+            />
+
+            <Button
+              title="Reset Password"
+              onPress={handleSubmit}
+              loading={isLoading}
+              fullWidth
+              size="lg"
+            />
+          </View>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -160,21 +249,33 @@ const styles = StyleSheet.create({
   backButton: {
     width: 44,
     height: 44,
+    borderRadius: 22,
+    backgroundColor: Colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: Spacing.lg,
+    marginBottom: Spacing.xxl,
   },
   header: {
-    marginBottom: Spacing.xxxl,
+    alignItems: 'center',
+    marginBottom: Spacing.xxl,
+  },
+  logo: {
+    width: 56,
+    height: 56,
+    marginBottom: Spacing.lg,
   },
   title: {
-    ...Typography.h2,
+    fontSize: 26,
+    fontWeight: '700',
     color: Colors.textPrimary,
     marginBottom: Spacing.sm,
+    letterSpacing: -0.5,
   },
   subtitle: {
     ...Typography.body,
     color: Colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 22,
   },
   errorBanner: {
     flexDirection: 'row',
@@ -185,35 +286,86 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.lg,
     gap: Spacing.sm,
   },
+  errorIconWrap: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: Colors.error + '15',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   errorText: {
     ...Typography.caption,
     color: Colors.error,
     flex: 1,
   },
+  formCard: {
+    backgroundColor: Colors.white,
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.xxl,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+    ...Shadows.sm,
+  },
+  hintBox: {
+    backgroundColor: Colors.surface,
+    padding: Spacing.lg,
+    borderRadius: BorderRadius.md,
+    marginBottom: Spacing.xl,
+    gap: Spacing.sm,
+  },
+  hintTitle: {
+    ...Typography.captionMedium,
+    color: Colors.textPrimary,
+    marginBottom: Spacing.xs,
+  },
+  hintRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  hintText: {
+    ...Typography.caption,
+    color: Colors.textMuted,
+  },
+  hintTextMet: {
+    color: Colors.success,
+  },
+  // Success state
   successContent: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: Spacing.xxl,
   },
-  successIcon: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
+  successIconOuter: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
     backgroundColor: Colors.successLight,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: Spacing.xxl,
   },
+  successIconInner: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: Colors.success + '15',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   successTitle: {
-    ...Typography.h2,
+    fontSize: 24,
+    fontWeight: '700',
     color: Colors.textPrimary,
-    marginBottom: Spacing.md,
+    marginBottom: Spacing.sm,
   },
   successText: {
     ...Typography.body,
     color: Colors.textSecondary,
     textAlign: 'center',
     marginBottom: Spacing.xxxl,
+    lineHeight: 22,
   },
 });

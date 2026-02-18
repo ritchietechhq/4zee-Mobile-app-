@@ -1,83 +1,50 @@
+import React from 'react';
+import { StyleSheet, View, Platform } from 'react-native';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Platform, StyleSheet } from 'react-native';
-import { Colors, Shadows } from '@/constants/theme';
+import { Colors, Spacing, Shadows, Typography } from '@/constants/theme';
+
+const TAB_CONFIG = [
+  { name: 'dashboard', title: 'Home', icon: 'home' },
+  { name: 'search', title: 'Search', icon: 'search' },
+  { name: 'saved', title: 'Saved', icon: 'heart' },
+  { name: 'map', title: 'Map', icon: 'map' },
+  { name: 'profile', title: 'Profile', icon: 'person' },
+] as const;
 
 export default function ClientLayout() {
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: Colors.tabBarActive,
-        tabBarInactiveTintColor: Colors.tabBarInactive,
+        tabBarActiveTintColor: Colors.primary,
+        tabBarInactiveTintColor: Colors.textMuted,
+        tabBarLabelStyle: styles.tabLabel,
         tabBarStyle: styles.tabBar,
-        tabBarLabelStyle: styles.tabBarLabel,
+        tabBarItemStyle: styles.tabItem,
       }}
     >
-      <Tabs.Screen
-        name="dashboard"
-        options={{
-          title: 'Home',
-          tabBarIcon: ({ focused, color, size }) => (
-            <Ionicons
-              name={focused ? 'home' : 'home-outline'}
-              size={size}
-              color={color}
-            />
-          ),
-        }}
-      />
+      {TAB_CONFIG.map((tab) => (
+        <Tabs.Screen
+          key={tab.name}
+          name={tab.name}
+          options={{
+            title: tab.title,
+            tabBarIcon: ({ focused, color, size }) => (
+              <View style={[styles.iconWrap, focused && styles.iconWrapActive]}>
+                <Ionicons
+                  name={focused ? (tab.icon as any) : (`${tab.icon}-outline` as any)}
+                  size={22}
+                  color={color}
+                />
+              </View>
+            ),
+          }}
+        />
+      ))}
       <Tabs.Screen
         name="properties"
-        options={{
-          title: 'Properties',
-          tabBarIcon: ({ focused, color, size }) => (
-            <Ionicons
-              name={focused ? 'grid' : 'grid-outline'}
-              size={size}
-              color={color}
-            />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="applications"
-        options={{
-          title: 'Applications',
-          tabBarIcon: ({ focused, color, size }) => (
-            <Ionicons
-              name={focused ? 'document-text' : 'document-text-outline'}
-              size={size}
-              color={color}
-            />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="payments"
-        options={{
-          title: 'Payments',
-          tabBarIcon: ({ focused, color, size }) => (
-            <Ionicons
-              name={focused ? 'card' : 'card-outline'}
-              size={size}
-              color={color}
-            />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="profile"
-        options={{
-          title: 'Profile',
-          tabBarIcon: ({ focused, color, size }) => (
-            <Ionicons
-              name={focused ? 'person' : 'person-outline'}
-              size={size}
-              color={color}
-            />
-          ),
-        }}
+        options={{ href: null }}
       />
     </Tabs>
   );
@@ -85,16 +52,29 @@ export default function ClientLayout() {
 
 const styles = StyleSheet.create({
   tabBar: {
-    backgroundColor: Colors.tabBarBackground,
-    borderTopColor: Colors.border,
+    backgroundColor: Colors.white,
     borderTopWidth: 1,
+    borderTopColor: Colors.borderLight,
     height: Platform.OS === 'ios' ? 88 : 64,
-    paddingBottom: Platform.OS === 'ios' ? 28 : 8,
-    paddingTop: 8,
+    paddingTop: Spacing.xs,
     ...Shadows.sm,
   },
-  tabBarLabel: {
+  tabLabel: {
     fontSize: 11,
-    fontWeight: '500',
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  tabItem: {
+    paddingTop: 4,
+  },
+  iconWrap: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 40,
+    height: 28,
+    borderRadius: 14,
+  },
+  iconWrapActive: {
+    backgroundColor: Colors.primaryLight,
   },
 });

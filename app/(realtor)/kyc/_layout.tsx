@@ -1,7 +1,7 @@
 import { Stack } from 'expo-router';
 import { Colors } from '@/constants/theme';
 
-export default function PropertiesLayout() {
+export default function KYCLayout() {
   return (
     <Stack
       screenOptions={{
@@ -9,6 +9,9 @@ export default function PropertiesLayout() {
         contentStyle: { backgroundColor: Colors.background },
         animation: 'slide_from_right',
       }}
-    />
+    >
+      <Stack.Screen name="index" />
+      <Stack.Screen name="submit" />
+    </Stack>
   );
 }

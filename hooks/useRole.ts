@@ -15,12 +15,12 @@ export function useRole() {
       await setRole(selectedRole);
       if (isAuthenticated) {
         if (selectedRole === 'REALTOR') {
-          router.replace('/(realtor)/dashboard');
+          router.replace('/dashboard' as const);
         } else {
-          router.replace('/(client)/dashboard');
+          router.replace('/dashboard' as const);
         }
       } else {
-        router.replace('/(auth)/login');
+        router.replace('/login');
       }
     },
     [setRole, isAuthenticated],
