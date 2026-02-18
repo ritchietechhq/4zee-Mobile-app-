@@ -6,24 +6,23 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Dimensions,
-  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import MapView, { Marker, Callout, Region } from 'react-native-maps';
 import { propertyService } from '@/services/property.service';
-import { Property } from '@/types';
+import type { Property, PropertyAvailability } from '@/types';
 import { formatCurrency } from '@/utils/formatCurrency';
 import { Colors, Spacing, Typography, BorderRadius, Shadows } from '@/constants/theme';
 
 const { width, height } = Dimensions.get('window');
 const ASPECT_RATIO = width / height;
 
-// Default region (Lahore, Pakistan)
+// Default region (Lagos, Nigeria)
 const DEFAULT_REGION: Region = {
-  latitude: 31.5204,
-  longitude: 74.3587,
+  latitude: 6.5244,
+  longitude: 3.3792,
   latitudeDelta: 0.0922,
   longitudeDelta: 0.0922 * ASPECT_RATIO,
 };
@@ -35,32 +34,21 @@ export default function MapScreen() {
   const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
 
   useEffect(() => {
-    loadNearbyProperties();
+    loadProperties();
   }, []);
 
-  const loadNearbyProperties = async () => {
+  const loadProperties = async () => {
     try {
-      const data = await propertyService.getNearbyProperties(
-        DEFAULT_REGION.latitude,
-        DEFAULT_REGION.longitude,
-        50 // 50km radius
-      );
-      setProperties(data);
+      const result = await propertyService.search({
+        availability: 'AVAILABLE',
+        limit: 50,
+      });
+      setProperties(result.items || []);
     } catch {
-      // Fallback: load all properties
-      try {
-        const result = await propertyService.getProperties({});
-        setProperties(result.data || []);
-      } catch {
-        // Handle silently
-      }
+      // Handle silently
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const handleRegionChange = async (region: Region) => {
-    // Optionally reload properties when map moves
   };
 
   const handleMarkerPress = (property: Property) => {
@@ -71,13 +59,13 @@ export default function MapScreen() {
     router.push(`/(client)/properties/${property.id}` as any);
   };
 
-  const getMarkerColor = (status: string) => {
-    switch (status) {
-      case 'available':
+  const getMarkerColor = (availability: PropertyAvailability) => {
+    switch (availability) {
+      case 'AVAILABLE':
         return Colors.success;
-      case 'sold':
+      case 'SOLD':
         return Colors.error;
-      case 'reserved':
+      case 'RESERVED':
         return Colors.warning;
       default:
         return Colors.primary;
@@ -91,21 +79,20 @@ export default function MapScreen() {
         ref={mapRef}
         style={styles.map}
         initialRegion={DEFAULT_REGION}
-        onRegionChangeComplete={handleRegionChange}
         showsUserLocation
         showsMyLocationButton={false}
         showsCompass={false}
       >
         {properties.map((property) => {
-          const lat = property.address?.latitude;
-          const lng = property.address?.longitude;
+          const lat = property.coordinates?.lat;
+          const lng = property.coordinates?.lng;
           if (!lat || !lng) return null;
 
           return (
             <Marker
               key={property.id}
               coordinate={{ latitude: lat, longitude: lng }}
-              pinColor={getMarkerColor(property.status)}
+              pinColor={getMarkerColor(property.availability)}
               onPress={() => handleMarkerPress(property)}
             >
               <Callout onPress={() => handlePropertyPress(property)}>
@@ -117,7 +104,7 @@ export default function MapScreen() {
                     {formatCurrency(property.price)}
                   </Text>
                   <Text style={styles.calloutLocation}>
-                    {property.address?.city}
+                    {property.city}
                   </Text>
                 </View>
               </Callout>
@@ -172,25 +159,31 @@ export default function MapScreen() {
                 {selectedProperty.title}
               </Text>
               <Text style={styles.propertyCardLocation} numberOfLines={1}>
-                {selectedProperty.address?.city}, {selectedProperty.address?.state}
+                {selectedProperty.city}, {selectedProperty.state}
               </Text>
               <Text style={styles.propertyCardPrice}>
                 {formatCurrency(selectedProperty.price)}
               </Text>
             </View>
             <View style={styles.propertyCardMeta}>
-              <View style={styles.metaItem}>
-                <Ionicons name="bed-outline" size={14} color={Colors.textTertiary} />
-                <Text style={styles.metaText}>{selectedProperty.bedrooms}</Text>
-              </View>
-              <View style={styles.metaItem}>
-                <Ionicons name="water-outline" size={14} color={Colors.textTertiary} />
-                <Text style={styles.metaText}>{selectedProperty.bathrooms}</Text>
-              </View>
-              <View style={styles.metaItem}>
-                <Ionicons name="resize-outline" size={14} color={Colors.textTertiary} />
-                <Text style={styles.metaText}>{selectedProperty.area} sqft</Text>
-              </View>
+              {selectedProperty.bedrooms != null && (
+                <View style={styles.metaItem}>
+                  <Ionicons name="bed-outline" size={14} color={Colors.textTertiary} />
+                  <Text style={styles.metaText}>{selectedProperty.bedrooms}</Text>
+                </View>
+              )}
+              {selectedProperty.bathrooms != null && (
+                <View style={styles.metaItem}>
+                  <Ionicons name="water-outline" size={14} color={Colors.textTertiary} />
+                  <Text style={styles.metaText}>{selectedProperty.bathrooms}</Text>
+                </View>
+              )}
+              {selectedProperty.area != null && (
+                <View style={styles.metaItem}>
+                  <Ionicons name="resize-outline" size={14} color={Colors.textTertiary} />
+                  <Text style={styles.metaText}>{selectedProperty.area} sqm</Text>
+                </View>
+              )}
             </View>
           </View>
           <TouchableOpacity

@@ -6,67 +6,75 @@ import {
   FlatList,
   RefreshControl,
   TouchableOpacity,
-  Alert,
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import { usePropertyStore } from '@/store/property.store';
+import { propertyService } from '@/services/property.service';
 import { Badge } from '@/components/ui/Badge';
-import { Button } from '@/components/ui/Button';
-import { Property } from '@/types';
+import type { Property, PropertyAvailability } from '@/types';
 import { formatCurrency } from '@/utils/formatCurrency';
 import { Colors, Spacing, Typography, BorderRadius, Shadows } from '@/constants/theme';
-import { propertyService } from '@/services/property.service';
 
 export default function RealtorListings() {
-  const { myListings, isLoading, fetchMyListings } = usePropertyStore();
+  const [properties, setProperties] = useState<Property[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [nextCursor, setNextCursor] = useState<string | undefined>();
+  const [hasMore, setHasMore] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+
+  const fetchListings = useCallback(async (cursor?: string) => {
+    try {
+      const result = await propertyService.search({
+        limit: 15,
+        cursor,
+      });
+
+      const items = result.items || [];
+      if (cursor) {
+        setProperties((prev) => [...prev, ...items]);
+      } else {
+        setProperties(items);
+      }
+      setNextCursor(result.pagination?.nextCursor);
+      setHasMore(result.pagination?.hasNext || false);
+    } catch (error) {
+      console.error('Failed to fetch listings:', error);
+    }
+  }, []);
 
   useEffect(() => {
-    fetchMyListings();
-  }, [fetchMyListings]);
+    (async () => {
+      setIsLoading(true);
+      await fetchListings();
+      setIsLoading(false);
+    })();
+  }, [fetchListings]);
 
   const onRefresh = useCallback(async () => {
     setIsRefreshing(true);
-    await fetchMyListings();
+    await fetchListings();
     setIsRefreshing(false);
-  }, [fetchMyListings]);
+  }, [fetchListings]);
 
-  const handleDelete = (property: Property) => {
-    Alert.alert(
-      'Delete Listing',
-      `Are you sure you want to delete "${property.title}"? This action cannot be undone.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await propertyService.deleteProperty(property.id);
-              fetchMyListings();
-            } catch {
-              Alert.alert('Error', 'Failed to delete listing. Please try again.');
-            }
-          },
-        },
-      ]
-    );
+  const loadMore = async () => {
+    if (!hasMore || isLoadingMore) return;
+    setIsLoadingMore(true);
+    await fetchListings(nextCursor);
+    setIsLoadingMore(false);
   };
 
-  const getStatusVariant = (status: string) => {
-    switch (status) {
-      case 'available':
+  const getAvailabilityVariant = (availability: PropertyAvailability) => {
+    switch (availability) {
+      case 'AVAILABLE':
         return 'success';
-      case 'sold':
+      case 'SOLD':
         return 'error';
-      case 'reserved':
+      case 'RESERVED':
         return 'warning';
-      case 'under_construction':
-        return 'info';
       default:
         return 'default';
     }
@@ -91,51 +99,39 @@ export default function RealtorListings() {
             {item.title}
           </Text>
           <Badge
-            label={item.status.replace('_', ' ')}
-            variant={getStatusVariant(item.status)}
+            label={item.availability}
+            variant={getAvailabilityVariant(item.availability)}
             size="sm"
           />
         </View>
         <Text style={styles.listingLocation} numberOfLines={1}>
-          {item.address?.city}, {item.address?.state}
+          {item.city}, {item.state}
         </Text>
         <Text style={styles.listingPrice}>{formatCurrency(item.price)}</Text>
 
         <View style={styles.listingMeta}>
+          {item.bedrooms != null && (
+            <View style={styles.metaItem}>
+              <Ionicons name="bed-outline" size={14} color={Colors.textTertiary} />
+              <Text style={styles.metaText}>{item.bedrooms}</Text>
+            </View>
+          )}
+          {item.bathrooms != null && (
+            <View style={styles.metaItem}>
+              <Ionicons name="water-outline" size={14} color={Colors.textTertiary} />
+              <Text style={styles.metaText}>{item.bathrooms}</Text>
+            </View>
+          )}
+          {item.area != null && (
+            <View style={styles.metaItem}>
+              <Ionicons name="resize-outline" size={14} color={Colors.textTertiary} />
+              <Text style={styles.metaText}>{item.area} sqm</Text>
+            </View>
+          )}
           <View style={styles.metaItem}>
-            <Ionicons name="bed-outline" size={14} color={Colors.textTertiary} />
-            <Text style={styles.metaText}>{item.bedrooms}</Text>
+            <Ionicons name="eye-outline" size={14} color={Colors.textTertiary} />
+            <Text style={styles.metaText}>{item.viewCount}</Text>
           </View>
-          <View style={styles.metaItem}>
-            <Ionicons name="water-outline" size={14} color={Colors.textTertiary} />
-            <Text style={styles.metaText}>{item.bathrooms}</Text>
-          </View>
-          <View style={styles.metaItem}>
-            <Ionicons name="resize-outline" size={14} color={Colors.textTertiary} />
-            <Text style={styles.metaText}>{item.area} sqft</Text>
-          </View>
-        </View>
-
-        <View style={styles.listingActions}>
-          <TouchableOpacity
-            style={styles.editButton}
-            onPress={() =>
-              router.push({
-                pathname: '/(realtor)/listings/create' as any,
-                params: { propertyId: item.id },
-              })
-            }
-          >
-            <Ionicons name="pencil-outline" size={16} color={Colors.primary} />
-            <Text style={styles.editButtonText}>Edit</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.deleteButton}
-            onPress={() => handleDelete(item)}
-          >
-            <Ionicons name="trash-outline" size={16} color={Colors.error} />
-            <Text style={styles.deleteButtonText}>Delete</Text>
-          </TouchableOpacity>
         </View>
       </View>
     </TouchableOpacity>
@@ -146,44 +142,41 @@ export default function RealtorListings() {
       <View style={styles.emptyIcon}>
         <Ionicons name="home-outline" size={48} color={Colors.textTertiary} />
       </View>
-      <Text style={styles.emptyTitle}>No Listings Yet</Text>
+      <Text style={styles.emptyTitle}>No Properties Found</Text>
       <Text style={styles.emptySubtitle}>
-        Start by creating your first property listing
+        Properties will appear here once they are listed.
       </Text>
-      <Button
-        title="Create Listing"
-        onPress={() => router.push('/(realtor)/listings/create' as any)}
-        icon="add-circle-outline"
-        style={{ marginTop: Spacing.lg }}
-      />
     </View>
   );
+
+  const renderFooter = () => {
+    if (!isLoadingMore) return null;
+    return (
+      <View style={styles.footer}>
+        <ActivityIndicator size="small" color={Colors.primary} />
+      </View>
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>My Listings</Text>
-        <TouchableOpacity
-          style={styles.addButton}
-          onPress={() => router.push('/(realtor)/listings/create' as any)}
-        >
-          <Ionicons name="add" size={24} color={Colors.white} />
-        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Listings</Text>
       </View>
 
-      {isLoading && !isRefreshing ? (
+      {isLoading ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={Colors.primary} />
         </View>
       ) : (
         <FlatList
-          data={myListings}
+          data={properties}
           renderItem={renderListing}
           keyExtractor={(item) => item.id}
           contentContainerStyle={[
             styles.listContent,
-            myListings.length === 0 && styles.emptyListContent,
+            properties.length === 0 && styles.emptyListContent,
           ]}
           showsVerticalScrollIndicator={false}
           refreshControl={
@@ -194,6 +187,9 @@ export default function RealtorListings() {
             />
           }
           ListEmptyComponent={renderEmptyState}
+          ListFooterComponent={renderFooter}
+          onEndReached={loadMore}
+          onEndReachedThreshold={0.3}
           ItemSeparatorComponent={() => <View style={{ height: Spacing.md }} />}
         />
       )}
@@ -216,14 +212,6 @@ const styles = StyleSheet.create({
   headerTitle: {
     ...Typography.h3,
     color: Colors.textPrimary,
-  },
-  addButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: Colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   listContent: {
     paddingHorizontal: Spacing.xl,
@@ -276,10 +264,6 @@ const styles = StyleSheet.create({
   listingMeta: {
     flexDirection: 'row',
     gap: Spacing.lg,
-    marginBottom: Spacing.md,
-    paddingBottom: Spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
   },
   metaItem: {
     flexDirection: 'row',
@@ -289,36 +273,6 @@ const styles = StyleSheet.create({
   metaText: {
     ...Typography.caption,
     color: Colors.textTertiary,
-  },
-  listingActions: {
-    flexDirection: 'row',
-    gap: Spacing.md,
-  },
-  editButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingVertical: Spacing.xs,
-    paddingHorizontal: Spacing.md,
-    borderRadius: BorderRadius.sm,
-    backgroundColor: Colors.primaryLight,
-  },
-  editButtonText: {
-    ...Typography.captionMedium,
-    color: Colors.primary,
-  },
-  deleteButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingVertical: Spacing.xs,
-    paddingHorizontal: Spacing.md,
-    borderRadius: BorderRadius.sm,
-    backgroundColor: Colors.errorLight,
-  },
-  deleteButtonText: {
-    ...Typography.captionMedium,
-    color: Colors.error,
   },
   emptyState: {
     alignItems: 'center',
@@ -342,5 +296,9 @@ const styles = StyleSheet.create({
     ...Typography.body,
     color: Colors.textSecondary,
     textAlign: 'center',
+  },
+  footer: {
+    padding: Spacing.lg,
+    alignItems: 'center',
   },
 });

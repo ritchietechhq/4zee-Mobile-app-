@@ -41,12 +41,12 @@ export default function RealtorLayout() {
         }}
       />
       <Tabs.Screen
-        name="leads"
+        name="commissions"
         options={{
-          title: 'Leads',
+          title: 'Commissions',
           tabBarIcon: ({ focused, color, size }) => (
             <Ionicons
-              name={focused ? 'people' : 'people-outline'}
+              name={focused ? 'cash' : 'cash-outline'}
               size={size}
               color={color}
             />

@@ -11,38 +11,25 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '@/store/auth.store';
+import { useDashboard } from '@/hooks/useDashboard';
 import { AnalyticsCard } from '@/components/charts/AnalyticsCard';
 import { Card } from '@/components/ui/Card';
-import { dashboardService } from '@/services/notification.service';
-import { DashboardStats } from '@/types';
 import { formatCurrency, formatCompactNumber } from '@/utils/formatCurrency';
 import { Colors, Spacing, Typography, BorderRadius } from '@/constants/theme';
 
 export default function RealtorDashboard() {
   const user = useAuthStore((s) => s.user);
-  const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const { realtorData, isLoading, fetchRealtorDashboard } = useDashboard();
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const fetchDashboard = useCallback(async () => {
-    try {
-      const data = await dashboardService.getRealtorDashboard();
-      setStats(data);
-    } catch {
-      // Handle silently
-    } finally {
-      setIsLoading(false);
-      setIsRefreshing(false);
-    }
-  }, []);
-
   useEffect(() => {
-    fetchDashboard();
-  }, [fetchDashboard]);
+    fetchRealtorDashboard();
+  }, [fetchRealtorDashboard]);
 
-  const onRefresh = () => {
+  const onRefresh = async () => {
     setIsRefreshing(true);
-    fetchDashboard();
+    await fetchRealtorDashboard();
+    setIsRefreshing(false);
   };
 
   return (
@@ -76,34 +63,34 @@ export default function RealtorDashboard() {
         </View>
 
         {/* Stats Grid */}
-        {stats && (
+        {realtorData && (
           <View style={styles.statsGrid}>
             <AnalyticsCard
-              title="Total Listings"
-              value={String(stats.totalListings || 0)}
-              icon="home-outline"
+              title="Total Sales"
+              value={String(realtorData.sales.total)}
+              icon="receipt-outline"
               style={styles.statCardHalf}
             />
             <AnalyticsCard
-              title="Active Listings"
-              value={String(stats.activeListings || 0)}
-              icon="checkmark-circle-outline"
+              title="This Month"
+              value={String(realtorData.sales.thisMonth)}
+              icon="trending-up-outline"
               iconColor={Colors.success}
               iconBackground={Colors.successLight}
               style={styles.statCardHalf}
             />
             <AnalyticsCard
-              title="Total Leads"
-              value={String(stats.totalLeads || 0)}
+              title="Referrals"
+              value={String(realtorData.referrals.total)}
               icon="people-outline"
               iconColor={Colors.accent}
               iconBackground={Colors.primaryLight}
               style={styles.statCardHalf}
             />
             <AnalyticsCard
-              title="Total Views"
-              value={formatCompactNumber(stats.totalViews || 0)}
-              icon="eye-outline"
+              title="Commissions"
+              value={String(realtorData.commissions.total)}
+              icon="cash-outline"
               iconColor={Colors.warning}
               iconBackground={Colors.warningLight}
               style={styles.statCardHalf}
@@ -112,18 +99,50 @@ export default function RealtorDashboard() {
         )}
 
         {/* Revenue Card */}
-        {stats?.revenue !== undefined && (
+        {realtorData && (
           <Card variant="elevated" padding="xl" style={styles.revenueCard}>
-            <Text style={styles.revenueLabel}>Total Revenue</Text>
+            <Text style={styles.revenueLabel}>Total Sales Revenue</Text>
             <Text style={styles.revenueValue}>
-              {formatCurrency(stats.revenue)}
+              {formatCurrency(realtorData.sales.totalAmount)}
             </Text>
-            {stats.conversionRate !== undefined && (
-              <View style={styles.conversionRow}>
-                <Text style={styles.conversionLabel}>Conversion Rate</Text>
-                <Text style={styles.conversionValue}>{stats.conversionRate}%</Text>
+            <View style={styles.commissionRow}>
+              <View style={styles.commissionItem}>
+                <Text style={styles.commissionLabel}>Pending</Text>
+                <Text style={styles.commissionValue}>
+                  {realtorData.commissions.pending}
+                </Text>
               </View>
-            )}
+              <View style={styles.commissionItem}>
+                <Text style={styles.commissionLabel}>Approved</Text>
+                <Text style={styles.commissionValue}>
+                  {realtorData.commissions.approved}
+                </Text>
+              </View>
+              <View style={styles.commissionItem}>
+                <Text style={styles.commissionLabel}>Paid</Text>
+                <Text style={styles.commissionValue}>
+                  {realtorData.commissions.paid}
+                </Text>
+              </View>
+            </View>
+          </Card>
+        )}
+
+        {/* Referral Earnings */}
+        {realtorData && realtorData.referrals.earnings > 0 && (
+          <Card variant="outlined" padding="lg" style={styles.referralCard}>
+            <View style={styles.referralRow}>
+              <Ionicons name="gift-outline" size={24} color={Colors.primary} />
+              <View style={styles.referralInfo}>
+                <Text style={styles.referralLabel}>Referral Earnings</Text>
+                <Text style={styles.referralValue}>
+                  {formatCurrency(realtorData.referrals.earnings)}
+                </Text>
+              </View>
+              <Text style={styles.referralCount}>
+                {realtorData.referrals.active} active
+              </Text>
+            </View>
           </Card>
         )}
 
@@ -133,32 +152,30 @@ export default function RealtorDashboard() {
           <View style={styles.actionsRow}>
             <TouchableOpacity
               style={styles.actionCard}
-              onPress={() =>
-                router.push('/(realtor)/listings/create' as any)
-              }
-            >
-              <View style={[styles.actionIcon, { backgroundColor: Colors.primaryLight }]}>
-                <Ionicons name="add-circle-outline" size={24} color={Colors.primary} />
-              </View>
-              <Text style={styles.actionLabel}>Add Listing</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.actionCard}
-              onPress={() => router.push('/(realtor)/leads')}
-            >
-              <View style={[styles.actionIcon, { backgroundColor: Colors.warningLight }]}>
-                <Ionicons name="people-outline" size={24} color={Colors.warning} />
-              </View>
-              <Text style={styles.actionLabel}>View Leads</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.actionCard}
               onPress={() => router.push('/(realtor)/listings')}
             >
-              <View style={[styles.actionIcon, { backgroundColor: Colors.successLight }]}>
-                <Ionicons name="list-outline" size={24} color={Colors.success} />
+              <View style={[styles.actionIcon, { backgroundColor: Colors.primaryLight }]}>
+                <Ionicons name="list-outline" size={24} color={Colors.primary} />
               </View>
               <Text style={styles.actionLabel}>My Listings</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.actionCard}
+              onPress={() => router.push('/(realtor)/commissions')}
+            >
+              <View style={[styles.actionIcon, { backgroundColor: Colors.warningLight }]}>
+                <Ionicons name="cash-outline" size={24} color={Colors.warning} />
+              </View>
+              <Text style={styles.actionLabel}>Commissions</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.actionCard}
+              onPress={() => router.push('/(realtor)/profile')}
+            >
+              <View style={[styles.actionIcon, { backgroundColor: Colors.successLight }]}>
+                <Ionicons name="link-outline" size={24} color={Colors.success} />
+              </View>
+              <Text style={styles.actionLabel}>Referrals</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -221,7 +238,7 @@ const styles = StyleSheet.create({
     ...Typography.h1,
     color: Colors.white,
   },
-  conversionRow: {
+  commissionRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginTop: Spacing.lg,
@@ -229,13 +246,40 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: 'rgba(255,255,255,0.2)',
   },
-  conversionLabel: {
-    ...Typography.captionMedium,
+  commissionItem: {
+    alignItems: 'center',
+  },
+  commissionLabel: {
+    ...Typography.small,
     color: 'rgba(255,255,255,0.7)',
   },
-  conversionValue: {
+  commissionValue: {
     ...Typography.bodySemiBold,
     color: Colors.white,
+  },
+  referralCard: {
+    marginHorizontal: Spacing.xl,
+    marginBottom: Spacing.xl,
+  },
+  referralRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+  },
+  referralInfo: {
+    flex: 1,
+  },
+  referralLabel: {
+    ...Typography.caption,
+    color: Colors.textSecondary,
+  },
+  referralValue: {
+    ...Typography.h4,
+    color: Colors.primary,
+  },
+  referralCount: {
+    ...Typography.captionMedium,
+    color: Colors.textSecondary,
   },
   section: {
     paddingHorizontal: Spacing.xl,

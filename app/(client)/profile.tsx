@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import {
   View,
   Text,
@@ -11,18 +11,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/hooks/useAuth';
-import { useUserStore } from '@/store/user.store';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Colors, Spacing, Typography, BorderRadius, Shadows } from '@/constants/theme';
 
 export default function ClientProfileScreen() {
   const { user, logout } = useAuth();
-  const { profile, fetchProfile } = useUserStore();
-
-  useEffect(() => {
-    fetchProfile();
-  }, []);
 
   const handleLogout = () => {
     Alert.alert('Logout', 'Are you sure you want to sign out?', [
@@ -30,8 +24,6 @@ export default function ClientProfileScreen() {
       { text: 'Sign Out', style: 'destructive', onPress: logout },
     ]);
   };
-
-  const displayUser = profile || user;
 
   const menuItems = [
     { icon: 'person-outline' as const, label: 'Edit Profile', onPress: () => {} },
@@ -53,16 +45,16 @@ export default function ClientProfileScreen() {
         <Card variant="elevated" padding="xl" style={styles.profileCard}>
           <View style={styles.avatarRow}>
             <Image
-              source={{ uri: displayUser?.avatar }}
+              source={{ uri: user?.profilePicture }}
               style={styles.avatar}
               contentFit="cover"
               placeholder="L6PZfSi_.AyE_3t7t7R**0o#DgR4"
             />
             <View style={styles.profileInfo}>
               <Text style={styles.profileName}>
-                {displayUser?.firstName} {displayUser?.lastName}
+                {user?.firstName} {user?.lastName}
               </Text>
-              <Text style={styles.profileEmail}>{displayUser?.email}</Text>
+              <Text style={styles.profileEmail}>{user?.email}</Text>
               <View style={styles.roleBadge}>
                 <Text style={styles.roleText}>Client</Text>
               </View>

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -6,52 +6,55 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
-  ActivityIndicator,
   Share,
+  ActivityIndicator,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '@/store/auth.store';
-import { useUserStore } from '@/store/user.store';
+import { referralService } from '@/services/referral.service';
+import { ReferralInfo } from '@/types';
+import { formatCurrency } from '@/utils/formatCurrency';
 import { Card } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
-import { userService } from '@/services/notification.service';
-import { Colors, Spacing, Typography, BorderRadius, Shadows } from '@/constants/theme';
+import { Colors, Spacing, Typography, BorderRadius } from '@/constants/theme';
 
 export default function RealtorProfile() {
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
-  const { profile, fetchProfile } = useUserStore();
-  const [isLoading, setIsLoading] = useState(false);
-  const [referralCode, setReferralCode] = useState<string | null>(null);
+  const [referralInfo, setReferralInfo] = useState<ReferralInfo | null>(null);
+  const [isLoadingReferral, setIsLoadingReferral] = useState(true);
 
   useEffect(() => {
-    fetchProfile();
-    loadReferralCode();
+    loadReferralInfo();
   }, []);
 
-  const loadReferralCode = async () => {
+  const loadReferralInfo = async () => {
     try {
-      const data = await userService.getReferralCode();
-      setReferralCode(data.code);
-    } catch {
-      // Referral code not available
+      setIsLoadingReferral(true);
+      const data = await referralService.getMyInfo();
+      setReferralInfo(data);
+    } catch (error) {
+      console.error('Failed to load referral info:', error);
+    } finally {
+      setIsLoadingReferral(false);
     }
   };
 
   const handleShareReferral = async () => {
-    if (!referralCode) return;
+    if (!referralInfo?.referralCode) return;
     try {
       await Share.share({
-        message: `Join 4Zee Properties with my referral code: ${referralCode}\n\nDownload the app and start your property journey today!`,
+        message: `Join 4Zee Properties using my referral code: ${referralInfo.referralCode}\n\nSign up at https://4zeeproperties.com/register?ref=${referralInfo.referralCode}`,
+        title: 'Share Referral Code',
       });
-    } catch {
-      // User cancelled
+    } catch (error) {
+      console.error('Failed to share:', error);
     }
   };
 
   const handleLogout = () => {
-    Alert.alert('Logout', 'Are you sure you want to logout?', [
+    Alert.alert('Logout', 'Are you sure you want to log out?', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Logout',
@@ -61,40 +64,7 @@ export default function RealtorProfile() {
     ]);
   };
 
-  const menuItems = [
-    {
-      icon: 'person-outline',
-      label: 'Edit Profile',
-      onPress: () => Alert.alert('Coming Soon', 'Profile editing will be available soon.'),
-    },
-    {
-      icon: 'lock-closed-outline',
-      label: 'Change Password',
-      onPress: () => Alert.alert('Coming Soon', 'Password change will be available soon.'),
-    },
-    {
-      icon: 'notifications-outline',
-      label: 'Notification Settings',
-      onPress: () => Alert.alert('Coming Soon', 'Notification settings will be available soon.'),
-    },
-    {
-      icon: 'shield-checkmark-outline',
-      label: 'Privacy & Security',
-      onPress: () => Alert.alert('Coming Soon', 'Privacy settings will be available soon.'),
-    },
-    {
-      icon: 'help-circle-outline',
-      label: 'Help & Support',
-      onPress: () => Alert.alert('Coming Soon', 'Support will be available soon.'),
-    },
-    {
-      icon: 'document-text-outline',
-      label: 'Terms & Conditions',
-      onPress: () => Alert.alert('Coming Soon', 'Terms will be available soon.'),
-    },
-  ];
-
-  const displayUser = profile || user;
+  const profilePicture = user?.profilePicture;
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -104,109 +74,145 @@ export default function RealtorProfile() {
           <Text style={styles.headerTitle}>Profile</Text>
         </View>
 
-        {/* Avatar & Info */}
-        <View style={styles.profileSection}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>
-              {displayUser?.firstName?.[0]?.toUpperCase() || ''}
-              {displayUser?.lastName?.[0]?.toUpperCase() || ''}
-            </Text>
+        {/* Profile Card */}
+        <Card variant="elevated" padding="xl" style={styles.profileCard}>
+          <View style={styles.avatarContainer}>
+            {profilePicture ? (
+              <Image source={{ uri: profilePicture }} style={styles.avatar} />
+            ) : (
+              <View style={styles.avatarPlaceholder}>
+                <Text style={styles.avatarText}>
+                  {user?.firstName?.charAt(0)}
+                  {user?.lastName?.charAt(0)}
+                </Text>
+              </View>
+            )}
           </View>
           <Text style={styles.name}>
-            {displayUser?.firstName} {displayUser?.lastName}
+            {user?.firstName} {user?.lastName}
           </Text>
-          <Text style={styles.email}>{displayUser?.email}</Text>
+          <Text style={styles.email}>{user?.email}</Text>
+          {user?.phone && <Text style={styles.phone}>{user.phone}</Text>}
           <View style={styles.roleBadge}>
             <Ionicons name="briefcase-outline" size={14} color={Colors.primary} />
             <Text style={styles.roleText}>Realtor</Text>
           </View>
-        </View>
+        </Card>
 
-        {/* Referral Code Card */}
-        {referralCode && (
-          <Card variant="elevated" padding="xl" style={styles.referralCard}>
-            <View style={styles.referralHeader}>
-              <View>
-                <Text style={styles.referralLabel}>Your Referral Code</Text>
-                <Text style={styles.referralCode}>{referralCode}</Text>
+        {/* Referral Section */}
+        <Card variant="outlined" padding="xl" style={styles.referralCard}>
+          <View style={styles.referralHeader}>
+            <Ionicons name="link-outline" size={24} color={Colors.primary} />
+            <Text style={styles.referralTitle}>Your Referral Code</Text>
+          </View>
+
+          {isLoadingReferral ? (
+            <ActivityIndicator
+              size="small"
+              color={Colors.primary}
+              style={{ marginVertical: Spacing.lg }}
+            />
+          ) : referralInfo ? (
+            <>
+              <TouchableOpacity
+                style={styles.codeContainer}
+                onPress={handleShareReferral}
+              >
+                <Text style={styles.codeText}>
+                  {referralInfo.referralCode}
+                </Text>
+                <Ionicons name="copy-outline" size={20} color={Colors.primary} />
+              </TouchableOpacity>
+
+              <View style={styles.referralStats}>
+                <View style={styles.referralStatItem}>
+                  <Text style={styles.referralStatValue}>
+                    {referralInfo.totalReferrals}
+                  </Text>
+                  <Text style={styles.referralStatLabel}>Total Referrals</Text>
+                </View>
+                <View style={styles.referralStatItem}>
+                  <Text style={styles.referralStatValue}>
+                    {referralInfo.activeReferrals}
+                  </Text>
+                  <Text style={styles.referralStatLabel}>Active</Text>
+                </View>
+                <View style={styles.referralStatItem}>
+                  <Text style={styles.referralStatValue}>
+                    {formatCurrency(referralInfo.totalReferralEarnings)}
+                  </Text>
+                  <Text style={styles.referralStatLabel}>Earned</Text>
+                </View>
               </View>
+
               <TouchableOpacity
                 style={styles.shareButton}
                 onPress={handleShareReferral}
               >
-                <Ionicons name="share-outline" size={20} color={Colors.primary} />
+                <Ionicons name="share-social-outline" size={20} color={Colors.white} />
+                <Text style={styles.shareButtonText}>Share Referral Code</Text>
               </TouchableOpacity>
+            </>
+          ) : (
+            <Text style={styles.noReferralText}>
+              Unable to load referral info. Pull to refresh.
+            </Text>
+          )}
+        </Card>
+
+        {/* Settings Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Settings</Text>
+
+          <TouchableOpacity style={styles.menuItem}>
+            <View style={styles.menuItemLeft}>
+              <Ionicons name="person-outline" size={22} color={Colors.textSecondary} />
+              <Text style={styles.menuItemText}>Edit Profile</Text>
             </View>
-            <Text style={styles.referralHint}>
-              Share this code with clients to earn referral rewards
-            </Text>
-          </Card>
-        )}
+            <Ionicons name="chevron-forward" size={20} color={Colors.textTertiary} />
+          </TouchableOpacity>
 
-        {/* Stats Card */}
-        <View style={styles.statsRow}>
-          <Card variant="outlined" padding="lg" style={styles.statCard}>
-            <Text style={styles.statValue}>
-              {(profile as any)?.totalListings || '—'}
-            </Text>
-            <Text style={styles.statLabel}>Listings</Text>
-          </Card>
-          <Card variant="outlined" padding="lg" style={styles.statCard}>
-            <Text style={styles.statValue}>
-              {(profile as any)?.totalSales || '—'}
-            </Text>
-            <Text style={styles.statLabel}>Sales</Text>
-          </Card>
-          <Card variant="outlined" padding="lg" style={styles.statCard}>
-            <Text style={styles.statValue}>
-              {(profile as any)?.rating || '—'}
-            </Text>
-            <Text style={styles.statLabel}>Rating</Text>
-          </Card>
+          <TouchableOpacity style={styles.menuItem}>
+            <View style={styles.menuItemLeft}>
+              <Ionicons name="lock-closed-outline" size={22} color={Colors.textSecondary} />
+              <Text style={styles.menuItemText}>Change Password</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={Colors.textTertiary} />
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.menuItem}>
+            <View style={styles.menuItemLeft}>
+              <Ionicons name="card-outline" size={22} color={Colors.textSecondary} />
+              <Text style={styles.menuItemText}>Bank Accounts</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={Colors.textTertiary} />
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.menuItem}>
+            <View style={styles.menuItemLeft}>
+              <Ionicons name="document-text-outline" size={22} color={Colors.textSecondary} />
+              <Text style={styles.menuItemText}>KYC Verification</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={Colors.textTertiary} />
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.menuItem}>
+            <View style={styles.menuItemLeft}>
+              <Ionicons name="notifications-outline" size={22} color={Colors.textSecondary} />
+              <Text style={styles.menuItemText}>Notifications</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={Colors.textTertiary} />
+          </TouchableOpacity>
         </View>
 
-        {/* Menu Items */}
-        <View style={styles.menuSection}>
-          {menuItems.map((item, index) => (
-            <TouchableOpacity
-              key={item.label}
-              style={[
-                styles.menuItem,
-                index < menuItems.length - 1 && styles.menuItemBorder,
-              ]}
-              onPress={item.onPress}
-            >
-              <View style={styles.menuItemLeft}>
-                <View style={styles.menuIcon}>
-                  <Ionicons
-                    name={item.icon as any}
-                    size={20}
-                    color={Colors.textSecondary}
-                  />
-                </View>
-                <Text style={styles.menuLabel}>{item.label}</Text>
-              </View>
-              <Ionicons
-                name="chevron-forward"
-                size={18}
-                color={Colors.textTertiary}
-              />
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        {/* Logout Button */}
+        {/* Logout */}
         <View style={styles.logoutSection}>
-          <Button
-            title="Logout"
-            variant="outline"
-            icon="log-out-outline"
-            onPress={handleLogout}
-            style={styles.logoutButton}
-          />
+          <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+            <Ionicons name="log-out-outline" size={22} color={Colors.error} />
+            <Text style={styles.logoutText}>Logout</Text>
+          </TouchableOpacity>
         </View>
 
-        {/* App Version */}
         <Text style={styles.version}>4Zee Properties v1.0.0</Text>
       </ScrollView>
     </SafeAreaView>
@@ -220,47 +226,61 @@ const styles = StyleSheet.create({
   },
   header: {
     paddingHorizontal: Spacing.xl,
-    paddingVertical: Spacing.lg,
+    paddingTop: Spacing.lg,
+    paddingBottom: Spacing.md,
   },
   headerTitle: {
     ...Typography.h3,
     color: Colors.textPrimary,
   },
-  profileSection: {
+  profileCard: {
+    marginHorizontal: Spacing.xl,
+    marginBottom: Spacing.xl,
     alignItems: 'center',
-    paddingBottom: Spacing.xl,
+  },
+  avatarContainer: {
+    marginBottom: Spacing.lg,
   },
   avatar: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+  },
+  avatarPlaceholder: {
     width: 80,
     height: 80,
     borderRadius: 40,
     backgroundColor: Colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: Spacing.md,
   },
   avatarText: {
-    ...Typography.h2,
+    ...Typography.h3,
     color: Colors.white,
   },
   name: {
     ...Typography.h4,
     color: Colors.textPrimary,
-    marginBottom: 2,
   },
   email: {
     ...Typography.body,
     color: Colors.textSecondary,
-    marginBottom: Spacing.sm,
+    marginTop: 2,
+  },
+  phone: {
+    ...Typography.body,
+    color: Colors.textSecondary,
+    marginTop: 2,
   },
   roleBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    paddingVertical: Spacing.xs,
+    gap: Spacing.xs,
+    marginTop: Spacing.md,
     paddingHorizontal: Spacing.md,
-    borderRadius: BorderRadius.full,
+    paddingVertical: Spacing.xs,
     backgroundColor: Colors.primaryLight,
+    borderRadius: BorderRadius.full,
   },
   roleText: {
     ...Typography.captionMedium,
@@ -268,70 +288,89 @@ const styles = StyleSheet.create({
   },
   referralCard: {
     marginHorizontal: Spacing.xl,
-    marginBottom: Spacing.lg,
+    marginBottom: Spacing.xl,
   },
   referralHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: Spacing.sm,
+    gap: Spacing.sm,
+    marginBottom: Spacing.lg,
   },
-  referralLabel: {
-    ...Typography.caption,
-    color: Colors.textSecondary,
-    marginBottom: 2,
+  referralTitle: {
+    ...Typography.h4,
+    color: Colors.textPrimary,
   },
-  referralCode: {
+  codeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: Colors.surface,
+    borderRadius: BorderRadius.md,
+    padding: Spacing.lg,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderStyle: 'dashed',
+    marginBottom: Spacing.lg,
+  },
+  codeText: {
     ...Typography.h3,
     color: Colors.primary,
     letterSpacing: 2,
   },
-  shareButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: Colors.primaryLight,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  referralHint: {
-    ...Typography.small,
-    color: Colors.textTertiary,
-  },
-  statsRow: {
+  referralStats: {
     flexDirection: 'row',
-    paddingHorizontal: Spacing.xl,
     gap: Spacing.md,
-    marginBottom: Spacing.xl,
+    marginBottom: Spacing.lg,
   },
-  statCard: {
+  referralStatItem: {
     flex: 1,
     alignItems: 'center',
+    backgroundColor: Colors.surface,
+    borderRadius: BorderRadius.md,
+    padding: Spacing.md,
   },
-  statValue: {
-    ...Typography.h3,
+  referralStatValue: {
+    ...Typography.h4,
     color: Colors.textPrimary,
-    marginBottom: 2,
   },
-  statLabel: {
-    ...Typography.caption,
+  referralStatLabel: {
+    ...Typography.small,
     color: Colors.textSecondary,
+    marginTop: 2,
   },
-  menuSection: {
-    marginHorizontal: Spacing.xl,
-    backgroundColor: Colors.white,
+  shareButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+    backgroundColor: Colors.primary,
     borderRadius: BorderRadius.lg,
-    ...Shadows.sm,
+    paddingVertical: Spacing.md,
+  },
+  shareButtonText: {
+    ...Typography.bodySemiBold,
+    color: Colors.white,
+  },
+  noReferralText: {
+    ...Typography.body,
+    color: Colors.textTertiary,
+    textAlign: 'center',
+    paddingVertical: Spacing.lg,
+  },
+  section: {
+    paddingHorizontal: Spacing.xl,
     marginBottom: Spacing.xl,
+  },
+  sectionTitle: {
+    ...Typography.h4,
+    color: Colors.textPrimary,
+    marginBottom: Spacing.md,
   },
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingVertical: Spacing.lg,
-    paddingHorizontal: Spacing.lg,
-  },
-  menuItemBorder: {
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
   },
@@ -340,29 +379,31 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.md,
   },
-  menuIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: BorderRadius.md,
-    backgroundColor: Colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  menuLabel: {
+  menuItemText: {
     ...Typography.body,
     color: Colors.textPrimary,
   },
   logoutSection: {
     paddingHorizontal: Spacing.xl,
-    marginBottom: Spacing.lg,
+    marginBottom: Spacing.xl,
   },
   logoutButton: {
-    borderColor: Colors.error,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+    paddingVertical: Spacing.lg,
+    backgroundColor: Colors.errorLight,
+    borderRadius: BorderRadius.lg,
+  },
+  logoutText: {
+    ...Typography.bodySemiBold,
+    color: Colors.error,
   },
   version: {
     ...Typography.small,
     color: Colors.textTertiary,
     textAlign: 'center',
-    marginBottom: Spacing.xxl,
+    paddingBottom: Spacing.xxl,
   },
 });

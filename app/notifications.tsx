@@ -12,7 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useNotifications } from '@/hooks/useNotifications';
-import { Notification, NotificationType } from '@/types';
+import type { Notification } from '@/types';
 import { Colors, Spacing, Typography, BorderRadius, Shadows } from '@/constants/theme';
 
 export default function NotificationsScreen() {
@@ -37,13 +37,17 @@ export default function NotificationsScreen() {
     setIsRefreshing(false);
   };
 
-  const getNotificationIcon = (type: NotificationType) => {
-    switch (type) {
+  const getNotificationIcon = (type: string) => {
+    switch (type.toLowerCase()) {
       case 'payment':
         return { name: 'card-outline', color: Colors.success, bg: Colors.successLight };
       case 'property':
         return { name: 'home-outline', color: Colors.primary, bg: Colors.primaryLight };
-      case 'lead':
+      case 'application':
+        return { name: 'document-text-outline', color: Colors.accent, bg: Colors.primaryLight };
+      case 'commission':
+        return { name: 'cash-outline', color: Colors.warning, bg: Colors.warningLight };
+      case 'referral':
         return { name: 'people-outline', color: Colors.accent, bg: Colors.primaryLight };
       case 'system':
         return { name: 'information-circle-outline', color: Colors.warning, bg: Colors.warningLight };
@@ -68,8 +72,7 @@ export default function NotificationsScreen() {
     if (!notification.isRead) {
       markAsRead(notification.id);
     }
-    // Navigate based on notification type if action URL exists
-    // This can be extended based on notification.data or actionUrl
+    // Navigate based on notification data if available
   };
 
   const renderNotification = ({ item }: { item: Notification }) => {
@@ -97,8 +100,8 @@ export default function NotificationsScreen() {
           >
             {item.title}
           </Text>
-          <Text style={styles.notificationBody} numberOfLines={2}>
-            {item.body}
+          <Text style={styles.notificationMessage} numberOfLines={2}>
+            {item.message}
           </Text>
           <Text style={styles.notificationTime}>{getTimeAgo(item.createdAt)}</Text>
         </View>
@@ -256,7 +259,7 @@ const styles = StyleSheet.create({
   unreadTitle: {
     ...Typography.bodySemiBold,
   },
-  notificationBody: {
+  notificationMessage: {
     ...Typography.caption,
     color: Colors.textSecondary,
     marginBottom: Spacing.xs,
