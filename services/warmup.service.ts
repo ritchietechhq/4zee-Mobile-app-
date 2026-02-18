@@ -36,7 +36,7 @@ import axios from 'axios';
 
 const API_BASE_URL =
   process.env.EXPO_PUBLIC_API_URL ||
-  'https://fourzeeproperties-backend.onrender.com/api/v1';
+  'https://fourzeeproperties-backend.onrender.com';
 
 const WARMUP_TIMEOUT = 15_000; // 15 s — generous for cold starts
 

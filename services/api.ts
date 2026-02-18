@@ -13,7 +13,7 @@ const uuid = () => Crypto.randomUUID();
 // Config
 // ---------------------------------------------------------------------------
 const API_BASE_URL =
-  process.env.EXPO_PUBLIC_API_URL || 'https://fourzeeproperties-backend.onrender.com/api/v1';
+  process.env.EXPO_PUBLIC_API_URL || 'https://fourzeeproperties-backend.onrender.com';
 const REQUEST_TIMEOUT = 30_000;
 
 const ACCESS_TOKEN_KEY = '4zee_access_token';
@@ -110,6 +110,13 @@ class ApiClient {
       // Unwrap: axios `response.data` is the full ApiResponse<T>
       (response) => response.data,
       async (error: AxiosError<ApiResponse<unknown>>) => {
+        // DEBUG: Log error details
+        console.log('=== API ERROR ===');
+        console.log('Status:', error.response?.status);
+        console.log('URL:', error.config?.url);
+        console.log('Response data:', JSON.stringify(error.response?.data, null, 2));
+        console.log('=================');
+
         const originalRequest = error.config as InternalAxiosRequestConfig & {
           _retry?: boolean;
         };

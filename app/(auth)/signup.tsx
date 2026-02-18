@@ -65,6 +65,13 @@ export default function SignupScreen() {
       referralCode: form.referralCode.trim() || undefined,
     };
 
+    // DEBUG: Log exactly what we're sending
+    console.log('=== REGISTER PAYLOAD ===');
+    console.log('Role from store:', role);
+    console.log('Payload:', JSON.stringify(payload, null, 2));
+    console.log('Payload size:', JSON.stringify(payload).length, 'bytes');
+    console.log('========================');
+
     await register(payload);
   };
 
