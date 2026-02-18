@@ -65,8 +65,8 @@ export default function KYCSubmitScreen() {
         type: asset.mimeType || 'image/jpeg',
       } as any);
 
-      const uploadRes = await kycService.uploadDocument(formData);
-      urlSetter(uploadRes.url);
+      const uploadedUrl = await kycService.uploadDocument(formData);
+      urlSetter(uploadedUrl);
     } catch (e: any) {
       Alert.alert('Upload Failed', e?.error?.message || 'Failed to upload image. Please try again.');
       setter('');
@@ -98,7 +98,7 @@ export default function KYCSubmitScreen() {
       };
       await kycService.submit(payload);
       Alert.alert('Submitted!', 'Your KYC documents have been submitted for review.', [
-        { text: 'OK', onPress: () => router.replace('/(realtor)/kyc') },
+        { text: 'OK', onPress: () => router.replace('/(realtor)/kyc' as any) },
       ]);
     } catch (e: any) {
       Alert.alert('Error', e?.error?.message || 'Failed to submit KYC. Please try again.');
