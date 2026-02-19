@@ -32,7 +32,7 @@ class KYCService {
   }
 
   /**
-   * PUT /kyc — submit full KYC application in one call.
+   * PUT /kyc/info — submit full KYC application in one call.
    * Upload documents first via uploadDocument(), then pass URLs here.
    */
   async submitKYC(payload: {
@@ -42,7 +42,7 @@ class KYCService {
     selfieUrl: string;
     proofOfAddressUrl?: string;
   }): Promise<KYC> {
-    const res = await api.put<KYC>('/kyc', payload);
+    const res = await api.put<KYC>('/kyc/info', payload);
     return res.data!;
   }
 
