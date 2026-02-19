@@ -12,12 +12,6 @@ export default function RealtorLayout() {
       }}
     >
       <Stack.Screen name="(tabs)" />
-      <Stack.Screen name="kyc" />
-      <Stack.Screen name="bank-accounts" />
-      <Stack.Screen name="edit-profile" />
-      <Stack.Screen name="change-password" />
-      <Stack.Screen name="notifications" />
-      <Stack.Screen name="help" />
       <Stack.Screen name="add-listing" />
       <Stack.Screen name="edit-listing" />
     </Stack>

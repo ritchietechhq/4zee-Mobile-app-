@@ -100,7 +100,7 @@ export default function KYCSubmitScreen() {
       });
 
       Alert.alert('Submitted!', 'Your KYC documents have been submitted for review.', [
-        { text: 'OK', onPress: () => router.replace('/(realtor)/kyc' as any) },
+        { text: 'OK', onPress: () => router.replace('/(realtor)/profile/kyc' as any) },
       ]);
     } catch (e: any) {
       Alert.alert('Error', e?.error?.message || 'Failed to submit KYC. Please try again.');

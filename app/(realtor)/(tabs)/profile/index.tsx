@@ -76,12 +76,12 @@ export default function RealtorProfile() {
   const kycInfo = kycBadge[kycStatus];
 
   const menuItems: MenuItem[] = [
-    { icon: 'shield-checkmark-outline', label: 'KYC Verification', onPress: () => router.push('/(realtor)/kyc' as any), badge: kycInfo.label },
-    { icon: 'card-outline', label: 'Bank Accounts', onPress: () => router.push('/(realtor)/bank-accounts' as any) },
-    { icon: 'person-outline', label: 'Edit Profile', onPress: () => router.push('/(realtor)/edit-profile' as any) },
-    { icon: 'lock-closed-outline', label: 'Change Password', onPress: () => router.push('/(realtor)/change-password' as any) },
-    { icon: 'notifications-outline', label: 'Notifications', onPress: () => router.push('/(realtor)/notifications' as any) },
-    { icon: 'help-circle-outline', label: 'Help & Support', onPress: () => router.push('/(realtor)/help' as any) },
+    { icon: 'shield-checkmark-outline', label: 'KYC Verification', onPress: () => router.push('/(realtor)/profile/kyc' as any), badge: kycInfo.label },
+    { icon: 'card-outline', label: 'Bank Accounts', onPress: () => router.push('/(realtor)/profile/bank-accounts' as any) },
+    { icon: 'person-outline', label: 'Edit Profile', onPress: () => router.push('/(realtor)/profile/edit-profile' as any) },
+    { icon: 'lock-closed-outline', label: 'Change Password', onPress: () => router.push('/(realtor)/profile/change-password' as any) },
+    { icon: 'notifications-outline', label: 'Notifications', onPress: () => router.push('/(realtor)/profile/notifications' as any) },
+    { icon: 'help-circle-outline', label: 'Help & Support', onPress: () => router.push('/(realtor)/profile/help' as any) },
   ];
 
   const initials = `${user?.firstName?.charAt(0) || ''}${user?.lastName?.charAt(0) || ''}`;

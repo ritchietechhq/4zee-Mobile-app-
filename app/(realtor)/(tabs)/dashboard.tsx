@@ -111,7 +111,7 @@ export default function RealtorDashboard() {
     return (
       <TouchableOpacity
         style={[styles.kycBanner, { backgroundColor: c.bg }]}
-        onPress={() => router.push('/(realtor)/kyc')}
+        onPress={() => router.push('/(realtor)/profile/kyc' as any)}
         activeOpacity={0.8}
       >
         <Ionicons name={c.icon as any} size={22} color={kycStatus === 'REJECTED' ? Colors.error : Colors.primary} />
@@ -160,12 +160,12 @@ export default function RealtorDashboard() {
               <Text style={styles.name}>{profile?.firstName ?? user?.firstName ?? 'Realtor'}</Text>
             </View>
           </View>
-          <TouchableOpacity onPress={() => router.push('/(realtor)/notifications' as any)} style={styles.notifBtn}>
+          <TouchableOpacity onPress={() => router.push('/(realtor)/profile/notifications' as any)} style={styles.notifBtn}>
             <Ionicons name="notifications-outline" size={20} color={Colors.textPrimary} />
-            {(realtorData?.alerts?.unreadNotifications ?? 0) > 0 && (
+            {(unreadCount || realtorData?.alerts?.unreadNotifications || 0) > 0 && (
               <View style={styles.notifDot}>
                 <Text style={styles.notifDotText}>
-                  {realtorData!.alerts.unreadNotifications > 9 ? '9+' : realtorData!.alerts.unreadNotifications}
+                  {(unreadCount || realtorData?.alerts?.unreadNotifications || 0) > 9 ? '9+' : (unreadCount || realtorData?.alerts?.unreadNotifications || 0)}
                 </Text>
               </View>
             )}
@@ -228,22 +228,22 @@ export default function RealtorDashboard() {
                       <View style={[styles.performanceIcon, { backgroundColor: Colors.successLight }]}>
                         <Ionicons name="checkmark-circle-outline" size={18} color={Colors.success} />
                       </View>
-                      <Text style={styles.performanceValue}>{listingStats.active}</Text>
-                      <Text style={styles.performanceLabel}>Active</Text>
+                      <Text style={styles.performanceValue}>{listingStats.available}</Text>
+                      <Text style={styles.performanceLabel}>Available</Text>
                     </View>
                     <View style={styles.performanceItem}>
                       <View style={[styles.performanceIcon, { backgroundColor: Colors.warningLight }]}>
                         <Ionicons name="eye-outline" size={18} color={Colors.warning} />
                       </View>
-                      <Text style={styles.performanceValue}>{listingStats.totalViews ?? 0}</Text>
+                      <Text style={styles.performanceValue}>{listingStats.totalViews}</Text>
                       <Text style={styles.performanceLabel}>Views</Text>
                     </View>
                     <View style={styles.performanceItem}>
                       <View style={[styles.performanceIcon, { backgroundColor: Colors.errorLight }]}>
-                        <Ionicons name="heart-outline" size={18} color={Colors.error} />
+                        <Ionicons name="bookmark-outline" size={18} color={Colors.error} />
                       </View>
-                      <Text style={styles.performanceValue}>{listingStats.totalFavorites ?? 0}</Text>
-                      <Text style={styles.performanceLabel}>Favorites</Text>
+                      <Text style={styles.performanceValue}>{listingStats.sold}</Text>
+                      <Text style={styles.performanceLabel}>Sold</Text>
                     </View>
                   </View>
                 </Card>
@@ -294,7 +294,7 @@ export default function RealtorDashboard() {
               <View style={styles.section}>
                 <View style={styles.sectionHeader}>
                   <Text style={styles.sectionTitle}>Recent Notifications</Text>
-                  <TouchableOpacity onPress={() => router.push('/(realtor)/notifications' as any)}>
+                  <TouchableOpacity onPress={() => router.push('/(realtor)/profile/notifications' as any)}>
                     <View style={styles.seeAllRow}>
                       {unreadCount > 0 && (
                         <View style={styles.unreadBadge}>
@@ -314,7 +314,7 @@ export default function RealtorDashboard() {
                         idx < recentNotifications.length - 1 && styles.notifRowBorder,
                         !notif.isRead && styles.notifUnread,
                       ]}
-                      onPress={() => router.push('/(realtor)/notifications' as any)}
+                      onPress={() => router.push('/(realtor)/profile/notifications' as any)}
                       activeOpacity={0.7}
                     >
                       <View style={[styles.notifIcon, !notif.isRead && { backgroundColor: Colors.primaryLight }]}>
@@ -372,10 +372,13 @@ export default function RealtorDashboard() {
                 {[
                   { icon: 'add-circle', label: 'Add Property', color: Colors.primary, bg: Colors.primaryLight, route: '/(realtor)/add-listing' },
                   { icon: 'business', label: 'My Listings', color: Colors.accent, bg: '#EFF6FF', route: '/(realtor)/listings' },
+                  { icon: 'pricetags', label: 'Pricing', color: '#0D9488', bg: '#CCFBF1', route: '/(realtor)/listings' },
                   { icon: 'people-circle', label: 'Leads', color: Colors.success, bg: Colors.successLight, route: '/(realtor)/leads' },
                   { icon: 'card', label: 'Earnings', color: Colors.warning, bg: Colors.warningLight, route: '/(realtor)/payments' },
-                  { icon: 'shield-checkmark', label: 'KYC', color: '#8B5CF6', bg: '#EDE9FE', route: '/(realtor)/kyc' },
-                  { icon: 'chatbubbles', label: 'Messages', color: '#EC4899', bg: '#FCE7F3', route: '/(realtor)/notifications' },
+                  { icon: 'shield-checkmark', label: 'KYC', color: '#8B5CF6', bg: '#EDE9FE', route: '/(realtor)/profile/kyc' },
+                  { icon: 'chatbubbles', label: 'Messages', color: '#EC4899', bg: '#FCE7F3', route: '/(realtor)/profile/notifications' },
+                  { icon: 'swap-horizontal', label: 'Negotiate', color: '#EA580C', bg: '#FFF7ED', route: '/(realtor)/leads' },
+                  { icon: 'help-circle', label: 'Help', color: Colors.textSecondary, bg: Colors.surface, route: '/(realtor)/profile/help' },
                 ].map((a) => (
                   <TouchableOpacity key={a.label} style={styles.actionCard} onPress={() => router.push(a.route as any)} activeOpacity={0.7}>
                     <View style={[styles.actionIcon, { backgroundColor: a.bg }]}>

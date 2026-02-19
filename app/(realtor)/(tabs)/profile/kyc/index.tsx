@@ -153,7 +153,7 @@ export default function KYCStatusScreen() {
             ))}
             <Button
               title={status === 'REJECTED' ? 'Resubmit Documents' : 'Start Verification'}
-              onPress={() => router.push('/(realtor)/kyc/submit' as any)}
+              onPress={() => router.push('/(realtor)/profile/kyc/submit' as any)}
               fullWidth
               style={{ marginTop: Spacing.xl }}
             />
