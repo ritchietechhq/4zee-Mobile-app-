@@ -1,4 +1,4 @@
-export const Colors = {
+const LightColors = {
   primary: '#1E40AF',
   primaryLight: '#E0F2FE',
   accent: '#3B82F6',
@@ -26,5 +26,37 @@ export const Colors = {
   tabBarActive: '#1E40AF',
   tabBarInactive: '#9CA3AF',
 } as const;
+
+const DarkColors = {
+  primary: '#60A5FA',
+  primaryLight: '#1E3A8A',
+  accent: '#93C5FD',
+  background: '#0F172A',
+  surface: '#1E293B',
+  textPrimary: '#F1F5F9',
+  textSecondary: '#CBD5E1',
+  textMuted: '#94A3B8',
+  textTertiary: '#94A3B8',
+  border: '#334155',
+  borderLight: '#475569',
+  success: '#4ADE80',
+  successLight: '#166534',
+  warning: '#FBBF24',
+  warningLight: '#78350F',
+  error: '#F87171',
+  errorLight: '#7F1D1D',
+  white: '#FFFFFF',
+  black: '#000000',
+  overlay: 'rgba(0, 0, 0, 0.7)',
+  shadow: 'rgba(0, 0, 0, 0.3)',
+  cardBackground: '#1E293B',
+  inputBackground: '#334155',
+  tabBarBackground: '#1E293B',
+  tabBarActive: '#60A5FA',
+  tabBarInactive: '#94A3B8',
+} as const;
+
+export const Colors = LightColors;
+export const DarkModeColors = DarkColors;
 
 export type ColorKey = keyof typeof Colors;

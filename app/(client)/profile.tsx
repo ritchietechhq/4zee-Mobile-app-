@@ -4,7 +4,7 @@
 // help, support, privacy, terms, rate app, sign out
 // ============================================================
 
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -24,6 +24,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { useAuthStore } from '@/store/auth.store';
+import { useTheme } from '@/hooks/useTheme';
 import notificationService from '@/services/notification.service';
 import { Card } from '@/components/ui/Card';
 import { Colors, Spacing, Typography, BorderRadius, Shadows } from '@/constants/theme';
@@ -43,6 +44,7 @@ export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
+  const { isDarkMode, setThemeMode, colors } = useTheme();
   
   const [pushEnabled, setPushEnabled] = useState(true);
   const [emailEnabled, setEmailEnabled] = useState(true);
@@ -98,6 +100,14 @@ export default function ProfileScreen() {
       Alert.alert('Error', 'Failed to update notification settings');
     } finally {
       setIsSavingPrefs(false);
+    }
+  };
+
+  const handleToggleDarkMode = async (value: boolean) => {
+    try {
+      await setThemeMode(value ? 'dark' : 'light');
+    } catch {
+      Alert.alert('Error', 'Failed to update theme setting');
     }
   };
 
@@ -202,11 +212,13 @@ export default function ProfileScreen() {
     },
   ];
 
+  const dynamicStyles = useMemo(() => createStyles(colors), [colors]);
+
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={[dynamicStyles.container, { paddingTop: insets.top }]}>
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={dynamicStyles.scrollContent}
       >
         <Animated.View
           style={{
@@ -222,77 +234,77 @@ export default function ProfileScreen() {
           }}
         >
           {/* ── Profile Header ── */}
-          <View style={styles.profileHeader}>
+          <View style={dynamicStyles.profileHeader}>
             <LinearGradient
-              colors={[Colors.primary, Colors.accent]}
-              style={styles.profileBg}
+              colors={[colors.primary, colors.accent]}
+              style={dynamicStyles.profileBg}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
             />
             
             {/* Greeting */}
-            <Text style={styles.greeting}>
+            <Text style={dynamicStyles.greeting}>
               Hi {user?.firstName ?? 'there'} 👋
             </Text>
 
-            <View style={styles.avatarContainer}>
-              <View style={styles.avatar}>
+            <View style={dynamicStyles.avatarContainer}>
+              <View style={dynamicStyles.avatar}>
                 {user?.profilePicture ? (
                   <Image
                     source={{ uri: user.profilePicture }}
-                    style={styles.avatarImg}
+                    style={dynamicStyles.avatarImg}
                     contentFit="cover"
                     transition={200}
                   />
                 ) : (
-                  <Text style={styles.avatarText}>{getInitials()}</Text>
+                  <Text style={dynamicStyles.avatarText}>{getInitials()}</Text>
                 )}
               </View>
               <TouchableOpacity
-                style={styles.cameraBtn}
+                style={dynamicStyles.cameraBtn}
                 activeOpacity={0.7}
                 onPress={() => router.push('/(client)/edit-profile')}
               >
-                <Ionicons name="camera" size={14} color={Colors.white} />
+                <Ionicons name="camera" size={14} color={colors.white} />
               </TouchableOpacity>
             </View>
             
-            <Text style={styles.userName}>
+            <Text style={dynamicStyles.userName}>
               {user?.firstName ?? ''} {user?.lastName ?? ''}
             </Text>
-            <Text style={styles.userEmail}>{user?.email ?? ''}</Text>
+            <Text style={dynamicStyles.userEmail}>{user?.email ?? ''}</Text>
             
             <TouchableOpacity
-              style={styles.editButton}
+              style={dynamicStyles.editButton}
               onPress={() => router.push('/(client)/edit-profile')}
               activeOpacity={0.7}
             >
-              <Ionicons name="create-outline" size={16} color={Colors.primary} />
-              <Text style={styles.editButtonText}>Edit Profile</Text>
+              <Ionicons name="create-outline" size={16} color={colors.primary} />
+              <Text style={dynamicStyles.editButtonText}>Edit Profile</Text>
             </TouchableOpacity>
           </View>
 
           {/* ── Account ── */}
-          <Text style={styles.sectionTitle}>Account</Text>
-          <Card style={styles.menuCard} padding="xs">
+          <Text style={dynamicStyles.sectionTitle}>Account</Text>
+          <Card style={dynamicStyles.menuCard} padding="xs">
             {accountItems.map((item, idx) => (
               <React.Fragment key={item.label}>
                 <MenuRow item={item} />
-                {idx < accountItems.length - 1 && <View style={styles.separator} />}
+                {idx < accountItems.length - 1 && <View style={[dynamicStyles.separator, { backgroundColor: colors.borderLight }]} />}
               </React.Fragment>
             ))}
           </Card>
 
           {/* ── Notifications ── */}
-          <Text style={styles.sectionTitle}>Notifications</Text>
-          <Card style={styles.menuCard} padding="xs">
+          <Text style={dynamicStyles.sectionTitle}>Notifications</Text>
+          <Card style={dynamicStyles.menuCard} padding="xs">
             <View style={styles.switchRow}>
               <View style={styles.switchLeft}>
                 <View style={styles.menuIcon}>
                   <Ionicons
                     name="notifications-outline"
                     size={20}
-                    color={Colors.primary}
+                    color={colors.primary}
                   />
                 </View>
                 <View>
@@ -303,59 +315,77 @@ export default function ProfileScreen() {
               <Switch
                 value={pushEnabled}
                 onValueChange={handleTogglePush}
-                trackColor={{ false: Colors.border, true: Colors.primaryLight }}
-                thumbColor={pushEnabled ? Colors.primary : Colors.textMuted}
+                trackColor={{ false: colors.border, true: colors.primaryLight }}
+                thumbColor={pushEnabled ? colors.primary : colors.textMuted}
                 disabled={isSavingPrefs}
               />
             </View>
-            <View style={styles.separator} />
-            <View style={styles.switchRow}>
-              <View style={styles.switchLeft}>
-                <View style={styles.menuIcon}>
-                  <Ionicons name="mail-outline" size={20} color={Colors.primary} />
+            <View style={[dynamicStyles.separator, { backgroundColor: colors.borderLight }]} />
+            <View style={dynamicStyles.switchRow}>
+              <View style={dynamicStyles.switchLeft}>
+                <View style={dynamicStyles.menuIcon}>
+                  <Ionicons name="mail-outline" size={20} color={colors.primary} />
                 </View>
                 <View>
-                  <Text style={styles.menuLabel}>Email Notifications</Text>
-                  <Text style={styles.switchDesc}>Weekly digest & promotional offers</Text>
+                  <Text style={dynamicStyles.menuLabel}>Email Notifications</Text>
+                  <Text style={dynamicStyles.switchDesc}>Weekly digest & promotional offers</Text>
                 </View>
               </View>
               <Switch
                 value={emailEnabled}
                 onValueChange={handleToggleEmail}
-                trackColor={{ false: Colors.border, true: Colors.primaryLight }}
-                thumbColor={emailEnabled ? Colors.primary : Colors.textMuted}
+                trackColor={{ false: colors.border, true: colors.primaryLight }}
+                thumbColor={emailEnabled ? colors.primary : colors.textMuted}
                 disabled={isSavingPrefs}
               />
             </View>
+            <View style={[dynamicStyles.separator, { backgroundColor: colors.borderLight }]} />
+            <View style={dynamicStyles.switchRow}>
+              <View style={dynamicStyles.switchLeft}>
+                <View style={dynamicStyles.menuIcon}>
+                  <Ionicons name={isDarkMode ? 'moon' : 'sunny-outline'} size={20} color={colors.primary} />
+                </View>
+                <View>
+                  <Text style={dynamicStyles.menuLabel}>Dark Mode</Text>
+                  <Text style={dynamicStyles.switchDesc}>{isDarkMode ? 'Enabled' : 'Disabled'}</Text>
+                </View>
+              </View>
+              <Switch
+                value={isDarkMode}
+                onValueChange={handleToggleDarkMode}
+                trackColor={{ false: colors.border, true: colors.primaryLight }}
+                thumbColor={isDarkMode ? colors.primary : colors.textMuted}
+              />
+            </View>
             {isSavingPrefs && (
-              <View style={styles.savingOverlay}>
-                <ActivityIndicator size="small" color={Colors.primary} />
+              <View style={dynamicStyles.savingOverlay}>
+                <ActivityIndicator size="small" color={colors.primary} />
               </View>
             )}
           </Card>
 
           {/* ── Support ── */}
-          <Text style={styles.sectionTitle}>Support</Text>
-          <Card style={styles.menuCard} padding="xs">
+          <Text style={dynamicStyles.sectionTitle}>Support</Text>
+          <Card style={dynamicStyles.menuCard} padding="xs">
             {supportItems.map((item, idx) => (
               <React.Fragment key={item.label}>
                 <MenuRow item={item} />
-                {idx < supportItems.length - 1 && <View style={styles.separator} />}
+                {idx < supportItems.length - 1 && <View style={[dynamicStyles.separator, { backgroundColor: colors.borderLight }]} />}
               </React.Fragment>
             ))}
           </Card>
 
           {/* ── Sign Out ── */}
           <TouchableOpacity
-            style={styles.logoutButton}
+            style={dynamicStyles.logoutButton}
             onPress={handleLogout}
             activeOpacity={0.7}
           >
-            <Ionicons name="log-out-outline" size={20} color={Colors.error} />
-            <Text style={styles.logoutText}>Sign Out</Text>
+            <Ionicons name="log-out-outline" size={20} color={colors.error} />
+            <Text style={dynamicStyles.logoutText}>Sign Out</Text>
           </TouchableOpacity>
 
-          <Text style={styles.version}>4Zee Properties v1.0.0</Text>
+          <Text style={dynamicStyles.version}>4Zee Properties v1.0.0</Text>
           <View style={{ height: Spacing.xxxxl }} />
         </Animated.View>
       </ScrollView>
@@ -364,41 +394,83 @@ export default function ProfileScreen() {
 }
 
 function MenuRow({ item }: { item: MenuItem }) {
+  const { colors } = useTheme();
+  
+  const rowStyles = useMemo(() => {
+    return StyleSheet.create({
+      menuRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: Spacing.lg,
+        paddingVertical: Spacing.lg,
+        minHeight: 60,
+      },
+      menuIcon: {
+        width: 40,
+        height: 40,
+        borderRadius: 12,
+        backgroundColor: colors.primaryLight,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginRight: Spacing.md,
+      },
+      menuIconDanger: { backgroundColor: colors.errorLight },
+      menuContent: { flex: 1 },
+      menuLabelRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+      menuLabel: { ...Typography.bodyMedium, color: colors.textPrimary },
+      menuLabelDanger: { color: colors.error },
+      menuSubtitle: { ...Typography.small, color: colors.textMuted, marginTop: 2 },
+      menuBadge: {
+        backgroundColor: colors.error,
+        paddingHorizontal: 8,
+        paddingVertical: 2,
+        borderRadius: BorderRadius.full,
+      },
+      menuBadgeText: {
+        ...Typography.small,
+        color: colors.white,
+        fontWeight: '600',
+        fontSize: 10,
+      },
+    });
+  }, [colors]);
+
   return (
     <TouchableOpacity
-      style={styles.menuRow}
+      style={rowStyles.menuRow}
       onPress={item.onPress}
       activeOpacity={0.6}
     >
-      <View style={[styles.menuIcon, item.danger && styles.menuIconDanger]}>
+      <View style={[rowStyles.menuIcon, item.danger && rowStyles.menuIconDanger]}>
         <Ionicons
           name={item.icon}
           size={20}
-          color={item.danger ? Colors.error : Colors.primary}
+          color={item.danger ? colors.error : colors.primary}
         />
       </View>
-      <View style={styles.menuContent}>
-        <View style={styles.menuLabelRow}>
-          <Text style={[styles.menuLabel, item.danger && styles.menuLabelDanger]}>
+      <View style={rowStyles.menuContent}>
+        <View style={rowStyles.menuLabelRow}>
+          <Text style={[rowStyles.menuLabel, item.danger && rowStyles.menuLabelDanger]}>
             {item.label}
           </Text>
           {item.badge && (
-            <View style={styles.menuBadge}>
-              <Text style={styles.menuBadgeText}>{item.badge}</Text>
+            <View style={rowStyles.menuBadge}>
+              <Text style={rowStyles.menuBadgeText}>{item.badge}</Text>
             </View>
           )}
         </View>
-        {item.subtitle && <Text style={styles.menuSubtitle}>{item.subtitle}</Text>}
+        {item.subtitle && <Text style={rowStyles.menuSubtitle}>{item.subtitle}</Text>}
       </View>
       {item.showChevron && (
-        <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} />
+        <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
       )}
     </TouchableOpacity>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background },
+const createStyles = (colors: any) =>
+  StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.background },
   scrollContent: { paddingBottom: Spacing.xxxxl },
 
   profileHeader: {
@@ -420,7 +492,7 @@ const styles = StyleSheet.create({
   },
   greeting: {
     ...Typography.h3,
-    color: Colors.white,
+    color: colors.white,
     marginBottom: Spacing.lg,
     textShadowColor: 'rgba(0,0,0,0.2)',
     textShadowOffset: { width: 0, height: 1 },
@@ -431,16 +503,16 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: Colors.primaryLight,
+    backgroundColor: colors.primaryLight,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 4,
-    borderColor: Colors.white,
+    borderColor: colors.white,
     overflow: 'hidden' as const,
     ...Shadows.lg,
   },
   avatarImg: { width: 100, height: 100, borderRadius: 50 },
-  avatarText: { ...Typography.h1, color: Colors.primary, fontSize: 36 },
+  avatarText: { ...Typography.h1, color: colors.primary, fontSize: 36 },
   cameraBtn: {
     position: 'absolute',
     bottom: 4,
@@ -448,14 +520,14 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: Colors.primary,
+    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 3,
-    borderColor: Colors.white,
+    borderColor: colors.white,
   },
-  userName: { ...Typography.h3, color: Colors.textPrimary },
-  userEmail: { ...Typography.caption, color: Colors.textSecondary, marginTop: Spacing.xs },
+  userName: { ...Typography.h3, color: colors.textPrimary },
+  userEmail: { ...Typography.caption, color: colors.textSecondary, marginTop: Spacing.xs },
   editButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -463,14 +535,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.xl,
     paddingVertical: Spacing.sm + 2,
     borderRadius: BorderRadius.full,
-    backgroundColor: Colors.primaryLight,
+    backgroundColor: colors.primaryLight,
     gap: Spacing.xs,
   },
-  editButtonText: { ...Typography.captionMedium, color: Colors.primary },
+  editButtonText: { ...Typography.captionMedium, color: colors.primary },
 
   sectionTitle: {
     ...Typography.captionMedium,
-    color: Colors.textMuted,
+    color: colors.textMuted,
     textTransform: 'uppercase',
     letterSpacing: 1,
     paddingHorizontal: Spacing.xl,
@@ -490,30 +562,30 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 12,
-    backgroundColor: Colors.primaryLight,
+    backgroundColor: colors.primaryLight,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: Spacing.md,
   },
-  menuIconDanger: { backgroundColor: Colors.errorLight },
+  menuIconDanger: { backgroundColor: colors.errorLight },
   menuContent: { flex: 1 },
   menuLabelRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
-  menuLabel: { ...Typography.bodyMedium, color: Colors.textPrimary },
-  menuLabelDanger: { color: Colors.error },
-  menuSubtitle: { ...Typography.small, color: Colors.textMuted, marginTop: 2 },
+  menuLabel: { ...Typography.bodyMedium, color: colors.textPrimary },
+  menuLabelDanger: { color: colors.error },
+  menuSubtitle: { ...Typography.small, color: colors.textMuted, marginTop: 2 },
   menuBadge: {
-    backgroundColor: Colors.error,
+    backgroundColor: colors.error,
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: BorderRadius.full,
   },
   menuBadgeText: {
     ...Typography.small,
-    color: Colors.white,
+    color: colors.white,
     fontWeight: '600',
     fontSize: 10,
   },
-  separator: { height: 1, backgroundColor: Colors.borderLight, marginHorizontal: Spacing.lg },
+  separator: { height: 1, backgroundColor: colors.borderLight, marginHorizontal: Spacing.lg },
 
   switchRow: {
     flexDirection: 'row',
@@ -524,7 +596,7 @@ const styles = StyleSheet.create({
     minHeight: 60,
   },
   switchLeft: { flexDirection: 'row', alignItems: 'center', flex: 1 },
-  switchDesc: { ...Typography.small, color: Colors.textMuted, marginTop: 1 },
+  switchDesc: { ...Typography.small, color: colors.textMuted, marginTop: 1 },
   savingOverlay: {
     position: 'absolute',
     top: 0,
@@ -546,15 +618,17 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.lg,
     borderRadius: BorderRadius.xl,
     borderWidth: 1.5,
-    borderColor: Colors.error + '40',
-    backgroundColor: Colors.errorLight + '30',
+    borderColor: colors.error + '40',
+    backgroundColor: colors.errorLight + '30',
     gap: Spacing.sm,
   },
-  logoutText: { ...Typography.bodySemiBold, color: Colors.error },
+  logoutText: { ...Typography.bodySemiBold, color: colors.error },
   version: {
     ...Typography.small,
-    color: Colors.textMuted,
+    color: colors.textMuted,
     textAlign: 'center',
     marginTop: Spacing.xxl,
   },
 });
+
+const styles = createStyles(Colors);

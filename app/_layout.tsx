@@ -5,6 +5,8 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuthStore } from '@/store/auth.store';
+import { useThemeStore } from '@/store/theme.store';
+import { useTheme } from '@/hooks/useTheme';
 import { Colors } from '@/constants/theme';
 import AnimatedSplash from '@/components/splash/AnimatedSplash';
 import { warmUpBackend } from '@/services/warmup.service';
@@ -13,6 +15,8 @@ const ONBOARDING_KEY = '4zee_onboarding_seen';
 
 function AuthGuard({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading, role, loadSession } = useAuthStore();
+  const { isDarkMode } = useTheme();
+  const loadThemePreference = useThemeStore((s) => s.loadThemePreference);
   const segments = useSegments();
 
   /** true once session + onboarding flag have been read */
@@ -22,7 +26,7 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
 
   const [hasSeenOnboarding, setHasSeenOnboarding] = useState<boolean | null>(null);
 
-  // ─── Parallel init: session load + backend warm-up ───
+  // ─── Parallel init: session load + backend warm-up + theme load ───
   useEffect(() => {
     const init = async () => {
       // Fire the backend warm-up in parallel with session load.
@@ -31,6 +35,7 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
         loadSession(),
         AsyncStorage.getItem(ONBOARDING_KEY),
         warmUpBackend(), // ← wake up the server / DB during splash
+        loadThemePreference(), // ← load theme preference
       ]);
       await useAuthStore.getState().loadRole();
       setHasSeenOnboarding(onboardingSeen === 'true');
@@ -99,15 +104,17 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
 }
 
 export default function RootLayout() {
+  const { isDarkMode, colors } = useTheme();
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <StatusBar style="dark" />
+        <StatusBar style={isDarkMode ? 'light' : 'dark'} />
         <AuthGuard>
           <Stack
             screenOptions={{
               headerShown: false,
-              contentStyle: { backgroundColor: Colors.background },
+              contentStyle: { backgroundColor: colors.background },
               animation: 'slide_from_right',
             }}
           >
