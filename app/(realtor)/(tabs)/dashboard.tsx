@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, RefreshControl,
-  TouchableOpacity, Animated,
+  TouchableOpacity, Animated, Share, Clipboard,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -9,7 +9,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuthStore } from '@/store/auth.store';
 import { useDashboard } from '@/hooks/useDashboard';
-import type { RealtorDashboardApplication } from '@/types';
+import { realtorService } from '@/services/realtor.service';
+import { notificationService } from '@/services/notification.service';
+import type { RealtorDashboardApplication, ListingStats, Notification } from '@/types';
 import { AnalyticsCard } from '@/components/charts/AnalyticsCard';
 import { Card } from '@/components/ui/Card';
 import { Skeleton } from '@/components/ui/Skeleton';
@@ -30,27 +32,73 @@ const APP_STATUS_COLOR: Record<string, { bg: string; text: string; label: string
   CANCELLED: { bg: Colors.surface, text: Colors.textMuted, label: 'Cancelled' },
 };
 
+const getNotifIcon = (type?: string): any => {
+  switch (type) {
+    case 'PAYMENT': return 'card-outline';
+    case 'APPLICATION': return 'document-text-outline';
+    case 'KYC': return 'shield-checkmark-outline';
+    case 'LISTING': return 'business-outline';
+    case 'REFERRAL': return 'people-outline';
+    case 'PAYOUT': return 'cash-outline';
+    default: return 'notifications-outline';
+  }
+};
+
 export default function RealtorDashboard() {
   const user = useAuthStore((s) => s.user);
   const { realtorData, isLoading, fetchRealtorDashboard } = useDashboard();
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [fadeAnim] = useState(() => new Animated.Value(0));
+  const [listingStats, setListingStats] = useState<ListingStats | null>(null);
+  const [recentNotifications, setRecentNotifications] = useState<Notification[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  const loadExtras = useCallback(async () => {
+    try {
+      const [stats, notifsRes, count] = await Promise.allSettled([
+        realtorService.getListingStats(),
+        notificationService.getNotifications(false, undefined, 3),
+        notificationService.getUnreadCount(),
+      ]);
+      if (stats.status === 'fulfilled') setListingStats(stats.value);
+      if (notifsRes.status === 'fulfilled') setRecentNotifications(notifsRes.value.notifications);
+      if (count.status === 'fulfilled') setUnreadCount(count.value);
+    } catch {}
+  }, []);
 
   useEffect(() => {
     fetchRealtorDashboard().catch(() => {});
+    loadExtras();
     Animated.timing(fadeAnim, {
       toValue: 1, duration: 600, useNativeDriver: true,
     }).start();
-  }, [fetchRealtorDashboard]);
+  }, [fetchRealtorDashboard, loadExtras]);
 
   const onRefresh = async () => {
     setIsRefreshing(true);
-    await fetchRealtorDashboard().catch(() => {});
+    await Promise.allSettled([fetchRealtorDashboard(), loadExtras()]);
     setIsRefreshing(false);
   };
 
   const profile = realtorData?.profile;
   const kycStatus = profile?.kycStatus ?? 'NOT_SUBMITTED';
+
+  const handleShareReferral = async () => {
+    const code = profile?.referralCode;
+    if (!code) return;
+    try {
+      await Share.share({
+        message: `Join 4Zee Properties with my referral code: ${code}\n\nhttps://4zee.com/ref/${code}`,
+        title: 'My 4Zee Referral Link',
+      });
+    } catch {}
+  };
+
+  const handleCopyReferralCode = () => {
+    const code = profile?.referralCode;
+    if (!code) return;
+    Clipboard.setString(code);
+  };
 
   const kycBanner = () => {
     if (!profile || kycStatus === 'APPROVED') return null;
@@ -158,20 +206,135 @@ export default function RealtorDashboard() {
               </View>
             </LinearGradient>
 
-            {/* Referral Snapshot */}
-            {realtorData.referrals.activeLinks > 0 && (
-              <Card variant="outlined" padding="lg" style={styles.referralCard}>
-                <View style={styles.referralRow}>
-                  <View style={styles.referralIcon}>
-                    <Ionicons name="link-outline" size={18} color={Colors.primary} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.referralLabel}>Referral Links</Text>
-                    <Text style={styles.referralValue}>{realtorData.referrals.totalClicks} clicks · {realtorData.referrals.totalConversions} conversions</Text>
-                  </View>
-                  <Text style={styles.referralCount}>{realtorData.referrals.activeLinks} active</Text>
+            {/* Listing Performance */}
+            {listingStats && (
+              <View style={styles.section}>
+                <View style={styles.sectionHeader}>
+                  <Text style={styles.sectionTitle}>Listing Performance</Text>
+                  <TouchableOpacity onPress={() => router.push('/(realtor)/listings' as any)}>
+                    <Text style={styles.seeAll}>See All</Text>
+                  </TouchableOpacity>
                 </View>
-              </Card>
+                <Card variant="outlined" padding="md" style={styles.performanceCard}>
+                  <View style={styles.performanceGrid}>
+                    <View style={styles.performanceItem}>
+                      <View style={[styles.performanceIcon, { backgroundColor: Colors.primaryLight }]}>
+                        <Ionicons name="business-outline" size={18} color={Colors.primary} />
+                      </View>
+                      <Text style={styles.performanceValue}>{listingStats.total}</Text>
+                      <Text style={styles.performanceLabel}>Total</Text>
+                    </View>
+                    <View style={styles.performanceItem}>
+                      <View style={[styles.performanceIcon, { backgroundColor: Colors.successLight }]}>
+                        <Ionicons name="checkmark-circle-outline" size={18} color={Colors.success} />
+                      </View>
+                      <Text style={styles.performanceValue}>{listingStats.active}</Text>
+                      <Text style={styles.performanceLabel}>Active</Text>
+                    </View>
+                    <View style={styles.performanceItem}>
+                      <View style={[styles.performanceIcon, { backgroundColor: Colors.warningLight }]}>
+                        <Ionicons name="eye-outline" size={18} color={Colors.warning} />
+                      </View>
+                      <Text style={styles.performanceValue}>{listingStats.totalViews ?? 0}</Text>
+                      <Text style={styles.performanceLabel}>Views</Text>
+                    </View>
+                    <View style={styles.performanceItem}>
+                      <View style={[styles.performanceIcon, { backgroundColor: Colors.errorLight }]}>
+                        <Ionicons name="heart-outline" size={18} color={Colors.error} />
+                      </View>
+                      <Text style={styles.performanceValue}>{listingStats.totalFavorites ?? 0}</Text>
+                      <Text style={styles.performanceLabel}>Favorites</Text>
+                    </View>
+                  </View>
+                </Card>
+              </View>
+            )}
+
+            {/* Referral Hub */}
+            {profile?.referralCode && (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Referral Hub</Text>
+                <Card variant="outlined" padding="md" style={styles.referralHubCard}>
+                  <View style={styles.referralCodeRow}>
+                    <View style={styles.referralCodeBox}>
+                      <Text style={styles.referralCodeLabel}>Your Code</Text>
+                      <Text style={styles.referralCodeValue}>{profile.referralCode}</Text>
+                    </View>
+                    <View style={styles.referralActions}>
+                      <TouchableOpacity style={styles.referralActionBtn} onPress={handleCopyReferralCode} activeOpacity={0.7}>
+                        <Ionicons name="copy-outline" size={18} color={Colors.primary} />
+                      </TouchableOpacity>
+                      <TouchableOpacity style={[styles.referralActionBtn, { backgroundColor: Colors.primary }]} onPress={handleShareReferral} activeOpacity={0.7}>
+                        <Ionicons name="share-social-outline" size={18} color={Colors.white} />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                  <View style={styles.referralStatsRow}>
+                    <View style={styles.referralStatItem}>
+                      <Text style={styles.referralStatValue}>{realtorData.referrals.activeLinks}</Text>
+                      <Text style={styles.referralStatLabel}>Active Links</Text>
+                    </View>
+                    <View style={styles.referralStatDivider} />
+                    <View style={styles.referralStatItem}>
+                      <Text style={styles.referralStatValue}>{realtorData.referrals.totalClicks}</Text>
+                      <Text style={styles.referralStatLabel}>Clicks</Text>
+                    </View>
+                    <View style={styles.referralStatDivider} />
+                    <View style={styles.referralStatItem}>
+                      <Text style={styles.referralStatValue}>{realtorData.referrals.totalConversions}</Text>
+                      <Text style={styles.referralStatLabel}>Conversions</Text>
+                    </View>
+                  </View>
+                </Card>
+              </View>
+            )}
+
+            {/* Recent Notifications */}
+            {recentNotifications.length > 0 && (
+              <View style={styles.section}>
+                <View style={styles.sectionHeader}>
+                  <Text style={styles.sectionTitle}>Recent Notifications</Text>
+                  <TouchableOpacity onPress={() => router.push('/(realtor)/notifications' as any)}>
+                    <View style={styles.seeAllRow}>
+                      {unreadCount > 0 && (
+                        <View style={styles.unreadBadge}>
+                          <Text style={styles.unreadBadgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
+                        </View>
+                      )}
+                      <Text style={styles.seeAll}>View All</Text>
+                    </View>
+                  </TouchableOpacity>
+                </View>
+                <Card variant="outlined" padding="sm">
+                  {recentNotifications.map((notif, idx) => (
+                    <TouchableOpacity
+                      key={notif.id}
+                      style={[
+                        styles.notifRow,
+                        idx < recentNotifications.length - 1 && styles.notifRowBorder,
+                        !notif.isRead && styles.notifUnread,
+                      ]}
+                      onPress={() => router.push('/(realtor)/notifications' as any)}
+                      activeOpacity={0.7}
+                    >
+                      <View style={[styles.notifIcon, !notif.isRead && { backgroundColor: Colors.primaryLight }]}>
+                        <Ionicons
+                          name={getNotifIcon(notif.type)}
+                          size={16}
+                          color={!notif.isRead ? Colors.primary : Colors.textMuted}
+                        />
+                      </View>
+                      <View style={styles.notifContent}>
+                        <Text style={[styles.notifTitle, !notif.isRead && { color: Colors.textPrimary, fontWeight: '600' }]} numberOfLines={1}>
+                          {notif.title}
+                        </Text>
+                        <Text style={styles.notifBody} numberOfLines={1}>{notif.message}</Text>
+                      </View>
+                      {!notif.isRead && <View style={styles.notifUnreadDot} />}
+                    </TouchableOpacity>
+                  ))}
+                </Card>
+              </View>
             )}
 
             {/* Recent Applications */}
@@ -207,19 +370,37 @@ export default function RealtorDashboard() {
               <Text style={styles.sectionTitle}>Quick Actions</Text>
               <View style={styles.actionsGrid}>
                 {[
-                  { icon: 'list-outline', label: 'My Listings', color: Colors.primary, bg: Colors.primaryLight, route: '/(realtor)/listings' },
-                  { icon: 'people-outline', label: 'Leads', color: Colors.success, bg: Colors.successLight, route: '/(realtor)/leads' },
-                  { icon: 'wallet-outline', label: 'Earnings', color: Colors.warning, bg: Colors.warningLight, route: '/(realtor)/payments' },
-                  { icon: 'shield-checkmark-outline', label: 'KYC', color: Colors.accent, bg: Colors.primaryLight, route: '/(realtor)/kyc' },
+                  { icon: 'add-circle', label: 'Add Property', color: Colors.primary, bg: Colors.primaryLight, route: '/(realtor)/add-listing' },
+                  { icon: 'business', label: 'My Listings', color: Colors.accent, bg: '#EFF6FF', route: '/(realtor)/listings' },
+                  { icon: 'people-circle', label: 'Leads', color: Colors.success, bg: Colors.successLight, route: '/(realtor)/leads' },
+                  { icon: 'card', label: 'Earnings', color: Colors.warning, bg: Colors.warningLight, route: '/(realtor)/payments' },
+                  { icon: 'shield-checkmark', label: 'KYC', color: '#8B5CF6', bg: '#EDE9FE', route: '/(realtor)/kyc' },
+                  { icon: 'chatbubbles', label: 'Messages', color: '#EC4899', bg: '#FCE7F3', route: '/(realtor)/notifications' },
                 ].map((a) => (
-                  <TouchableOpacity key={a.label} style={styles.actionCard} onPress={() => router.push(a.route as any)} activeOpacity={0.8}>
+                  <TouchableOpacity key={a.label} style={styles.actionCard} onPress={() => router.push(a.route as any)} activeOpacity={0.7}>
                     <View style={[styles.actionIcon, { backgroundColor: a.bg }]}>
-                      <Ionicons name={a.icon as any} size={20} color={a.color} />
+                      <Ionicons name={a.icon as any} size={22} color={a.color} />
                     </View>
                     <Text style={styles.actionLabel}>{a.label}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
+            </View>
+
+            {/* Activity Feed Placeholder */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Activity</Text>
+              <Card variant="outlined" padding="lg">
+                <View style={styles.activityEmpty}>
+                  <View style={styles.activityEmptyIcon}>
+                    <Ionicons name="pulse-outline" size={28} color={Colors.textMuted} />
+                  </View>
+                  <Text style={styles.activityEmptyTitle}>Activity feed coming soon</Text>
+                  <Text style={styles.activityEmptyDesc}>
+                    Track property views, lead interactions, and client enquiries in real time.
+                  </Text>
+                </View>
+              </Card>
             </View>
           </>
         )}
@@ -258,12 +439,40 @@ const styles = StyleSheet.create({
   revItem: { alignItems: 'center' },
   revItemVal: { ...Typography.bodySemiBold, color: Colors.white },
   revItemLabel: { ...Typography.small, color: 'rgba(255,255,255,0.7)', marginTop: 2 },
-  referralCard: { marginHorizontal: Spacing.xl, marginBottom: Spacing.lg },
-  referralRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
-  referralIcon: { width: 36, height: 36, borderRadius: 18, backgroundColor: Colors.primaryLight, alignItems: 'center', justifyContent: 'center' },
-  referralLabel: { ...Typography.caption, color: Colors.textSecondary },
-  referralValue: { ...Typography.bodyMedium, color: Colors.textPrimary, marginTop: 2 },
-  referralCount: { ...Typography.captionMedium, color: Colors.textSecondary },
+
+  // Listing Performance
+  performanceCard: { },
+  performanceGrid: { flexDirection: 'row', justifyContent: 'space-between' },
+  performanceItem: { alignItems: 'center', flex: 1 },
+  performanceIcon: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.xs },
+  performanceValue: { ...Typography.h3, color: Colors.textPrimary },
+  performanceLabel: { ...Typography.small, color: Colors.textMuted, marginTop: 2 },
+
+  // Referral Hub
+  referralHubCard: { },
+  referralCodeRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: Spacing.md },
+  referralCodeBox: { flex: 1 },
+  referralCodeLabel: { ...Typography.small, color: Colors.textMuted },
+  referralCodeValue: { ...Typography.h4, color: Colors.primary, letterSpacing: 1, marginTop: 2 },
+  referralActions: { flexDirection: 'row', gap: Spacing.sm },
+  referralActionBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: Colors.primaryLight, alignItems: 'center', justifyContent: 'center' },
+  referralStatsRow: { flexDirection: 'row', alignItems: 'center', borderTopWidth: 1, borderTopColor: Colors.borderLight, paddingTop: Spacing.md },
+  referralStatItem: { flex: 1, alignItems: 'center' },
+  referralStatValue: { ...Typography.h4, color: Colors.textPrimary },
+  referralStatLabel: { ...Typography.small, color: Colors.textMuted, marginTop: 2 },
+  referralStatDivider: { width: 1, height: 28, backgroundColor: Colors.borderLight },
+
+  // Notifications
+  notifRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: Spacing.md, paddingHorizontal: Spacing.md, gap: Spacing.md },
+  notifRowBorder: { borderBottomWidth: 1, borderBottomColor: Colors.borderLight },
+  notifUnread: { backgroundColor: 'rgba(30, 64, 175, 0.03)' },
+  notifIcon: { width: 32, height: 32, borderRadius: 16, backgroundColor: Colors.surface, alignItems: 'center', justifyContent: 'center' },
+  notifContent: { flex: 1 },
+  notifTitle: { ...Typography.bodyMedium, color: Colors.textSecondary },
+  notifBody: { ...Typography.small, color: Colors.textMuted, marginTop: 1 },
+  notifUnreadDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: Colors.primary },
+
+  // Applications
   appRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: Spacing.md, paddingHorizontal: Spacing.md, borderBottomWidth: 1, borderBottomColor: Colors.borderLight },
   appLeft: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, flex: 1, marginRight: Spacing.md },
   appIcon: { width: 30, height: 30, borderRadius: 15, backgroundColor: Colors.primaryLight, alignItems: 'center', justifyContent: 'center' },
@@ -271,10 +480,25 @@ const styles = StyleSheet.create({
   appClient: { ...Typography.caption, color: Colors.textMuted, marginTop: 1 },
   appBadge: { paddingHorizontal: Spacing.sm, paddingVertical: 3, borderRadius: BorderRadius.full },
   appBadgeText: { ...Typography.small, fontWeight: '600' as const },
+
+  // Section
   section: { paddingHorizontal: Spacing.xl, marginBottom: Spacing.lg },
+  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.md },
   sectionTitle: { ...Typography.h4, color: Colors.textPrimary, marginBottom: Spacing.md },
+  seeAll: { ...Typography.captionMedium, color: Colors.primary },
+  seeAllRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs },
+  unreadBadge: { minWidth: 18, height: 18, borderRadius: 9, backgroundColor: Colors.error, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 },
+  unreadBadgeText: { ...Typography.small, color: Colors.white, fontWeight: '700' as const, fontSize: 10 },
+
+  // Quick Actions
   actionsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.md },
-  actionCard: { width: '47%', alignItems: 'center', backgroundColor: Colors.white, borderRadius: BorderRadius.lg, padding: Spacing.lg, borderWidth: 1, borderColor: Colors.borderLight, gap: Spacing.sm },
-  actionIcon: { width: 40, height: 40, borderRadius: BorderRadius.md, alignItems: 'center', justifyContent: 'center' },
-  actionLabel: { ...Typography.captionMedium, color: Colors.textPrimary, textAlign: 'center' },
+  actionCard: { width: '30%', alignItems: 'center', backgroundColor: Colors.white, borderRadius: BorderRadius.lg, paddingVertical: Spacing.lg, paddingHorizontal: Spacing.sm, borderWidth: 1, borderColor: Colors.borderLight, gap: Spacing.sm, ...Shadows.sm },
+  actionIcon: { width: 44, height: 44, borderRadius: BorderRadius.lg, alignItems: 'center', justifyContent: 'center' },
+  actionLabel: { ...Typography.small, color: Colors.textPrimary, textAlign: 'center', fontWeight: '600' as const },
+
+  // Activity Feed
+  activityEmpty: { alignItems: 'center', paddingVertical: Spacing.xl },
+  activityEmptyIcon: { width: 52, height: 52, borderRadius: 26, backgroundColor: Colors.surface, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.md },
+  activityEmptyTitle: { ...Typography.bodyMedium, color: Colors.textSecondary, marginBottom: Spacing.xs },
+  activityEmptyDesc: { ...Typography.caption, color: Colors.textMuted, textAlign: 'center', maxWidth: 240 },
 });

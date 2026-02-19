@@ -2,14 +2,14 @@ import React from 'react';
 import { StyleSheet, View, Platform } from 'react-native';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors, Spacing, Shadows } from '@/constants/theme';
+import { Colors, Spacing, BorderRadius, Shadows } from '@/constants/theme';
 
 const TAB_CONFIG = [
-  { name: 'dashboard', title: 'Dashboard', icon: 'stats-chart' },
-  { name: 'listings', title: 'Listings', icon: 'home' },
-  { name: 'leads', title: 'Leads', icon: 'people' },
-  { name: 'payments', title: 'Earnings', icon: 'wallet' },
-  { name: 'profile', title: 'Profile', icon: 'person' },
+  { name: 'dashboard', title: 'Dashboard', iconFocused: 'grid', iconDefault: 'grid-outline' },
+  { name: 'listings', title: 'Listings', iconFocused: 'business', iconDefault: 'business-outline' },
+  { name: 'leads', title: 'Leads', iconFocused: 'people-circle', iconDefault: 'people-circle-outline' },
+  { name: 'payments', title: 'Earnings', iconFocused: 'card', iconDefault: 'card-outline' },
+  { name: 'profile', title: 'Profile', iconFocused: 'person-circle', iconDefault: 'person-circle-outline' },
 ] as const;
 
 export default function RealtorTabsLayout() {
@@ -33,9 +33,9 @@ export default function RealtorTabsLayout() {
             tabBarIcon: ({ focused, color }) => (
               <View style={[styles.iconWrap, focused && styles.iconWrapActive]}>
                 <Ionicons
-                  name={focused ? (tab.icon as any) : (`${tab.icon}-outline` as any)}
-                  size={20}
-                  color={color}
+                  name={(focused ? tab.iconFocused : tab.iconDefault) as any}
+                  size={22}
+                  color={focused ? Colors.primary : Colors.textMuted}
                 />
               </View>
             ),
@@ -49,26 +49,28 @@ export default function RealtorTabsLayout() {
 const styles = StyleSheet.create({
   tabBar: {
     backgroundColor: Colors.white,
-    borderTopWidth: 1,
-    borderTopColor: Colors.borderLight,
-    height: Platform.OS === 'ios' ? 80 : 58,
+    borderTopWidth: 0,
+    height: Platform.OS === 'ios' ? 84 : 62,
     paddingTop: Spacing.xs,
-    ...Shadows.sm,
+    paddingBottom: Platform.OS === 'ios' ? 20 : 6,
+    ...Shadows.md,
+    elevation: 10,
   },
   tabLabel: {
     fontSize: 10,
     fontWeight: '600',
-    marginTop: 1,
+    letterSpacing: 0.2,
+    marginTop: 2,
   },
   tabItem: {
-    paddingTop: 2,
+    paddingTop: 4,
   },
   iconWrap: {
     alignItems: 'center',
     justifyContent: 'center',
-    width: 36,
-    height: 26,
-    borderRadius: 13,
+    width: 40,
+    height: 28,
+    borderRadius: BorderRadius.lg,
   },
   iconWrapActive: {
     backgroundColor: Colors.primaryLight,
