@@ -139,3 +139,20 @@ export type {
 
 // Dashboard
 export type { ClientDashboard, RealtorDashboard, RealtorDashboardProfile, RealtorDashboardApplication } from './dashboard';
+
+// Realtor
+export type {
+  ActivityFeedType,
+  ActivityFeedItem,
+  ActivityFeedResponse,
+  ListingAnalyticsItem,
+  ListingAnalyticsSummary,
+  ListingAnalyticsResponse,
+  GoalProgress,
+  GoalsResponse,
+  ScheduleItemType,
+  SchedulePriority,
+  ScheduleItem,
+  ScheduleResponse,
+  UnreadMessagesResponse,
+} from './realtor';

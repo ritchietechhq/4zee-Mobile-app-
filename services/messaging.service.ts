@@ -59,6 +59,12 @@ class MessagingService {
     );
     return res.data!;
   }
+
+  /** GET /messaging/conversations/unread-count */
+  async getUnreadCount(): Promise<number> {
+    const res = await api.get<{ count: number }>('/messaging/conversations/unread-count');
+    return res.data?.count ?? 0;
+  }
 }
 
 export const messagingService = new MessagingService();

@@ -11,7 +11,12 @@ import { useAuthStore } from '@/store/auth.store';
 import { useDashboard } from '@/hooks/useDashboard';
 import { realtorService } from '@/services/realtor.service';
 import { notificationService } from '@/services/notification.service';
-import type { RealtorDashboardApplication, ListingStats, Notification } from '@/types';
+import { messagingService } from '@/services/messaging.service';
+import type {
+  RealtorDashboardApplication, ListingStats, Notification,
+  ActivityFeedItem, GoalsResponse, ScheduleItem,
+  ListingAnalyticsSummary,
+} from '@/types';
 import { AnalyticsCard } from '@/components/charts/AnalyticsCard';
 import { Card } from '@/components/ui/Card';
 import { Skeleton } from '@/components/ui/Skeleton';
@@ -44,6 +49,40 @@ const getNotifIcon = (type?: string): any => {
   }
 };
 
+const ACTIVITY_ICON: Record<string, { icon: string; color: string; bg: string }> = {
+  VIEW: { icon: 'eye-outline', color: Colors.accent, bg: '#EFF6FF' },
+  FAVORITE: { icon: 'heart-outline', color: Colors.error, bg: Colors.errorLight },
+  INQUIRY: { icon: 'chatbox-ellipses-outline', color: Colors.success, bg: Colors.successLight },
+  SALE: { icon: 'checkmark-circle-outline', color: '#059669', bg: '#D1FAE5' },
+  APPLICATION: { icon: 'document-text-outline', color: Colors.primary, bg: Colors.primaryLight },
+  COMMISSION: { icon: 'cash-outline', color: Colors.warning, bg: Colors.warningLight },
+};
+
+const formatTimeAgo = (dateStr: string): string => {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'now';
+  if (mins < 60) return `${mins}m`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h`;
+  const days = Math.floor(hrs / 24);
+  if (days < 7) return `${days}d`;
+  return `${Math.floor(days / 7)}w`;
+};
+
+const formatScheduleTime = (dateStr: string): string => {
+  const d = new Date(dateStr);
+  const now = new Date();
+  const isToday = d.toDateString() === now.toDateString();
+  const tomorrow = new Date(now);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const isTomorrow = d.toDateString() === tomorrow.toDateString();
+  const time = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  if (isToday) return `Today ${time}`;
+  if (isTomorrow) return `Tomorrow ${time}`;
+  return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+};
+
 export default function RealtorDashboard() {
   const user = useAuthStore((s) => s.user);
   const { realtorData, isLoading, fetchRealtorDashboard } = useDashboard();
@@ -52,17 +91,37 @@ export default function RealtorDashboard() {
   const [listingStats, setListingStats] = useState<ListingStats | null>(null);
   const [recentNotifications, setRecentNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [activityFeed, setActivityFeed] = useState<ActivityFeedItem[]>([]);
+  const [goals, setGoals] = useState<GoalsResponse | null>(null);
+  const [schedule, setSchedule] = useState<ScheduleItem[]>([]);
+  const [scheduleSummary, setScheduleSummary] = useState({ pendingApplications: 0, unreadInquiries: 0 });
+  const [analyticsSummary, setAnalyticsSummary] = useState<ListingAnalyticsSummary | null>(null);
+  const [unreadMessages, setUnreadMessages] = useState(0);
 
   const loadExtras = useCallback(async () => {
     try {
-      const [stats, notifsRes, count] = await Promise.allSettled([
+      const results = await Promise.allSettled([
         realtorService.getListingStats(),
         notificationService.getNotifications(false, undefined, 3),
         notificationService.getUnreadCount(),
+        realtorService.getActivityFeed(5),
+        realtorService.getGoals(),
+        realtorService.getSchedule(),
+        realtorService.getListingAnalytics(),
+        messagingService.getUnreadCount(),
       ]);
-      if (stats.status === 'fulfilled') setListingStats(stats.value);
-      if (notifsRes.status === 'fulfilled') setRecentNotifications(notifsRes.value.notifications);
-      if (count.status === 'fulfilled') setUnreadCount(count.value);
+      if (results[0].status === 'fulfilled') setListingStats(results[0].value);
+      if (results[1].status === 'fulfilled') setRecentNotifications(results[1].value.notifications);
+      if (results[2].status === 'fulfilled') setUnreadCount(results[2].value);
+      if (results[3].status === 'fulfilled') setActivityFeed(results[3].value.items);
+      if (results[4].status === 'fulfilled') setGoals(results[4].value);
+      if (results[5].status === 'fulfilled') {
+        const sched = results[5].value;
+        setSchedule(sched.items.slice(0, 3));
+        setScheduleSummary({ pendingApplications: sched.pendingApplications, unreadInquiries: sched.unreadInquiries });
+      }
+      if (results[6].status === 'fulfilled') setAnalyticsSummary(results[6].value.summary);
+      if (results[7].status === 'fulfilled') setUnreadMessages(results[7].value);
     } catch {}
   }, []);
 
@@ -207,7 +266,7 @@ export default function RealtorDashboard() {
             </LinearGradient>
 
             {/* Listing Performance */}
-            {listingStats && (
+            {(listingStats || analyticsSummary) && (
               <View style={styles.section}>
                 <View style={styles.sectionHeader}>
                   <Text style={styles.sectionTitle}>Listing Performance</Text>
@@ -221,29 +280,29 @@ export default function RealtorDashboard() {
                       <View style={[styles.performanceIcon, { backgroundColor: Colors.primaryLight }]}>
                         <Ionicons name="business-outline" size={18} color={Colors.primary} />
                       </View>
-                      <Text style={styles.performanceValue}>{listingStats.total}</Text>
-                      <Text style={styles.performanceLabel}>Total</Text>
-                    </View>
-                    <View style={styles.performanceItem}>
-                      <View style={[styles.performanceIcon, { backgroundColor: Colors.successLight }]}>
-                        <Ionicons name="checkmark-circle-outline" size={18} color={Colors.success} />
-                      </View>
-                      <Text style={styles.performanceValue}>{listingStats.available}</Text>
-                      <Text style={styles.performanceLabel}>Available</Text>
+                      <Text style={styles.performanceValue}>{analyticsSummary?.totalListings ?? listingStats?.total ?? 0}</Text>
+                      <Text style={styles.performanceLabel}>Listings</Text>
                     </View>
                     <View style={styles.performanceItem}>
                       <View style={[styles.performanceIcon, { backgroundColor: Colors.warningLight }]}>
                         <Ionicons name="eye-outline" size={18} color={Colors.warning} />
                       </View>
-                      <Text style={styles.performanceValue}>{listingStats.totalViews}</Text>
+                      <Text style={styles.performanceValue}>{analyticsSummary?.totalViews ?? listingStats?.totalViews ?? 0}</Text>
                       <Text style={styles.performanceLabel}>Views</Text>
                     </View>
                     <View style={styles.performanceItem}>
                       <View style={[styles.performanceIcon, { backgroundColor: Colors.errorLight }]}>
-                        <Ionicons name="bookmark-outline" size={18} color={Colors.error} />
+                        <Ionicons name="heart-outline" size={18} color={Colors.error} />
                       </View>
-                      <Text style={styles.performanceValue}>{listingStats.sold}</Text>
-                      <Text style={styles.performanceLabel}>Sold</Text>
+                      <Text style={styles.performanceValue}>{analyticsSummary?.totalFavorites ?? 0}</Text>
+                      <Text style={styles.performanceLabel}>Favorites</Text>
+                    </View>
+                    <View style={styles.performanceItem}>
+                      <View style={[styles.performanceIcon, { backgroundColor: Colors.successLight }]}>
+                        <Ionicons name="chatbox-ellipses-outline" size={18} color={Colors.success} />
+                      </View>
+                      <Text style={styles.performanceValue}>{analyticsSummary?.totalEnquiries ?? 0}</Text>
+                      <Text style={styles.performanceLabel}>Enquiries</Text>
                     </View>
                   </View>
                 </Card>
@@ -286,6 +345,89 @@ export default function RealtorDashboard() {
                     </View>
                   </View>
                 </Card>
+              </View>
+            )}
+
+            {/* Goals Tracker */}
+            {goals && (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Sales Goals</Text>
+                <Card variant="outlined" padding="md">
+                  {(['monthly', 'quarterly', 'yearly'] as const).map((period) => {
+                    const g = goals[period];
+                    const pct = Math.min(g.progress, 100);
+                    const periodLabel = period === 'monthly'
+                      ? goals.period.currentMonth
+                      : period === 'quarterly'
+                        ? goals.period.currentQuarter
+                        : goals.period.currentYear;
+                    return (
+                      <View key={period} style={[styles.goalRow, period !== 'yearly' && styles.goalRowBorder]}>
+                        <View style={styles.goalHeader}>
+                          <Text style={styles.goalPeriod}>{period.charAt(0).toUpperCase() + period.slice(1)}</Text>
+                          <Text style={styles.goalPeriodSub}>{periodLabel}</Text>
+                        </View>
+                        <View style={styles.goalBarBg}>
+                          <View style={[styles.goalBarFill, { width: `${pct}%`, backgroundColor: pct >= 100 ? Colors.success : pct >= 50 ? Colors.primary : Colors.warning }]} />
+                        </View>
+                        <View style={styles.goalStats}>
+                          <Text style={styles.goalAchieved}>{g.achieved}/{g.target} sales</Text>
+                          <Text style={[styles.goalPct, { color: pct >= 100 ? Colors.success : Colors.primary }]}>{pct}%</Text>
+                        </View>
+                      </View>
+                    );
+                  })}
+                </Card>
+              </View>
+            )}
+
+            {/* Schedule / Upcoming */}
+            {(schedule.length > 0 || scheduleSummary.pendingApplications > 0 || scheduleSummary.unreadInquiries > 0) && (
+              <View style={styles.section}>
+                <View style={styles.sectionHeader}>
+                  <Text style={styles.sectionTitle}>Upcoming</Text>
+                  {(scheduleSummary.pendingApplications + scheduleSummary.unreadInquiries) > 0 && (
+                    <View style={styles.scheduleBadges}>
+                      {scheduleSummary.pendingApplications > 0 && (
+                        <View style={[styles.schedBadge, { backgroundColor: Colors.warningLight }]}>
+                          <Text style={[styles.schedBadgeText, { color: Colors.warning }]}>{scheduleSummary.pendingApplications} pending</Text>
+                        </View>
+                      )}
+                      {scheduleSummary.unreadInquiries > 0 && (
+                        <View style={[styles.schedBadge, { backgroundColor: Colors.primaryLight }]}>
+                          <Text style={[styles.schedBadgeText, { color: Colors.primary }]}>{scheduleSummary.unreadInquiries} inquiries</Text>
+                        </View>
+                      )}
+                    </View>
+                  )}
+                </View>
+                {schedule.length > 0 ? (
+                  <Card variant="outlined" padding="sm">
+                    {schedule.map((item, idx) => {
+                      const priorityColor = item.priority === 'HIGH' ? Colors.error : item.priority === 'MEDIUM' ? Colors.warning : Colors.textMuted;
+                      return (
+                        <View key={item.id} style={[styles.schedRow, idx < schedule.length - 1 && styles.schedRowBorder]}>
+                          <View style={[styles.schedDot, { backgroundColor: priorityColor }]} />
+                          <View style={styles.schedContent}>
+                            <Text style={styles.schedTitle} numberOfLines={1}>{item.title}</Text>
+                            <Text style={styles.schedDesc} numberOfLines={1}>{item.description}</Text>
+                            {item.client && <Text style={styles.schedMeta}>{item.client}{item.property ? ` · ${item.property}` : ''}</Text>}
+                          </View>
+                          <View style={styles.schedTime}>
+                            <Text style={styles.schedTimeText}>{formatScheduleTime(item.scheduledAt)}</Text>
+                          </View>
+                        </View>
+                      );
+                    })}
+                  </Card>
+                ) : (
+                  <Card variant="outlined" padding="lg">
+                    <View style={styles.emptyMini}>
+                      <Ionicons name="calendar-outline" size={22} color={Colors.textMuted} />
+                      <Text style={styles.emptyMiniText}>No upcoming items</Text>
+                    </View>
+                  </Card>
+                )}
               </View>
             )}
 
@@ -390,20 +532,45 @@ export default function RealtorDashboard() {
               </View>
             </View>
 
-            {/* Activity Feed Placeholder */}
+            {/* Activity Feed */}
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Activity</Text>
-              <Card variant="outlined" padding="lg">
-                <View style={styles.activityEmpty}>
-                  <View style={styles.activityEmptyIcon}>
-                    <Ionicons name="pulse-outline" size={28} color={Colors.textMuted} />
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>Activity</Text>
+              </View>
+              {activityFeed.length > 0 ? (
+                <Card variant="outlined" padding="sm">
+                  {activityFeed.map((item, idx) => {
+                    const cfg = ACTIVITY_ICON[item.type] || ACTIVITY_ICON.VIEW;
+                    return (
+                      <View key={item.id} style={[styles.feedRow, idx < activityFeed.length - 1 && styles.feedRowBorder]}>
+                        <View style={[styles.feedIcon, { backgroundColor: cfg.bg }]}>
+                          <Ionicons name={cfg.icon as any} size={16} color={cfg.color} />
+                        </View>
+                        <View style={styles.feedContent}>
+                          <Text style={styles.feedTitle} numberOfLines={1}>{item.title}</Text>
+                          <Text style={styles.feedDesc} numberOfLines={1}>{item.description}</Text>
+                          {item.propertyTitle && (
+                            <Text style={styles.feedProp} numberOfLines={1}>{item.propertyTitle}</Text>
+                          )}
+                        </View>
+                        <View style={styles.feedRight}>
+                          {item.amount != null && item.amount > 0 && (
+                            <Text style={styles.feedAmount}>{formatCurrency(item.amount)}</Text>
+                          )}
+                          <Text style={styles.feedTime}>{formatTimeAgo(item.createdAt)}</Text>
+                        </View>
+                      </View>
+                    );
+                  })}
+                </Card>
+              ) : (
+                <Card variant="outlined" padding="lg">
+                  <View style={styles.emptyMini}>
+                    <Ionicons name="pulse-outline" size={22} color={Colors.textMuted} />
+                    <Text style={styles.emptyMiniText}>No recent activity yet</Text>
                   </View>
-                  <Text style={styles.activityEmptyTitle}>Activity feed coming soon</Text>
-                  <Text style={styles.activityEmptyDesc}>
-                    Track property views, lead interactions, and client enquiries in real time.
-                  </Text>
-                </View>
-              </Card>
+                </Card>
+              )}
             </View>
           </>
         )}
@@ -499,9 +666,45 @@ const styles = StyleSheet.create({
   actionIcon: { width: 44, height: 44, borderRadius: BorderRadius.lg, alignItems: 'center', justifyContent: 'center' },
   actionLabel: { ...Typography.small, color: Colors.textPrimary, textAlign: 'center', fontWeight: '600' as const },
 
+  // Goals Tracker
+  goalRow: { paddingVertical: Spacing.md },
+  goalRowBorder: { borderBottomWidth: 1, borderBottomColor: Colors.borderLight, marginBottom: Spacing.xs },
+  goalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.xs },
+  goalPeriod: { ...Typography.bodyMedium, color: Colors.textPrimary },
+  goalPeriodSub: { ...Typography.small, color: Colors.textMuted },
+  goalBarBg: { height: 6, backgroundColor: Colors.borderLight, borderRadius: 3, overflow: 'hidden' as const, marginBottom: Spacing.xs },
+  goalBarFill: { height: 6, borderRadius: 3 },
+  goalStats: { flexDirection: 'row', justifyContent: 'space-between' },
+  goalAchieved: { ...Typography.small, color: Colors.textSecondary },
+  goalPct: { ...Typography.captionMedium },
+
+  // Schedule
+  scheduleBadges: { flexDirection: 'row', gap: Spacing.xs },
+  schedBadge: { paddingHorizontal: Spacing.sm, paddingVertical: 2, borderRadius: BorderRadius.full },
+  schedBadgeText: { ...Typography.small, fontWeight: '600' as const },
+  schedRow: { flexDirection: 'row', alignItems: 'flex-start', paddingVertical: Spacing.md, paddingHorizontal: Spacing.md, gap: Spacing.md },
+  schedRowBorder: { borderBottomWidth: 1, borderBottomColor: Colors.borderLight },
+  schedDot: { width: 8, height: 8, borderRadius: 4, marginTop: 5 },
+  schedContent: { flex: 1 },
+  schedTitle: { ...Typography.bodyMedium, color: Colors.textPrimary },
+  schedDesc: { ...Typography.small, color: Colors.textMuted, marginTop: 1 },
+  schedMeta: { ...Typography.small, color: Colors.textSecondary, marginTop: 2 },
+  schedTime: { alignItems: 'flex-end' },
+  schedTimeText: { ...Typography.small, color: Colors.textMuted },
+
   // Activity Feed
-  activityEmpty: { alignItems: 'center', paddingVertical: Spacing.xl },
-  activityEmptyIcon: { width: 52, height: 52, borderRadius: 26, backgroundColor: Colors.surface, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.md },
-  activityEmptyTitle: { ...Typography.bodyMedium, color: Colors.textSecondary, marginBottom: Spacing.xs },
-  activityEmptyDesc: { ...Typography.caption, color: Colors.textMuted, textAlign: 'center', maxWidth: 240 },
+  feedRow: { flexDirection: 'row', alignItems: 'flex-start', paddingVertical: Spacing.md, paddingHorizontal: Spacing.md, gap: Spacing.md },
+  feedRowBorder: { borderBottomWidth: 1, borderBottomColor: Colors.borderLight },
+  feedIcon: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  feedContent: { flex: 1 },
+  feedTitle: { ...Typography.bodyMedium, color: Colors.textPrimary },
+  feedDesc: { ...Typography.small, color: Colors.textMuted, marginTop: 1 },
+  feedProp: { ...Typography.small, color: Colors.accent, marginTop: 2 },
+  feedRight: { alignItems: 'flex-end' },
+  feedAmount: { ...Typography.captionMedium, color: Colors.success },
+  feedTime: { ...Typography.small, color: Colors.textMuted, marginTop: 2 },
+
+  // Empty mini
+  emptyMini: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.sm, paddingVertical: Spacing.sm },
+  emptyMiniText: { ...Typography.body, color: Colors.textMuted },
 });
