@@ -15,9 +15,9 @@ export function useRole() {
       await setRole(selectedRole);
       if (isAuthenticated) {
         if (selectedRole === 'REALTOR') {
-          router.replace('/dashboard' as const);
+          router.replace('/(realtor)/dashboard' as any);
         } else {
-          router.replace('/dashboard' as const);
+          router.replace('/(client)/dashboard' as any);
         }
       } else {
         router.replace('/login');

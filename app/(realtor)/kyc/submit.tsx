@@ -15,11 +15,11 @@ import { Card } from '@/components/ui/Card';
 import { Colors, Spacing, Typography, BorderRadius, Shadows } from '@/constants/theme';
 
 const ID_TYPES: { value: KYCIdType; label: string }[] = [
-  { value: 'NIN', label: 'National ID (NIN)' },
-  { value: 'BVN', label: 'Bank Verification Number' },
+  { value: 'NATIONAL_ID', label: 'National ID' },
+  { value: 'NIN', label: 'NIN Slip' },
   { value: 'DRIVERS_LICENSE', label: "Driver's License" },
   { value: 'VOTERS_CARD', label: "Voter's Card" },
-  { value: 'INTERNATIONAL_PASSPORT', label: 'International Passport' },
+  { value: 'PASSPORT', label: 'International Passport' },
 ];
 
 const STEPS = ['Personal Info', 'ID Document', 'Selfie', 'Review'];
@@ -64,6 +64,7 @@ export default function KYCSubmitScreen() {
         name: asset.fileName || `kyc_${Date.now()}.jpg`,
         type: asset.mimeType || 'image/jpeg',
       } as any);
+      formData.append('category', 'KYC_DOCUMENT');
 
       const uploadedUrl = await kycService.uploadDocument(formData);
       urlSetter(uploadedUrl);
@@ -89,14 +90,15 @@ export default function KYCSubmitScreen() {
     if (!idType || !idDocUrl || !selfieUrl) return;
     setIsSubmitting(true);
     try {
-      const payload: SubmitKYCRequest = {
+      // Submit entire KYC application in one call (PUT /kyc)
+      await kycService.submitKYC({
         idType,
         idNumber: idNumber.trim(),
         idDocumentUrl: idDocUrl,
-        selfieUrl: selfieUrl,
-        ...(proofUrl ? { proofOfAddressUrl: proofUrl } : {}),
-      };
-      await kycService.submit(payload);
+        selfieUrl,
+        proofOfAddressUrl: proofUrl || undefined,
+      });
+
       Alert.alert('Submitted!', 'Your KYC documents have been submitted for review.', [
         { text: 'OK', onPress: () => router.replace('/(realtor)/kyc' as any) },
       ]);
@@ -164,7 +166,7 @@ export default function KYCSubmitScreen() {
         <View style={styles.previewWrap}>
           <Image source={{ uri: idDocUri }} style={styles.preview} contentFit="cover" />
           <TouchableOpacity style={styles.removeBtn} onPress={() => { setIdDocUri(''); setIdDocUrl(''); }}>
-            <Ionicons name="close-circle" size={28} color={Colors.error} />
+            <Ionicons name="close-circle" size={24} color={Colors.error} />
           </TouchableOpacity>
           {isUploading && (
             <View style={styles.uploadOverlay}>
@@ -175,7 +177,7 @@ export default function KYCSubmitScreen() {
         </View>
       ) : (
         <TouchableOpacity style={styles.uploadBox} onPress={() => pickImage(setIdDocUri, setIdDocUrl)} disabled={isUploading}>
-          <Ionicons name="cloud-upload-outline" size={40} color={Colors.primary} />
+          <Ionicons name="cloud-upload-outline" size={32} color={Colors.primary} />
           <Text style={styles.uploadLabel}>Tap to upload</Text>
           <Text style={styles.uploadHint}>JPEG, PNG (max 5MB)</Text>
         </TouchableOpacity>
@@ -187,12 +189,12 @@ export default function KYCSubmitScreen() {
         <View style={styles.previewWrap}>
           <Image source={{ uri: proofUri }} style={styles.preview} contentFit="cover" />
           <TouchableOpacity style={styles.removeBtn} onPress={() => { setProofUri(''); setProofUrl(''); }}>
-            <Ionicons name="close-circle" size={28} color={Colors.error} />
+            <Ionicons name="close-circle" size={24} color={Colors.error} />
           </TouchableOpacity>
         </View>
       ) : (
         <TouchableOpacity style={styles.uploadBox} onPress={() => pickImage(setProofUri, setProofUrl)} disabled={isUploading}>
-          <Ionicons name="document-outline" size={36} color={Colors.textMuted} />
+          <Ionicons name="document-outline" size={28} color={Colors.textMuted} />
           <Text style={[styles.uploadLabel, { color: Colors.textMuted }]}>Tap to upload (optional)</Text>
         </TouchableOpacity>
       )}
@@ -207,7 +209,7 @@ export default function KYCSubmitScreen() {
         <View style={styles.previewWrap}>
           <Image source={{ uri: selfieUri }} style={[styles.preview, { borderRadius: BorderRadius.xl }]} contentFit="cover" />
           <TouchableOpacity style={styles.removeBtn} onPress={() => { setSelfieUri(''); setSelfieUrl(''); }}>
-            <Ionicons name="close-circle" size={28} color={Colors.error} />
+            <Ionicons name="close-circle" size={24} color={Colors.error} />
           </TouchableOpacity>
           {isUploading && (
             <View style={[styles.uploadOverlay, { borderRadius: BorderRadius.xl }]}>
@@ -219,7 +221,7 @@ export default function KYCSubmitScreen() {
       ) : (
         <TouchableOpacity style={[styles.uploadBox, { paddingVertical: Spacing.xxxl }]} onPress={() => pickImage(setSelfieUri, setSelfieUrl, 'camera')} disabled={isUploading}>
           <View style={styles.selfieCircle}>
-            <Ionicons name="camera" size={40} color={Colors.primary} />
+            <Ionicons name="camera" size={32} color={Colors.primary} />
           </View>
           <Text style={styles.uploadLabel}>Open Camera</Text>
           <Text style={styles.uploadHint}>A clear selfie is required</Text>
@@ -332,11 +334,11 @@ const styles = StyleSheet.create({
   uploadLabel: { ...Typography.bodySemiBold, color: Colors.primary },
   uploadHint: { ...Typography.caption, color: Colors.textMuted },
   previewWrap: { borderRadius: BorderRadius.xl, overflow: 'hidden', position: 'relative' },
-  preview: { width: '100%', height: 220, borderRadius: BorderRadius.xl },
+  preview: { width: '100%', height: 190, borderRadius: BorderRadius.xl },
   removeBtn: { position: 'absolute', top: Spacing.sm, right: Spacing.sm },
   uploadOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center', gap: Spacing.sm },
   uploadText: { ...Typography.bodySemiBold, color: Colors.white },
-  selfieCircle: { width: 80, height: 80, borderRadius: 40, backgroundColor: Colors.primaryLight, alignItems: 'center', justifyContent: 'center' },
+  selfieCircle: { width: 64, height: 64, borderRadius: 32, backgroundColor: Colors.primaryLight, alignItems: 'center', justifyContent: 'center' },
   reviewCard: { marginTop: Spacing.sm },
   reviewRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: Spacing.md, borderBottomWidth: 1, borderBottomColor: Colors.borderLight },
   reviewLabel: { ...Typography.caption, color: Colors.textMuted },

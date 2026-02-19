@@ -3,7 +3,7 @@
 // Matches: GET /properties/search, /properties/:id, /properties/featured
 // ============================================================
 
-export type PropertyType = 'LAND' | 'HOUSE' | 'APARTMENT' | 'COMMERCIAL';
+export type PropertyType = 'LAND' | 'APARTMENT' | 'DUPLEX' | 'BUNGALOW' | 'TERRACE' | 'COMMERCIAL';
 
 export type PropertyAvailability = 'AVAILABLE' | 'SOLD' | 'RESERVED';
 
@@ -51,4 +51,29 @@ export interface PropertySearchFilters {
   page?: number;
   sortBy?: 'price' | 'createdAt' | 'viewCount';
   sortOrder?: 'asc' | 'desc';
+}
+
+// ---- Realtor Listing CRUD ----
+
+export interface CreateListingRequest {
+  title: string;
+  description?: string;
+  location: string;
+  price: number;
+  type: PropertyType;
+  mediaUrls?: string[];
+  bedrooms?: number;
+  bathrooms?: number;
+  size?: number;
+  amenities?: string[];
+}
+
+export interface UpdateListingRequest extends Partial<CreateListingRequest> {}
+
+export interface ListingStats {
+  total: number;
+  available: number;
+  reserved: number;
+  sold: number;
+  totalViews: number;
 }

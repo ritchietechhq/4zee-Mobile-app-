@@ -1,7 +1,7 @@
 // ============================================================
 // Payment Service
 // Endpoints: POST /payments/initiate, GET /payments/:ref/status,
-//            GET /payments/:ref, GET /payments/me
+//            GET /payments/:ref, GET /payments/me (paginated)
 // ============================================================
 
 import api from './api';
@@ -61,7 +61,7 @@ class PaymentService {
     return res.data!;
   }
 
-  /** GET /payments/me — cursor-paginated, CLIENT role */
+  /** GET /payments/me — paginated, CLIENT role */
   async getMyPayments(
     cursor?: string,
     limit = 20,

@@ -28,26 +28,49 @@ export interface ClientDashboard {
   unreadMessages: number;
 }
 
+export interface RealtorDashboardProfile {
+  email: string;
+  firstName: string | null;
+  lastName: string | null;
+  phone: string | null;
+  address: string | null;
+  referralCode: string;
+  totalSales: number;
+  totalRecruits: number;
+  kycStatus: string;
+  kycVerifiedAt: string | null;
+  kycRejectedReason: string | null;
+  memberSince: string;
+}
+
+export interface RealtorDashboardApplication {
+  id: string;
+  property: string;
+  client: string;
+  status: string;
+  createdAt: string;
+}
+
 export interface RealtorDashboard {
+  profile: RealtorDashboardProfile;
   sales: {
     total: number;
-    thisMonth: number;
-    totalAmount: number;
+    totalValue: number;
   };
-  commissions: {
-    pending: number;
-    approved: number;
-    paid: number;
-    total: number;
+  earnings: {
+    totalCommissions: number;
+    commissionCount: number;
+    availableBalance: number;
+    totalWithdrawn: number;
   };
   referrals: {
-    total: number;
-    active: number;
-    earnings: number;
+    activeLinks: number;
+    totalClicks: number;
+    totalConversions: number;
   };
-  recentSales: Array<Record<string, unknown>>;
-  performanceChart: {
-    labels: string[];
-    data: number[];
+  recentApplications: RealtorDashboardApplication[];
+  alerts: {
+    unreadNotifications: number;
+    unreadMessages: number;
   };
 }

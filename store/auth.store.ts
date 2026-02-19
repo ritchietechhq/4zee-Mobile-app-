@@ -14,6 +14,7 @@ import type {
 } from '@/types';
 import { is2FARequired } from '@/types';
 import authService from '@/services/auth.service';
+import userService from '@/services/user.service';
 import api, { setForceLogoutCallback } from '@/services/api';
 
 const ROLE_KEY = '4zee_user_role';
@@ -68,6 +69,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
       // Full auth — tokens already stored by authService
       const user = response.user;
+
+      // Fetch profile picture from server (persists across devices)
+      if (!user.profilePicture) {
+        const serverPic = await userService.getProfilePictureFromServer();
+        if (serverPic) {
+          user.profilePicture = serverPic;
+          AsyncStorage.setItem(PROFILE_PIC_KEY, serverPic).catch(() => {});
+        }
+      }
+
       set({
         user,
         isAuthenticated: true,
@@ -111,6 +122,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       const tokens = await authService.verify2FA({ userId, code });
       const user = tokens.user;
+
+      // Fetch profile picture from server (persists across devices)
+      if (!user.profilePicture) {
+        const serverPic = await userService.getProfilePictureFromServer();
+        if (serverPic) {
+          user.profilePicture = serverPic;
+          AsyncStorage.setItem(PROFILE_PIC_KEY, serverPic).catch(() => {});
+        }
+      }
+
       set({
         user,
         isAuthenticated: true,
@@ -155,10 +176,23 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const user = await authService.getMe();
       const savedRole = (await AsyncStorage.getItem(ROLE_KEY)) as UserRole | null;
 
-      // /auth/me does NOT return profilePicture — restore from local storage
-      const savedPic = await AsyncStorage.getItem(PROFILE_PIC_KEY);
-      if (savedPic && !user.profilePicture) {
-        user.profilePicture = savedPic;
+      // Profile picture: try server first (works across devices), fall back to local cache
+      if (!user.profilePicture) {
+        const serverPic = await userService.getProfilePictureFromServer();
+        if (serverPic) {
+          user.profilePicture = serverPic;
+          // Cache locally for faster loads
+          AsyncStorage.setItem(PROFILE_PIC_KEY, serverPic).catch(() => {});
+        } else {
+          // Fall back to local cache (same device)
+          const savedPic = await AsyncStorage.getItem(PROFILE_PIC_KEY);
+          if (savedPic) {
+            user.profilePicture = savedPic;
+          }
+        }
+      } else {
+        // Backend returned profilePicture — cache it
+        AsyncStorage.setItem(PROFILE_PIC_KEY, user.profilePicture).catch(() => {});
       }
 
       set({

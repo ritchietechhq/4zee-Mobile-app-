@@ -32,6 +32,7 @@ const payoutStatusColors: Record<PayoutStatus, { bg: string; text: string }> = {
   PROCESSING: { bg: Colors.primaryLight, text: Colors.primary },
   COMPLETED: { bg: Colors.successLight, text: Colors.success },
   FAILED: { bg: Colors.errorLight, text: Colors.error },
+  CANCELLED: { bg: Colors.surface, text: Colors.textMuted },
 };
 
 export default function PaymentsScreen() {
@@ -49,13 +50,15 @@ export default function PaymentsScreen() {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [isRequestingPayout, setIsRequestingPayout] = useState(false);
 
+  const emptyPage = { items: [], pagination: { hasNext: false, nextCursor: undefined } };
+
   const fetchAll = useCallback(async () => {
     try {
       const [summaryRes, balanceRes, commRes, payoutRes] = await Promise.all([
         commissionService.getMySummary().catch(() => null),
         payoutService.getBalance().catch(() => null),
-        commissionService.getMyCommissions(undefined, undefined, 15),
-        payoutService.getMyPayouts(undefined, 15),
+        commissionService.getMyCommissions(undefined, undefined, 15).catch(() => emptyPage),
+        payoutService.getMyPayouts(undefined, 15).catch(() => emptyPage),
       ]);
       if (summaryRes) setSummary(summaryRes);
       if (balanceRes) setBalance(balanceRes);
@@ -66,7 +69,7 @@ export default function PaymentsScreen() {
       setPayoutCursor(payoutRes.pagination?.nextCursor);
       setPayoutHasNext(payoutRes.pagination?.hasNext || false);
     } catch (e) {
-      console.error('Failed to fetch payments data:', e);
+      // Silently handle — individual calls already caught
     }
   }, []);
 
@@ -146,19 +149,19 @@ export default function PaymentsScreen() {
         <View style={styles.balanceRow}>
           <View style={styles.balanceItem}>
             <Text style={styles.balanceItemVal}>
-              {balance ? formatCurrency(balance.totalEarned) : '—'}
+              {summary ? formatCurrency(summary.total?.amount ?? 0) : '—'}
             </Text>
             <Text style={styles.balanceItemLabel}>Total Earned</Text>
           </View>
           <View style={styles.balanceItem}>
             <Text style={styles.balanceItemVal}>
-              {balance ? formatCurrency(balance.totalPaidOut) : '—'}
+              {balance ? formatCurrency(balance.totalWithdrawn) : '—'}
             </Text>
-            <Text style={styles.balanceItemLabel}>Paid Out</Text>
+            <Text style={styles.balanceItemLabel}>Withdrawn</Text>
           </View>
           <View style={styles.balanceItem}>
             <Text style={styles.balanceItemVal}>
-              {balance ? formatCurrency(balance.pendingPayouts) : '—'}
+              {balance ? formatCurrency(balance.pendingWithdrawals?.amount ?? 0) : '—'}
             </Text>
             <Text style={styles.balanceItemLabel}>Pending</Text>
           </View>
@@ -173,7 +176,7 @@ export default function PaymentsScreen() {
             <ActivityIndicator size="small" color={Colors.primary} />
           ) : (
             <>
-              <Ionicons name="arrow-up-outline" size={18} color={Colors.primary} />
+              <Ionicons name="arrow-up-outline" size={16} color={Colors.primary} />
               <Text style={styles.payoutBtnText}>Request Payout</Text>
             </>
           )}
@@ -223,6 +226,27 @@ export default function PaymentsScreen() {
 
   const renderPayout = ({ item }: { item: Payout }) => {
     const c = payoutStatusColors[item.status] || payoutStatusColors.PENDING;
+    const canCancel = item.status === 'PENDING';
+
+    const handleCancel = () => {
+      Alert.alert('Cancel Payout', 'Are you sure you want to cancel this payout request?', [
+        { text: 'No', style: 'cancel' },
+        {
+          text: 'Yes, Cancel',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await payoutService.cancel(item.id);
+              Alert.alert('Cancelled', 'Payout request has been cancelled.');
+              await fetchAll();
+            } catch (e: any) {
+              Alert.alert('Error', e?.error?.message || 'Failed to cancel payout.');
+            }
+          },
+        },
+      ]);
+    };
+
     return (
       <Card variant="outlined" padding="md" style={styles.itemCard}>
         <View style={styles.itemRow}>
@@ -240,6 +264,12 @@ export default function PaymentsScreen() {
             </View>
           </View>
         </View>
+        {canCancel && (
+          <TouchableOpacity style={styles.cancelBtn} onPress={handleCancel} activeOpacity={0.7}>
+            <Ionicons name="close-circle-outline" size={16} color={Colors.error} />
+            <Text style={styles.cancelBtnText}>Cancel Request</Text>
+          </TouchableOpacity>
+        )}
       </Card>
     );
   };
@@ -311,7 +341,7 @@ const styles = StyleSheet.create({
   listContent: { paddingHorizontal: Spacing.xl, paddingBottom: Spacing.xxl },
   itemCard: { marginBottom: Spacing.sm },
   itemRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
-  typeIcon: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  typeIcon: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
   itemTitle: { ...Typography.bodyMedium, color: Colors.textPrimary },
   itemSub: { ...Typography.caption, color: Colors.textMuted, marginTop: 2 },
   itemAmount: { ...Typography.bodySemiBold, color: Colors.textPrimary },
@@ -319,4 +349,6 @@ const styles = StyleSheet.create({
   statusText: { ...Typography.small, fontWeight: '600' },
   skeletonWrap: { paddingHorizontal: Spacing.xl },
   footer: { padding: Spacing.lg, alignItems: 'center' },
+  cancelBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.xs, marginTop: Spacing.md, paddingVertical: Spacing.sm, borderTopWidth: 1, borderTopColor: Colors.borderLight },
+  cancelBtnText: { ...Typography.captionMedium, color: Colors.error },
 });

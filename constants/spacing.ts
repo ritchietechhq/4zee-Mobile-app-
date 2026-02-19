@@ -1,32 +1,32 @@
 export const Spacing = {
   xs: 4,
-  sm: 8,
-  md: 12,
-  lg: 16,
-  xl: 20,
-  xxl: 24,
-  xxxl: 32,
-  xxxxl: 40,
-  section: 48,
+  sm: 6,
+  md: 10,
+  lg: 14,
+  xl: 18,
+  xxl: 22,
+  xxxl: 28,
+  xxxxl: 36,
+  section: 44,
 } as const;
 
 export const BorderRadius = {
   xs: 4,
-  sm: 8,
-  md: 12,
-  lg: 16,
-  xl: 20,
-  xxl: 24,
+  sm: 6,
+  md: 10,
+  lg: 14,
+  xl: 18,
+  xxl: 22,
   full: 9999,
 } as const;
 
 export const IconSize = {
-  xs: 16,
-  sm: 20,
-  md: 24,
-  lg: 28,
-  xl: 32,
-  xxl: 48,
+  xs: 14,
+  sm: 18,
+  md: 22,
+  lg: 26,
+  xl: 30,
+  xxl: 42,
 } as const;
 
 export const HitSlop = {

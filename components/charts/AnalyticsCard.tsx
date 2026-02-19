@@ -33,7 +33,7 @@ export function AnalyticsCard({
     <Card variant="elevated" padding="lg" style={[styles.container, style]}>
       <View style={styles.header}>
         <View style={[styles.iconContainer, { backgroundColor: iconBackground }]}>
-          <Ionicons name={icon} size={20} color={iconColor} />
+          <Ionicons name={icon} size={18} color={iconColor} />
         </View>
         {trend && (
           <View
@@ -68,18 +68,18 @@ export function AnalyticsCard({
 
 const styles = StyleSheet.create({
   container: {
-    minWidth: 150,
+    minWidth: 140,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: Spacing.md,
+    marginBottom: Spacing.sm,
   },
   iconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: BorderRadius.md,
+    width: 34,
+    height: 34,
+    borderRadius: BorderRadius.sm,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -96,7 +96,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   value: {
-    ...Typography.h2,
+    ...Typography.h3,
     color: Colors.textPrimary,
   },
   title: {

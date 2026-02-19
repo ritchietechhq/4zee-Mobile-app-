@@ -68,7 +68,7 @@ export default function ProfileScreen() {
   const fetchNotificationPrefs = async () => {
     try {
       const prefs = await notificationService.getPreferences();
-      setPushEnabled(prefs.pushNotifications);
+      setPushEnabled(prefs.saleNotifications);
       setEmailEnabled(prefs.emailNotifications);
     } catch {
       // Use defaults if fetch fails
@@ -79,7 +79,7 @@ export default function ProfileScreen() {
     setPushEnabled(value);
     setIsSavingPrefs(true);
     try {
-      await notificationService.updatePreferences({ pushNotifications: value });
+      await notificationService.updatePreferences({ saleNotifications: value });
     } catch {
       setPushEnabled(!value); // Revert on error
       Alert.alert('Error', 'Failed to update notification settings');
@@ -436,6 +436,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 4,
     borderColor: Colors.white,
+    overflow: 'hidden' as const,
     ...Shadows.lg,
   },
   avatarImg: { width: 100, height: 100, borderRadius: 50 },

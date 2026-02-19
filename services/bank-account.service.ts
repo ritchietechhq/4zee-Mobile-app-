@@ -43,9 +43,9 @@ class BankAccountService {
     return res.data!;
   }
 
-  /** PATCH /bank-accounts/:id/default */
+  /** PUT /bank-accounts/:id/set-default */
   async setDefault(id: string): Promise<void> {
-    await api.patch(`/bank-accounts/${id}/default`);
+    await api.put(`/bank-accounts/${id}/set-default`);
   }
 
   /** DELETE /bank-accounts/:id */

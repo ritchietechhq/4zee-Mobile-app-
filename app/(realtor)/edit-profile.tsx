@@ -1,5 +1,5 @@
 // ============================================================
-// Edit Profile Screen — Client
+// Edit Profile Screen — Realtor
 // Update personal info, upload profile picture
 // ============================================================
 
@@ -99,7 +99,6 @@ export default function EditProfileScreen() {
         phone: form.phone.trim(),
       };
 
-      // Build full address from address + city + state
       const addressParts = [
         form.address.trim(),
         form.city.trim(),
@@ -109,7 +108,7 @@ export default function EditProfileScreen() {
       if (form.dateOfBirth.trim()) payload.dateOfBirth = form.dateOfBirth.trim();
 
       await userService.updateProfile(payload);
-      await refreshUser(); // Refresh user data (no splash)
+      await refreshUser();
       Alert.alert('Success', 'Profile updated successfully', [
         { text: 'OK', onPress: () => router.back() },
       ]);
@@ -176,9 +175,6 @@ export default function EditProfileScreen() {
       formData.append('category', 'PROFILE_PHOTO');
 
       const url = await userService.uploadProfilePicture(formData);
-      // Update auth store locally — instant UI feedback
-      // NOTE: Do NOT call refreshUser() here — /auth/me doesn't return
-      // profilePicture, so it would overwrite the URL we just set.
       updateUser({ profilePicture: url });
       Alert.alert('Success', 'Profile picture updated!');
     } catch (error: any) {
@@ -393,9 +389,9 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.white,
   },
   backBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: Colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
@@ -408,30 +404,30 @@ const styles = StyleSheet.create({
   },
   avatarContainer: { position: 'relative' },
   avatar: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
+    width: 96,
+    height: 96,
+    borderRadius: 48,
     backgroundColor: Colors.primaryLight,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 4,
+    borderWidth: 3,
     borderColor: Colors.white,
     overflow: 'hidden' as const,
     ...Shadows.lg,
   },
-  avatarImg: { width: 120, height: 120, borderRadius: 60 },
-  avatarText: { ...Typography.h1, color: Colors.primary, fontSize: 42 },
+  avatarImg: { width: 96, height: 96, borderRadius: 48 },
+  avatarText: { ...Typography.h1, color: Colors.primary, fontSize: 34 },
   cameraBtn: {
     position: 'absolute',
-    bottom: 4,
-    right: 4,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    bottom: 2,
+    right: 2,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
     backgroundColor: Colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 3,
+    borderWidth: 2,
     borderColor: Colors.white,
   },
   photoHint: {

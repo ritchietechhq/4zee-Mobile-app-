@@ -45,10 +45,16 @@ export function validateSignupForm(data: {
 }): Record<string, string> {
   const errors: Record<string, string> = {};
 
+  // firstName, lastName are required for both CLIENT and REALTOR
   if (!isNotEmpty(data.firstName)) errors.firstName = 'First name is required.';
   if (!isNotEmpty(data.lastName)) errors.lastName = 'Last name is required.';
+
+  // phone is CLIENT-only
+  if (data.role !== 'REALTOR') {
+    if (!isValidPhone(data.phone)) errors.phone = 'Please enter a valid phone number.';
+  }
+
   if (!isValidEmail(data.email)) errors.email = 'Please enter a valid email address.';
-  if (!isValidPhone(data.phone)) errors.phone = 'Please enter a valid phone number.';
   if (!isValidPassword(data.password)) {
     errors.password =
       'Password must be at least 8 characters with 1 uppercase letter and 1 number.';

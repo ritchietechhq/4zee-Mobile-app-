@@ -28,6 +28,29 @@ class UserService {
     const url = res.data!.publicUrl || res.data!.url;
     return url;
   }
+
+  /**
+   * GET /uploads?category=PROFILE_PHOTO — fetch user's profile photo from server.
+   * Returns the URL of the most recently uploaded profile photo, or null.
+   * This allows the profile picture to persist across devices and sessions.
+   */
+  async getProfilePictureFromServer(): Promise<string | null> {
+    try {
+      const res = await api.get<ProfilePictureResponse[]>(
+        '/uploads',
+        { category: 'PROFILE_PHOTO' },
+      );
+      const files = res.data;
+      if (files && files.length > 0) {
+        // Take the last uploaded file (most recent)
+        const latest = files[files.length - 1];
+        return latest.publicUrl || latest.url;
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }
 }
 
 export const userService = new UserService();

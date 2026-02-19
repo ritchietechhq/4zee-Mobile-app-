@@ -13,28 +13,35 @@ export interface Notification {
   createdAt: string;
 }
 
+/** The paginated notifications response uses standard API pagination */
 export interface NotificationsResponse {
-  notifications: Notification[];
-  unreadCount: number;
+  items: Notification[];
+  meta?: {
+    pagination?: {
+      nextCursor?: string;
+      hasNext?: boolean;
+      limit?: number;
+    };
+  };
 }
 
 export interface UnreadCountResponse {
-  unreadCount: number;
+  count: number;
 }
 
 export interface NotificationPreferences {
   emailNotifications: boolean;
-  pushNotifications: boolean;
-  smsNotifications: boolean;
-  applicationUpdates: boolean;
-  paymentAlerts: boolean;
-  promotionalEmails: boolean;
+  saleNotifications: boolean;
+  commissionNotifications: boolean;
+  applicationNotifications: boolean;
+  paymentNotifications: boolean;
+  marketingEmails: boolean;
 }
 
 export interface RegisterDeviceRequest {
   deviceId: string;
   pushToken: string;
-  platform: 'ios' | 'android' | 'web';
+  deviceType: 'ios' | 'android' | 'web';
   deviceName?: string;
   appVersion?: string;
 }

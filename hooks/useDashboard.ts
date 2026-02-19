@@ -20,7 +20,8 @@ export function useDashboard() {
       setClientData(data);
     } catch (err: unknown) {
       const message =
-        err instanceof Error ? err.message : 'Failed to load dashboard.';
+        (err as { error?: { message?: string } })?.error?.message ||
+        (err instanceof Error ? err.message : 'Failed to load dashboard.');
       setError(message);
     } finally {
       setIsLoading(false);
@@ -35,7 +36,8 @@ export function useDashboard() {
       setRealtorData(data);
     } catch (err: unknown) {
       const message =
-        err instanceof Error ? err.message : 'Failed to load dashboard.';
+        (err as { error?: { message?: string } })?.error?.message ||
+        (err instanceof Error ? err.message : 'Failed to load dashboard.');
       setError(message);
     } finally {
       setIsLoading(false);

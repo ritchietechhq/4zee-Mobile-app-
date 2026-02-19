@@ -1,14 +1,14 @@
 // ============================================================
 // Notification Service
 // Endpoints: GET /notifications, /notifications/unread-count,
-//            PATCH /notifications/:id/read, /notifications/read-all,
+//            PATCH /notifications/:id/read, /notifications/mark-all-read,
 //            POST /notifications/device, etc.
 // ============================================================
 
 import api from './api';
 import type {
+  Notification,
   NotificationsResponse,
-  UnreadCountResponse,
   NotificationPreferences,
   RegisterDeviceRequest,
   DeviceInfo,
@@ -20,14 +20,21 @@ class NotificationService {
     unreadOnly = false,
     cursor?: string,
     limit = 20,
-  ): Promise<NotificationsResponse> {
-    const params: Record<string, unknown> = {
-      unreadOnly: String(unreadOnly),
-      limit,
-    };
+  ): Promise<{ notifications: Notification[]; nextCursor?: string; hasNext?: boolean }> {
+    const params: Record<string, unknown> = { limit };
+    if (unreadOnly) params.unreadOnly = 'true';
     if (cursor) params.cursor = cursor;
-    const res = await api.get<NotificationsResponse>('/notifications', params);
-    return res.data!;
+    const res = await api.get<any>('/notifications', params);
+    const data = res.data;
+    // Handle both array and paginated object responses
+    if (Array.isArray(data)) {
+      return { notifications: data, hasNext: false };
+    }
+    return {
+      notifications: data?.items ?? data?.notifications ?? [],
+      nextCursor: data?.meta?.pagination?.nextCursor,
+      hasNext: data?.meta?.pagination?.hasNext ?? false,
+    };
   }
 
   /** GET /notifications/unread-count */

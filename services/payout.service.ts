@@ -1,6 +1,8 @@
 // ============================================================
 // Payout Service (Realtor)
-// Endpoints: GET /payouts/me, POST /payouts, GET /payouts/balance
+// Endpoints: GET /payouts/history, POST /payouts/request,
+//            GET /payouts/balance, GET /payouts/summary,
+//            PUT /payouts/:id/cancel
 // ============================================================
 
 import api from './api';
@@ -12,7 +14,7 @@ import type {
 } from '@/types';
 
 class PayoutService {
-  /** GET /payouts/me — cursor-paginated */
+  /** GET /payouts/history — paginated */
   async getMyPayouts(
     cursor?: string,
     limit = 20,
@@ -20,15 +22,15 @@ class PayoutService {
     const params: Record<string, unknown> = { limit };
     if (cursor) params.cursor = cursor;
     const res = await api.get<PaginatedResponse<Payout>>(
-      '/payouts/me',
+      '/payouts/history',
       params,
     );
     return res.data!;
   }
 
-  /** POST /payouts — idempotent */
+  /** POST /payouts/request — idempotent */
   async request(payload: RequestPayoutRequest): Promise<Payout> {
-    const res = await api.post<Payout>('/payouts', payload);
+    const res = await api.post<Payout>('/payouts/request', payload);
     return res.data!;
   }
 
@@ -36,6 +38,17 @@ class PayoutService {
   async getBalance(): Promise<PayoutBalance> {
     const res = await api.get<PayoutBalance>('/payouts/balance');
     return res.data!;
+  }
+
+  /** GET /payouts/summary */
+  async getSummary(): Promise<any> {
+    const res = await api.get<any>('/payouts/summary');
+    return res.data!;
+  }
+
+  /** PUT /payouts/:id/cancel */
+  async cancel(payoutId: string): Promise<void> {
+    await api.put(`/payouts/${payoutId}/cancel`);
   }
 }
 

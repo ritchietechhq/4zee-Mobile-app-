@@ -10,29 +10,42 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { usePropertyStore } from '@/store/property.store';
+import favoritesService from '@/services/favorites.service';
 import { PropertyCard } from '@/components/property/PropertyCard';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Colors, Spacing, Typography, BorderRadius, Shadows } from '@/constants/theme';
+import type { Property } from '@/types';
 
 type ViewMode = 'list' | 'grid';
 
 export default function SavedScreen() {
   const insets = useSafeAreaInsets();
-  const { featured, isLoadingFeatured, fetchFeatured } = usePropertyStore();
+  const [favorites, setFavorites] = useState<Property[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
+  const fetchFavorites = useCallback(async () => {
+    try {
+      const data = await favoritesService.list();
+      setFavorites(data);
+    } catch {
+      // Silently fail — show empty state
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
-    fetchFeatured();
+    fetchFavorites();
     Animated.spring(fadeAnim, { toValue: 1, useNativeDriver: true, tension: 50, friction: 12 }).start();
   }, []);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await fetchFeatured();
+    await fetchFavorites();
     setRefreshing(false);
   }, []);
 
@@ -43,7 +56,7 @@ export default function SavedScreen() {
         <View>
           <Text style={styles.title}>Saved Properties</Text>
           <Text style={styles.subtitle}>
-            {isLoadingFeatured ? 'Loading...' : `${featured.length} ${featured.length === 1 ? 'property' : 'properties'} saved`}
+            {isLoading ? 'Loading...' : `${favorites.length} ${favorites.length === 1 ? 'property' : 'properties'} saved`}
           </Text>
         </View>
         <TouchableOpacity
@@ -55,7 +68,7 @@ export default function SavedScreen() {
         </TouchableOpacity>
       </View>
 
-      {isLoadingFeatured && featured.length === 0 ? (
+      {isLoading && favorites.length === 0 ? (
         <View style={styles.skeletonWrap}>
           {[1, 2, 3].map((i) => (
             <View key={i} style={styles.skeletonItem}>
@@ -72,7 +85,7 @@ export default function SavedScreen() {
         <Animated.View style={{ flex: 1, opacity: fadeAnim }}>
           <FlatList
             key={viewMode}
-            data={featured}
+            data={favorites}
             numColumns={viewMode === 'grid' ? 2 : 1}
             keyExtractor={(item) => item.id}
             contentContainerStyle={styles.listContent}

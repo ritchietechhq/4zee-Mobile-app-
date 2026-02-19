@@ -26,8 +26,45 @@ class DashboardService {
 
   /** GET /dashboard/realtor */
   async getRealtorDashboard(): Promise<RealtorDashboard> {
-    const res = await api.get<RealtorDashboard>('/dashboard/realtor');
-    return res.data!;
+    const res = await api.get<any>('/dashboard/realtor');
+    const raw = res.data ?? {};
+    // Normalize — provide safe defaults so UI never crashes on missing fields
+    return {
+      profile: {
+        email: raw.profile?.email ?? '',
+        firstName: raw.profile?.firstName ?? null,
+        lastName: raw.profile?.lastName ?? null,
+        phone: raw.profile?.phone ?? null,
+        address: raw.profile?.address ?? null,
+        referralCode: raw.profile?.referralCode ?? '',
+        totalSales: raw.profile?.totalSales ?? 0,
+        totalRecruits: raw.profile?.totalRecruits ?? 0,
+        kycStatus: raw.profile?.kycStatus ?? 'NOT_SUBMITTED',
+        kycVerifiedAt: raw.profile?.kycVerifiedAt ?? null,
+        kycRejectedReason: raw.profile?.kycRejectedReason ?? null,
+        memberSince: raw.profile?.memberSince ?? '',
+      },
+      sales: {
+        total: raw.sales?.total ?? 0,
+        totalValue: raw.sales?.totalValue ?? 0,
+      },
+      earnings: {
+        totalCommissions: raw.earnings?.totalCommissions ?? 0,
+        commissionCount: raw.earnings?.commissionCount ?? 0,
+        availableBalance: raw.earnings?.availableBalance ?? 0,
+        totalWithdrawn: raw.earnings?.totalWithdrawn ?? 0,
+      },
+      referrals: {
+        activeLinks: raw.referrals?.activeLinks ?? 0,
+        totalClicks: raw.referrals?.totalClicks ?? 0,
+        totalConversions: raw.referrals?.totalConversions ?? 0,
+      },
+      recentApplications: raw.recentApplications ?? [],
+      alerts: {
+        unreadNotifications: raw.alerts?.unreadNotifications ?? 0,
+        unreadMessages: raw.alerts?.unreadMessages ?? 0,
+      },
+    };
   }
 }
 

@@ -61,14 +61,16 @@ export default function SignupScreen() {
     setErrors({});
 
     // Build payload per API contract:
-    // CLIENT: email, password, role, firstName?, lastName?, phone?
-    // REALTOR: email, password, role, dob (required), referralCode?
+    // CLIENT: email, password, role, firstName, lastName, phone?
+    // REALTOR: email, password, role, firstName, lastName, dob (required), referralCode?
     // Backend rejects unknown fields (whitelist: true)
     const payload: RegisterRequest = role === 'REALTOR'
       ? {
           email: form.email.trim(),
           password: form.password,
           role: 'REALTOR' as const,
+          firstName: form.firstName.trim(),
+          lastName: form.lastName.trim(),
           dob: form.dob.trim(),
           referralCode: form.referralCode.trim() || undefined,
         }
@@ -81,13 +83,6 @@ export default function SignupScreen() {
           phone: form.phone.trim() || undefined,
           referralCode: form.referralCode.trim() || undefined,
         };
-
-    // DEBUG: Log exactly what we're sending
-    console.log('=== REGISTER PAYLOAD ===');
-    console.log('Role from store:', role);
-    console.log('Payload:', JSON.stringify(payload, null, 2));
-    console.log('Payload size:', JSON.stringify(payload).length, 'bytes');
-    console.log('========================');
 
     await register(payload);
   };
@@ -149,6 +144,7 @@ export default function SignupScreen() {
 
           {/* Form Card */}
           <View style={styles.formCard}>
+            {/* firstName/lastName required for both CLIENT and REALTOR */}
             <View style={styles.row}>
               <Input
                 label="First Name"
@@ -183,16 +179,17 @@ export default function SignupScreen() {
               required
             />
 
-            <Input
-              label="Phone Number"
-              placeholder="+234 800 000 0000"
-              leftIcon="call-outline"
-              keyboardType="phone-pad"
-              value={form.phone}
-              onChangeText={(v) => updateField('phone', v)}
-              error={errors.phone}
-              required
-            />
+            {role !== 'REALTOR' && (
+              <Input
+                label="Phone Number"
+                placeholder="+234 800 000 0000"
+                leftIcon="call-outline"
+                keyboardType="phone-pad"
+                value={form.phone}
+                onChangeText={(v) => updateField('phone', v)}
+                error={errors.phone}
+              />
+            )}
 
             <Input
               label="Password"
@@ -230,15 +227,13 @@ export default function SignupScreen() {
               />
             )}
 
-            {role === 'CLIENT' && (
-              <Input
-                label="Referral Code"
-                placeholder="Optional"
-                leftIcon="gift-outline"
-                value={form.referralCode}
-                onChangeText={(v) => updateField('referralCode', v)}
-              />
-            )}
+            <Input
+              label="Referral Code"
+              placeholder="Optional"
+              leftIcon="gift-outline"
+              value={form.referralCode}
+              onChangeText={(v) => updateField('referralCode', v)}
+            />
 
             <Button
               title="Create Account"

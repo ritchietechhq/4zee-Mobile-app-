@@ -117,7 +117,6 @@ class AuthService {
   async getMe(): Promise<User> {
     const res = await api.get<any>('/auth/me');
     const raw = res.data!;
-    console.log('=== /auth/me RAW ===', JSON.stringify(raw, null, 2));
     return normalizeUser(raw);
   }
 
@@ -148,9 +147,9 @@ class AuthService {
     await api.post('/auth/2fa/disable', { code });
   }
 
-  /** POST /auth/otp/request */
+  /** POST /auth/otp/send */
   async requestOTP(payload: RequestOTPPayload): Promise<void> {
-    await api.post('/auth/otp/request', payload);
+    await api.post('/auth/otp/send', payload);
   }
 
   /** POST /auth/otp/verify */

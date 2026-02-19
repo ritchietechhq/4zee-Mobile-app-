@@ -71,10 +71,16 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
       // User IS logged in — make sure they're NOT in the auth group or root index
       if (inAuthGroup || (!inClientGroup && !inRealtorGroup)) {
         if (role === 'REALTOR') {
-          router.replace('/dashboard' as const);
+          router.replace('/(realtor)/dashboard' as any);
         } else {
-          router.replace('/dashboard' as const);
+          router.replace('/(client)/dashboard' as any);
         }
+      }
+      // If authenticated but in wrong role group, redirect to correct one
+      else if (role === 'REALTOR' && inClientGroup) {
+        router.replace('/(realtor)/dashboard' as any);
+      } else if (role !== 'REALTOR' && inRealtorGroup) {
+        router.replace('/(client)/dashboard' as any);
       }
     }
   }, [isAuthenticated, segments, isReady, splashDone, isLoading, role, hasSeenOnboarding]);

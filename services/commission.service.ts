@@ -1,6 +1,6 @@
 // ============================================================
 // Commission Service (Realtor)
-// Endpoints: GET /commissions/my-commissions, /commissions/my-summary,
+// Endpoints: GET /commissions/me, GET /commissions/summary,
 //            GET /commissions/:id
 // ============================================================
 
@@ -13,7 +13,7 @@ import type {
 } from '@/types';
 
 class CommissionService {
-  /** GET /commissions/my-commissions — cursor-paginated */
+  /** GET /commissions/me — paginated */
   async getMyCommissions(
     status?: CommissionStatus,
     cursor?: string,
@@ -23,15 +23,15 @@ class CommissionService {
     if (status) params.status = status;
     if (cursor) params.cursor = cursor;
     const res = await api.get<PaginatedResponse<Commission>>(
-      '/commissions/my-commissions',
+      '/commissions/me',
       params,
     );
     return res.data!;
   }
 
-  /** GET /commissions/my-summary */
+  /** GET /commissions/summary */
   async getMySummary(): Promise<CommissionSummary> {
-    const res = await api.get<CommissionSummary>('/commissions/my-summary');
+    const res = await api.get<CommissionSummary>('/commissions/summary');
     return res.data!;
   }
 

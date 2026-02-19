@@ -1,7 +1,7 @@
 // ============================================================
 // Support Ticket Service
-// Endpoints: POST /support-tickets, GET /support-tickets/me,
-//            GET /support-tickets/:id, POST /support-tickets/:id/reply,
+// Endpoints: POST /support-tickets, GET /support-tickets,
+//            GET /support-tickets/:id, POST /support-tickets/:id/messages,
 //            PATCH /support-tickets/:id/close
 // ============================================================
 
@@ -21,7 +21,7 @@ class SupportService {
     return res.data!;
   }
 
-  /** GET /support-tickets/me — cursor-paginated */
+  /** GET /support-tickets — my tickets */
   async getMyTickets(
     status?: TicketStatus,
     cursor?: string,
@@ -31,7 +31,7 @@ class SupportService {
     if (status) params.status = status;
     if (cursor) params.cursor = cursor;
     const res = await api.get<PaginatedResponse<SupportTicket>>(
-      '/support-tickets/me',
+      '/support-tickets',
       params,
     );
     return res.data!;
@@ -43,9 +43,9 @@ class SupportService {
     return res.data!;
   }
 
-  /** POST /support-tickets/:id/reply */
+  /** POST /support-tickets/:id/messages */
   async reply(id: string, payload: ReplyTicketRequest): Promise<void> {
-    await api.post(`/support-tickets/${id}/reply`, payload);
+    await api.post(`/support-tickets/${id}/messages`, payload);
   }
 
   /** PATCH /support-tickets/:id/close */

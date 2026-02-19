@@ -193,7 +193,7 @@ const styles = StyleSheet.create({
   listContent: { paddingHorizontal: Spacing.xl, paddingBottom: Spacing.xxl },
   leadCard: { marginBottom: Spacing.md },
   leadHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, marginBottom: Spacing.md },
-  clientAvatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: Colors.primaryLight, alignItems: 'center', justifyContent: 'center' },
+  clientAvatar: { width: 34, height: 34, borderRadius: 17, backgroundColor: Colors.primaryLight, alignItems: 'center', justifyContent: 'center' },
   clientAvatarText: { ...Typography.bodySemiBold, color: Colors.primary },
   clientName: { ...Typography.bodySemiBold, color: Colors.textPrimary },
   propertyName: { ...Typography.caption, color: Colors.textSecondary, marginTop: 2 },

@@ -33,9 +33,9 @@ const statusConfig: Record<KYCStatus, { icon: string; color: string; bg: string;
     title: 'Under Review',
     desc: 'Your documents have been submitted and are being reviewed. This usually takes 1-2 business days.',
   },
-  VERIFIED: {
+  APPROVED: {
     icon: 'checkmark-circle', color: Colors.success, bg: Colors.successLight,
-    title: 'Verified',
+    title: 'Approved',
     desc: 'Your identity has been verified. You have full access to all realtor features.',
   },
   REJECTED: {
@@ -55,8 +55,14 @@ export default function KYCStatusScreen() {
     try {
       const res = await kycService.getStatus();
       setKyc(res);
-    } catch (e) {
-      console.error('Failed to fetch KYC:', e);
+    } catch (e: any) {
+      // If the backend returns an error (e.g. network), fall back gracefully
+      const code = e?.error?.code;
+      if (code === 'AUTH_FORBIDDEN') {
+        // Shouldn't happen now, but fallback just in case
+        setKyc({ kycStatus: 'NOT_SUBMITTED', documents: [] } as KYC);
+      }
+      // Otherwise leave kyc as null — loading skeleton will clear and show default state
     }
   }, []);
 
@@ -68,7 +74,7 @@ export default function KYCStatusScreen() {
     setIsRefreshing(true); await fetchKYC(); setIsRefreshing(false);
   };
 
-  const status: KYCStatus = kyc?.status || 'NOT_SUBMITTED';
+  const status: KYCStatus = kyc?.kycStatus || 'NOT_SUBMITTED';
   const cfg = statusConfig[status];
 
   if (isLoading) {
@@ -115,13 +121,13 @@ export default function KYCStatusScreen() {
         </View>
 
         {/* Rejection Reason */}
-        {status === 'REJECTED' && kyc?.rejectionReason && (
+        {status === 'REJECTED' && (
           <Card variant="outlined" padding="md" style={styles.rejectionCard}>
             <View style={styles.rejectionRow}>
               <Ionicons name="information-circle" size={20} color={Colors.error} />
               <Text style={styles.rejectionTitle}>Reason for Rejection</Text>
             </View>
-            <Text style={styles.rejectionText}>{kyc.rejectionReason}</Text>
+            <Text style={styles.rejectionText}>Your documents did not meet the verification requirements. Please review and resubmit.</Text>
           </Card>
         )}
 
@@ -154,28 +160,20 @@ export default function KYCStatusScreen() {
           </>
         )}
 
-        {/* Verified details */}
-        {status === 'VERIFIED' && (
+        {/* Approved details */}
+        {status === 'APPROVED' && (
           <Card variant="elevated" padding="lg" style={styles.verifiedCard}>
             <View style={styles.verifiedRow}>
               <Ionicons name="shield-checkmark" size={24} color={Colors.success} />
               <View style={{ flex: 1, marginLeft: Spacing.md }}>
                 <Text style={styles.verifiedTitle}>Identity Verified</Text>
-                <Text style={styles.verifiedSub}>
-                  {kyc?.verifiedAt ? `Verified on ${new Date(kyc.verifiedAt).toLocaleDateString('en-NG', { day: 'numeric', month: 'long', year: 'numeric' })}` : 'Your identity is confirmed'}
-                </Text>
+                <Text style={styles.verifiedSub}>Your identity is confirmed</Text>
               </View>
             </View>
-            {kyc?.idType && (
+            {kyc?.documents && kyc.documents.length > 0 && (
               <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>ID Type</Text>
-                <Text style={styles.detailValue}>{kyc.idType.replace(/_/g, ' ')}</Text>
-              </View>
-            )}
-            {kyc?.idNumber && (
-              <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>ID Number</Text>
-                <Text style={styles.detailValue}>****{kyc.idNumber.slice(-4)}</Text>
+                <Text style={styles.detailLabel}>Documents</Text>
+                <Text style={styles.detailValue}>{kyc.documents.length} submitted</Text>
               </View>
             )}
           </Card>
@@ -199,9 +197,7 @@ export default function KYCStatusScreen() {
                 <Text style={[styles.timelineText, step.done && { color: Colors.success, fontWeight: '600' }]}>{step.label}</Text>
               </View>
             ))}
-            <Text style={styles.pendingSub}>
-              {kyc?.submittedAt ? `Submitted on ${new Date(kyc.submittedAt).toLocaleDateString('en-NG', { day: 'numeric', month: 'long', year: 'numeric' })}` : 'Processing your documents...'}
-            </Text>
+            <Text style={styles.pendingSub}>Processing your documents...</Text>
           </Card>
         )}
       </ScrollView>

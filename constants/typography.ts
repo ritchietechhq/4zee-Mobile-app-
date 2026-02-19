@@ -8,23 +8,23 @@ export const FontFamily = {
 } as const;
 
 export const FontSize = {
-  xs: 11,
-  sm: 13,
-  md: 16,
-  lg: 18,
-  xl: 22,
-  xxl: 28,
-  xxxl: 32,
+  xs: 10,
+  sm: 12,
+  md: 14,
+  lg: 16,
+  xl: 19,
+  xxl: 24,
+  xxxl: 28,
 } as const;
 
 export const LineHeight = {
-  xs: 16,
-  sm: 18,
-  md: 24,
-  lg: 26,
-  xl: 30,
-  xxl: 36,
-  xxxl: 40,
+  xs: 14,
+  sm: 16,
+  md: 20,
+  lg: 22,
+  xl: 26,
+  xxl: 32,
+  xxxl: 36,
 } as const;
 
 export const Typography: Record<string, TextStyle> = {

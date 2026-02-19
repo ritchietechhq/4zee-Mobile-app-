@@ -22,7 +22,7 @@ class DocumentService {
    */
   getDownloadUrl(documentId: string): string {
     const baseUrl =
-      process.env.EXPO_PUBLIC_API_URL || 'https://api.4zeeproperties.com';
+      process.env.EXPO_PUBLIC_API_URL || 'https://fourzeeproperties-backend.onrender.com';
     return `${baseUrl}/documents/${documentId}/download`;
   }
 }

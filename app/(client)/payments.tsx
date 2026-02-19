@@ -65,11 +65,14 @@ export default function PaymentsScreen() {
 
     try {
       const result = await paymentService.getMyPayments(undefined, 20);
-      setPayments(result.items);
-      setCursor(result.pagination?.nextCursor);
-      setHasMore(result.pagination?.hasNext ?? false);
+      setPayments(result?.items ?? []);
+      setCursor(result?.pagination?.nextCursor);
+      setHasMore(result?.pagination?.hasNext ?? false);
     } catch (error) {
-      console.error('Failed to load payments:', error);
+      // API may return an error envelope — treat as empty list
+      setPayments([]);
+      setCursor(undefined);
+      setHasMore(false);
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
@@ -82,11 +85,12 @@ export default function PaymentsScreen() {
     setIsLoadingMore(true);
     try {
       const result = await paymentService.getMyPayments(cursor, 20);
-      setPayments((prev) => [...prev, ...result.items]);
-      setCursor(result.pagination?.nextCursor);
-      setHasMore(result.pagination?.hasNext ?? false);
+      setPayments((prev) => [...prev, ...(result?.items ?? [])]);
+      setCursor(result?.pagination?.nextCursor);
+      setHasMore(result?.pagination?.hasNext ?? false);
     } catch (error) {
-      console.error('Failed to load more payments:', error);
+      // Stop pagination on error
+      setHasMore(false);
     } finally {
       setIsLoadingMore(false);
     }

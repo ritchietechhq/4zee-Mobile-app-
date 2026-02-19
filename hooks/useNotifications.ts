@@ -16,7 +16,6 @@ export function useNotifications() {
     try {
       const data = await notificationService.getNotifications();
       setNotifications(data.notifications);
-      setUnreadCount(data.unreadCount);
     } catch {
       // Silently fail for notifications
     } finally {

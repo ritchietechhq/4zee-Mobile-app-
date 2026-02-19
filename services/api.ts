@@ -110,13 +110,6 @@ class ApiClient {
       // Unwrap: axios `response.data` is the full ApiResponse<T>
       (response) => response.data,
       async (error: AxiosError<ApiResponse<unknown>>) => {
-        // DEBUG: Log error details
-        console.log('=== API ERROR ===');
-        console.log('Status:', error.response?.status);
-        console.log('URL:', error.config?.url);
-        console.log('Response data:', JSON.stringify(error.response?.data, null, 2));
-        console.log('=================');
-
         const originalRequest = error.config as InternalAxiosRequestConfig & {
           _retry?: boolean;
         };
@@ -246,6 +239,7 @@ class ApiClient {
   async upload<T>(url: string, formData: FormData): Promise<ApiResponse<T>> {
     return this.client.post(url, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
+      transformRequest: (data) => data,
     }) as Promise<ApiResponse<T>>;
   }
 }

@@ -310,7 +310,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.xl, paddingVertical: Spacing.md },
   headerLeft: { flexDirection: 'row', alignItems: 'center', flex: 1 },
-  avatarCircle: { width: 48, height: 48, borderRadius: 24, backgroundColor: Colors.primaryLight, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: Colors.primary + '20' },
+  avatarCircle: { width: 48, height: 48, borderRadius: 24, backgroundColor: Colors.primaryLight, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: Colors.primary + '20', overflow: 'hidden' as const },
   avatarImage: { width: 48, height: 48, borderRadius: 24 },
   avatarText: { ...Typography.bodySemiBold, color: Colors.primary, fontSize: 18 },
   onlineIndicator: { position: 'absolute', bottom: 1, right: 1, width: 12, height: 12, borderRadius: 6, backgroundColor: Colors.success, borderWidth: 2, borderColor: Colors.white },

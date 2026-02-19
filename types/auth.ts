@@ -3,7 +3,7 @@
 // Matches: POST /auth/register, /auth/login, /auth/refresh, etc.
 // ============================================================
 
-export type UserRole = 'CLIENT' | 'REALTOR' | 'ADMIN';
+export type UserRole = 'CLIENT' | 'REALTOR' | 'ADMIN' | 'SUPER_ADMIN';
 
 export interface User {
   id: string;
@@ -49,9 +49,10 @@ export interface RegisterRequest {
   email: string;
   password: string;
   role: 'CLIENT' | 'REALTOR';
-  // CLIENT only fields
+  // Required for both CLIENT and REALTOR
   firstName?: string;
   lastName?: string;
+  // CLIENT only fields
   phone?: string;
   // REALTOR required field
   dob?: string; // ISO date: "YYYY-MM-DD" — required for REALTOR

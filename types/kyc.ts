@@ -1,34 +1,41 @@
 // ============================================================
 // KYC Types
-// Matches: GET /kyc, PUT /kyc, POST /uploads/kyc
+// Matches: GET /kyc/status, PUT /kyc/info, POST /kyc/documents
 // ============================================================
 
-export type KYCStatus = 'NOT_SUBMITTED' | 'PENDING' | 'VERIFIED' | 'REJECTED';
+export type KYCStatus = 'NOT_SUBMITTED' | 'PENDING' | 'APPROVED' | 'REJECTED';
 
-export type KYCIdType =
-  | 'NIN'
-  | 'BVN'
+export type KYCDocumentType =
+  | 'NATIONAL_ID'
   | 'DRIVERS_LICENSE'
-  | 'INTERNATIONAL_PASSPORT'
-  | 'VOTERS_CARD';
+  | 'PASSPORT'
+  | 'VOTERS_CARD'
+  | 'NIN'
+  | 'UTILITY_BILL'
+  | 'BANK_STATEMENT';
 
-export interface KYC {
+/** Legacy alias for backwards compatibility */
+export type KYCIdType = KYCDocumentType;
+
+export interface KYCDocument {
   id: string;
-  status: KYCStatus;
-  idType?: KYCIdType;
-  idNumber?: string;
-  idDocumentUrl?: string;
-  selfieUrl?: string;
-  proofOfAddressUrl?: string;
-  rejectionReason?: string;
-  submittedAt?: string;
-  verifiedAt?: string;
+  type: KYCDocumentType;
+  fileUrl: string;
+  fileName: string;
+  expiryDate?: string;
+  status: string;
 }
 
+export interface KYC {
+  kycStatus: KYCStatus;
+  documents: KYCDocument[];
+}
+
+/** POST /kyc/documents request body */
 export interface SubmitKYCRequest {
-  idType: KYCIdType;
-  idNumber: string;
-  idDocumentUrl: string;
-  selfieUrl: string;
-  proofOfAddressUrl?: string;
+  type: KYCDocumentType;
+  idNumber?: string;
+  fileUrl: string;
+  fileName: string;
+  expiryDate?: string; // ISO date string
 }
