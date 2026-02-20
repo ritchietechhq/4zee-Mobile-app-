@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback, useRef, useState } from 'react';
+import React, { useEffect, useCallback, useRef, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -20,11 +20,12 @@ import { useAuthStore } from '@/store/auth.store';
 import { usePropertyStore } from '@/store/property.store';
 import { useDashboard } from '@/hooks/useDashboard';
 import { useNotifications } from '@/hooks/useNotifications';
+import { useTheme } from '@/hooks/useTheme';
 import { PropertyCard } from '@/components/property/PropertyCard';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
-import { Colors, Spacing, Typography, Shadows, BorderRadius } from '@/constants/theme';
+import { Spacing, Typography, Shadows, BorderRadius } from '@/constants/theme';
 import { formatCurrency } from '@/utils/formatCurrency';
 import type { PropertyType, Property } from '@/types';
 
@@ -33,10 +34,10 @@ const FEATURED_CARD_WIDTH = SCREEN_WIDTH * 0.75;
 
 const QUICK_FILTERS: { label: string; value: PropertyType | undefined; icon: keyof typeof Ionicons.glyphMap }[] = [
   { label: 'All', value: undefined, icon: 'apps-outline' },
-  { label: 'House', value: 'HOUSE', icon: 'home-outline' },
-  { label: 'Apartment', value: 'APARTMENT', icon: 'business-outline' },
-  { label: 'Land', value: 'LAND', icon: 'layers-outline' },
-  { label: 'Commercial', value: 'COMMERCIAL', icon: 'storefront-outline' },
+  { label: 'House', value: 'House' as PropertyType, icon: 'home-outline' },
+  { label: 'Apartment', value: 'Apartment' as PropertyType, icon: 'business-outline' },
+  { label: 'Land', value: 'Land' as PropertyType, icon: 'layers-outline' },
+  { label: 'Commercial', value: 'Commercial' as PropertyType, icon: 'storefront-outline' },
 ];
 
 function getGreeting(): string {
@@ -49,6 +50,7 @@ function getGreeting(): string {
 export default function DashboardScreen() {
   const insets = useSafeAreaInsets();
   const user = useAuthStore((s) => s.user);
+  const { colors } = useTheme();
   const {
     featured,
     isLoadingFeatured,
@@ -67,6 +69,8 @@ export default function DashboardScreen() {
 
   const headerAnim = useRef(new Animated.Value(0)).current;
   const contentAnim = useRef(new Animated.Value(0)).current;
+
+  const dynamicStyles = useMemo(() => createStyles(colors), [colors]);
 
   useEffect(() => {
     fetchFeatured();
@@ -94,31 +98,31 @@ export default function DashboardScreen() {
   const firstName = user?.firstName ?? 'there';
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>  
+    <View style={[dynamicStyles.container, { paddingTop: insets.top }]}>  
       {/* ── Header ── */}
-      <Animated.View style={[styles.header, {
+      <Animated.View style={[dynamicStyles.header, {
         opacity: headerAnim,
         transform: [{ translateY: headerAnim.interpolate({ inputRange: [0, 1], outputRange: [-16, 0] }) }],
       }]}>
-        <TouchableOpacity style={styles.headerLeft} onPress={() => router.push('/profile' as never)} activeOpacity={0.7}>
-          <View style={styles.avatarCircle}>
+        <TouchableOpacity style={dynamicStyles.headerLeft} onPress={() => router.push('/profile' as never)} activeOpacity={0.7}>
+          <View style={dynamicStyles.avatarCircle}>
             {user?.profilePicture ? (
-              <Image source={{ uri: user.profilePicture }} style={styles.avatarImage} contentFit="cover" transition={200} />
+              <Image source={{ uri: user.profilePicture }} style={dynamicStyles.avatarImage} contentFit="cover" transition={200} />
             ) : (
-              <Text style={styles.avatarText}>{user?.firstName?.charAt(0)?.toUpperCase() ?? 'U'}</Text>
+              <Text style={dynamicStyles.avatarText}>{user?.firstName?.charAt(0)?.toUpperCase() ?? 'U'}</Text>
             )}
-            <View style={styles.onlineIndicator} />
+            <View style={dynamicStyles.onlineIndicator} />
           </View>
-          <View style={styles.greeting}>
-            <Text style={styles.greetingSub}>{getGreeting()},</Text>
-            <Text style={styles.greetingName}>{firstName} 👋</Text>
+          <View style={dynamicStyles.greeting}>
+            <Text style={dynamicStyles.greetingSub}>{getGreeting()},</Text>
+            <Text style={dynamicStyles.greetingName}>{firstName} 👋</Text>
           </View>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.notificationBtn} onPress={() => router.push('/notifications')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} activeOpacity={0.7}>
-          <Ionicons name="notifications-outline" size={24} color={Colors.textPrimary} />
+        <TouchableOpacity style={dynamicStyles.notificationBtn} onPress={() => router.push('/notifications')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} activeOpacity={0.7}>
+          <Ionicons name="notifications-outline" size={24} color={colors.textPrimary} />
           {unreadCount > 0 && (
-            <View style={styles.notifBadge}>
-              <Text style={styles.notifBadgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
+            <View style={dynamicStyles.notifBadge}>
+              <Text style={dynamicStyles.notifBadgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
             </View>
           )}
         </TouchableOpacity>
@@ -126,27 +130,27 @@ export default function DashboardScreen() {
 
       <ScrollView
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} />}
-        contentContainerStyle={styles.scrollContent}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
+        contentContainerStyle={dynamicStyles.scrollContent}
       >
         <Animated.View style={{
           opacity: contentAnim,
           transform: [{ translateY: contentAnim.interpolate({ inputRange: [0, 1], outputRange: [24, 0] }) }],
         }}>
           {/* ── Search Bar ── */}
-          <TouchableOpacity style={styles.searchBar} onPress={() => router.push('/search')} activeOpacity={0.8}>
-            <View style={styles.searchIconWrap}>
-              <Ionicons name="search" size={18} color={Colors.white} />
+          <TouchableOpacity style={dynamicStyles.searchBar} onPress={() => router.push('/search')} activeOpacity={0.8}>
+            <View style={dynamicStyles.searchIconWrap}>
+              <Ionicons name="search" size={18} color={colors.white} />
             </View>
-            <Text style={styles.searchPlaceholder}>Search properties, locations...</Text>
-            <View style={styles.searchFilterBtn}>
-              <Ionicons name="options-outline" size={18} color={Colors.primary} />
+            <Text style={dynamicStyles.searchPlaceholder}>Search properties, locations...</Text>
+            <View style={dynamicStyles.searchFilterBtn}>
+              <Ionicons name="options-outline" size={18} color={colors.primary} />
             </View>
           </TouchableOpacity>
 
           {/* ── Quick Stats ── */}
           {clientData && (
-            <View style={styles.statsRow}>
+            <View style={dynamicStyles.statsRow}>
               <StatCard icon="document-text-outline" label="Applications" value={clientData.applicationsSummary?.total ?? 0} color="#6366F1" bgColor="#EEF2FF" />
               <StatCard icon="checkmark-circle-outline" label="Approved" value={clientData.applicationsSummary?.APPROVED ?? 0} color="#16A34A" bgColor="#DCFCE7" />
               <StatCard icon="hourglass-outline" label="Pending" value={clientData.applicationsSummary?.PENDING ?? 0} color="#F59E0B" bgColor="#FEF3C7" />
@@ -154,55 +158,55 @@ export default function DashboardScreen() {
           )}
 
           {/* ── Quick Filters ── */}
-          <View style={styles.filtersRow}>
+          <View style={dynamicStyles.filtersRow}>
             <FlatList
               horizontal
               showsHorizontalScrollIndicator={false}
               data={QUICK_FILTERS}
               keyExtractor={(item) => item.label}
-              contentContainerStyle={styles.filtersList}
+              contentContainerStyle={dynamicStyles.filtersList}
               renderItem={({ item }) => (
                 <TouchableOpacity
-                  style={[styles.filterPill, activeFilter === item.value && styles.filterPillActive]}
+                  style={[dynamicStyles.filterPill, activeFilter === item.value && dynamicStyles.filterPillActive]}
                   onPress={() => handleFilterPress(item.value)}
                   activeOpacity={0.7}
                 >
-                  <Ionicons name={item.icon} size={16} color={activeFilter === item.value ? Colors.white : Colors.textSecondary} />
-                  <Text style={[styles.filterPillText, activeFilter === item.value && styles.filterPillTextActive]}>{item.label}</Text>
+                  <Ionicons name={item.icon} size={16} color={activeFilter === item.value ? colors.white : colors.textSecondary} />
+                  <Text style={[dynamicStyles.filterPillText, activeFilter === item.value && dynamicStyles.filterPillTextActive]}>{item.label}</Text>
                 </TouchableOpacity>
               )}
             />
           </View>
 
           {/* ── Featured Properties ── */}
-          <SectionHeader title="Featured Properties" actionLabel="See All" onAction={() => router.push('/search')} style={styles.sectionHeader} />
+          <SectionHeader title="Featured Properties" actionLabel="See All" onAction={() => router.push('/search')} style={dynamicStyles.sectionHeader} />
           {isLoadingFeatured ? (
-            <FeaturedSkeleton />
+            <FeaturedSkeleton colors={colors} />
           ) : featured.length > 0 ? (
             <FlatList
               horizontal
               showsHorizontalScrollIndicator={false}
               data={featured}
               keyExtractor={(item) => item.id}
-              contentContainerStyle={styles.featuredList}
+              contentContainerStyle={dynamicStyles.featuredList}
               snapToInterval={FEATURED_CARD_WIDTH + Spacing.md}
               decelerationRate="fast"
               renderItem={({ item }) => (
-                <TouchableOpacity activeOpacity={0.9} onPress={() => router.push(`/properties/${item.id}`)} style={styles.featuredCardWrapper}>
-                  <FeaturedCard property={item} />
+                <TouchableOpacity activeOpacity={0.9} onPress={() => router.push(`/properties/${item.id}`)} style={dynamicStyles.featuredCardWrapper}>
+                  <FeaturedCard property={item} colors={colors} />
                 </TouchableOpacity>
               )}
             />
           ) : (
-            <EmptyState icon="home-outline" title="No featured properties" description="Featured listings will appear here." style={styles.emptyInline} />
+            <EmptyState icon="home-outline" title="No featured properties" description="Featured listings will appear here." style={dynamicStyles.emptyInline} />
           )}
 
           {/* ── Recommended ── */}
-          <SectionHeader title="Recommended for You" actionLabel="View All" onAction={() => router.push('/search')} style={styles.sectionHeader} />
+          <SectionHeader title="Recommended for You" actionLabel="View All" onAction={() => router.push('/search')} style={dynamicStyles.sectionHeader} />
           {isLoadingProperties ? (
-            <View style={styles.recSkeletonWrap}>
+            <View style={dynamicStyles.recSkeletonWrap}>
               {[1, 2, 3].map((i) => (
-                <View key={i} style={styles.recSkeleton}>
+                <View key={i} style={dynamicStyles.recSkeleton}>
                   <Skeleton width={120} height={100} borderRadius={BorderRadius.lg} />
                   <View style={{ flex: 1, marginLeft: Spacing.md }}>
                     <Skeleton width="70%" height={14} style={{ marginBottom: 8 }} />
@@ -214,10 +218,10 @@ export default function DashboardScreen() {
             </View>
           ) : properties.length > 0 ? (
             properties.slice(0, 6).map((p) => (
-              <View key={p.id} style={styles.recItem}><PropertyCard property={p} variant="horizontal" /></View>
+              <View key={p.id} style={dynamicStyles.recItem}><PropertyCard property={p} variant="horizontal" /></View>
             ))
           ) : (
-            <EmptyState icon="search-outline" title="No properties yet" description="Pull down to refresh or try a different filter." style={styles.emptyInline} />
+            <EmptyState icon="search-outline" title="No properties yet" description="Pull down to refresh or try a different filter." style={dynamicStyles.emptyInline} />
           )}
 
           <View style={{ height: Spacing.xxxxl + 20 }} />
@@ -232,66 +236,118 @@ export default function DashboardScreen() {
 function StatCard({ icon, label, value, color, bgColor }: {
   icon: keyof typeof Ionicons.glyphMap; label: string; value: number; color: string; bgColor: string;
 }) {
+  const { colors } = useTheme();
+  const statStyles = useMemo(() => {
+    return StyleSheet.create({
+      statCard: {
+        flex: 1,
+        backgroundColor: colors.surface,
+        borderRadius: BorderRadius.xl,
+        padding: Spacing.md,
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: colors.border,
+        ...Shadows.sm,
+      },
+      statIcon: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.sm },
+      statValue: { ...Typography.h3, color: colors.textPrimary },
+      statLabel: { ...Typography.small, color: colors.textMuted, marginTop: 2 },
+    });
+  }, [colors]);
+
   return (
-    <View style={styles.statCard}>
-      <View style={[styles.statIcon, { backgroundColor: bgColor }]}>
+    <View style={statStyles.statCard}>
+      <View style={[statStyles.statIcon, { backgroundColor: bgColor }]}>
         <Ionicons name={icon} size={20} color={color} />
       </View>
-      <Text style={styles.statValue}>{value}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
+      <Text style={statStyles.statValue}>{value}</Text>
+      <Text style={statStyles.statLabel}>{label}</Text>
     </View>
   );
 }
 
-function FeaturedCard({ property }: { property: Property }) {
+function FeaturedCard({ property, colors }: { property: Property; colors: any }) {
+  const featureStyles = useMemo(() => {
+    return StyleSheet.create({
+      featuredCard: { backgroundColor: colors.surface, borderRadius: BorderRadius.xl, overflow: 'hidden', borderWidth: 1, borderColor: colors.border, ...Shadows.md },
+      featuredImageWrap: { position: 'relative' as const },
+      featuredImage: { width: '100%', height: 180 },
+      featuredGradient: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 80 },
+      featuredBadge: { position: 'absolute', top: Spacing.sm, left: Spacing.sm, flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(0,0,0,0.55)', paddingHorizontal: Spacing.sm + 2, paddingVertical: 4, borderRadius: BorderRadius.full },
+      featuredBadgeText: { ...Typography.small, color: colors.white, fontWeight: '600' },
+      featuredSaveBtn: { position: 'absolute', top: Spacing.sm, right: Spacing.sm, width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(0,0,0,0.3)', alignItems: 'center', justifyContent: 'center' },
+      featuredPriceOnImage: { position: 'absolute', bottom: Spacing.sm, left: Spacing.sm },
+      featuredPriceText: { ...Typography.bodySemiBold, color: colors.white, fontSize: 17 },
+      featuredInfo: { padding: Spacing.md },
+      featuredTitle: { ...Typography.bodyMedium, color: colors.textPrimary },
+      featuredLocation: { flexDirection: 'row', alignItems: 'center', marginTop: 4, gap: 4 },
+      featuredLocationText: { ...Typography.caption, color: colors.textSecondary, flex: 1 },
+      featuredMeta: { flexDirection: 'row', gap: Spacing.md, marginTop: Spacing.sm },
+    });
+  }, [colors]);
+
   return (
-    <View style={styles.featuredCard}>
-      <View style={styles.featuredImageWrap}>
-        <Image source={{ uri: property.images?.[0] }} style={styles.featuredImage} contentFit="cover" placeholder="L6PZfSi_.AyE_3t7t7R**0o#DgR4" transition={300} />
-        <LinearGradient colors={['transparent', 'rgba(0,0,0,0.6)']} style={styles.featuredGradient} />
-        <View style={styles.featuredBadge}>
+    <View style={featureStyles.featuredCard}>
+      <View style={featureStyles.featuredImageWrap}>
+        <Image source={{ uri: property.images?.[0] }} style={featureStyles.featuredImage} contentFit="cover" placeholder="L6PZfSi_.AyE_3t7t7R**0o#DgR4" transition={300} />
+        <LinearGradient colors={['transparent', 'rgba(0,0,0,0.6)']} style={featureStyles.featuredGradient} />
+        <View style={featureStyles.featuredBadge}>
           <Ionicons name="flash" size={10} color="#F59E0B" />
-          <Text style={styles.featuredBadgeText}>{property.type}</Text>
+          <Text style={featureStyles.featuredBadgeText}>{property.type}</Text>
         </View>
-        <TouchableOpacity style={styles.featuredSaveBtn} activeOpacity={0.7}>
-          <Ionicons name="heart-outline" size={18} color={Colors.white} />
+        <TouchableOpacity style={featureStyles.featuredSaveBtn} activeOpacity={0.7}>
+          <Ionicons name="heart-outline" size={18} color={colors.white} />
         </TouchableOpacity>
-        <View style={styles.featuredPriceOnImage}>
-          <Text style={styles.featuredPriceText}>{formatCurrency(property.price)}</Text>
+        <View style={featureStyles.featuredPriceOnImage}>
+          <Text style={featureStyles.featuredPriceText}>{formatCurrency(property.price)}</Text>
         </View>
       </View>
-      <View style={styles.featuredInfo}>
-        <Text style={styles.featuredTitle} numberOfLines={1}>{property.title}</Text>
-        <View style={styles.featuredLocation}>
-          <Ionicons name="location" size={13} color={Colors.primary} />
-          <Text style={styles.featuredLocationText} numberOfLines={1}>{property.city}, {property.state}</Text>
+      <View style={featureStyles.featuredInfo}>
+        <Text style={featureStyles.featuredTitle} numberOfLines={1}>{property.title}</Text>
+        <View style={featureStyles.featuredLocation}>
+          <Ionicons name="location" size={13} color={colors.primary} />
+          <Text style={featureStyles.featuredLocationText} numberOfLines={1}>{property.city}, {property.state}</Text>
         </View>
-        <View style={styles.featuredMeta}>
-          {property.bedrooms != null && <MetaChip icon="bed-outline" text={String(property.bedrooms)} />}
-          {property.bathrooms != null && <MetaChip icon="water-outline" text={String(property.bathrooms)} />}
-          {property.area != null && <MetaChip icon="resize-outline" text={`${property.area} sqm`} />}
+        <View style={featureStyles.featuredMeta}>
+          {property.bedrooms != null && <MetaChip icon="bed-outline" text={String(property.bedrooms)} colors={colors} />}
+          {property.bathrooms != null && <MetaChip icon="water-outline" text={String(property.bathrooms)} colors={colors} />}
+          {property.area != null && <MetaChip icon="resize-outline" text={`${property.area} sqm`} colors={colors} />}
         </View>
       </View>
     </View>
   );
 }
 
-function MetaChip({ icon, text }: { icon: keyof typeof Ionicons.glyphMap; text: string }) {
+function MetaChip({ icon, text, colors }: { icon: keyof typeof Ionicons.glyphMap; text: string; colors: any }) {
+  const metaStyles = useMemo(() => {
+    return StyleSheet.create({
+      metaChip: { flexDirection: 'row', alignItems: 'center', gap: 3 },
+      metaChipText: { ...Typography.small, color: colors.textMuted },
+    });
+  }, [colors]);
+
   return (
-    <View style={styles.metaChip}>
-      <Ionicons name={icon} size={13} color={Colors.textMuted} />
-      <Text style={styles.metaChipText}>{text}</Text>
+    <View style={metaStyles.metaChip}>
+      <Ionicons name={icon} size={13} color={colors.textMuted} />
+      <Text style={metaStyles.metaChipText}>{text}</Text>
     </View>
   );
 }
 
-function FeaturedSkeleton() {
+function FeaturedSkeleton({ colors }: { colors: any }) {
+  const skeletonStyles = useMemo(() => {
+    return StyleSheet.create({
+      featuredCardWrapper: { width: FEATURED_CARD_WIDTH },
+      featuredList: { paddingHorizontal: Spacing.xl, gap: Spacing.md },
+    });
+  }, [colors]);
+
   return (
     <FlatList
       horizontal showsHorizontalScrollIndicator={false}
-      data={[1, 2]} keyExtractor={(i) => String(i)} contentContainerStyle={styles.featuredList}
+      data={[1, 2]} keyExtractor={(i) => String(i)} contentContainerStyle={skeletonStyles.featuredList}
       renderItem={() => (
-        <View style={styles.featuredCardWrapper}>
+        <View style={skeletonStyles.featuredCardWrapper}>
           <Skeleton width={FEATURED_CARD_WIDTH} height={180} borderRadius={BorderRadius.xl} />
           <View style={{ padding: Spacing.md }}>
             <Skeleton width={120} height={14} style={{ marginBottom: 8 }} />
@@ -306,63 +362,39 @@ function FeaturedSkeleton() {
 
 /* ────────── Styles ────────── */
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.xl, paddingVertical: Spacing.md },
-  headerLeft: { flexDirection: 'row', alignItems: 'center', flex: 1 },
-  avatarCircle: { width: 48, height: 48, borderRadius: 24, backgroundColor: Colors.primaryLight, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: Colors.primary + '20', overflow: 'hidden' as const },
-  avatarImage: { width: 48, height: 48, borderRadius: 24 },
-  avatarText: { ...Typography.bodySemiBold, color: Colors.primary, fontSize: 18 },
-  onlineIndicator: { position: 'absolute', bottom: 1, right: 1, width: 12, height: 12, borderRadius: 6, backgroundColor: Colors.success, borderWidth: 2, borderColor: Colors.white },
-  greeting: { marginLeft: Spacing.md },
-  greetingSub: { ...Typography.caption, color: Colors.textSecondary },
-  greetingName: { ...Typography.h4, color: Colors.textPrimary, marginTop: 1 },
-  notificationBtn: { width: 48, height: 48, borderRadius: 24, backgroundColor: Colors.surface, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: Colors.borderLight },
-  notifBadge: { position: 'absolute', top: 4, right: 4, minWidth: 20, height: 20, borderRadius: 10, backgroundColor: Colors.error, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 5, borderWidth: 2, borderColor: Colors.white },
-  notifBadgeText: { fontSize: 10, fontWeight: '700', color: Colors.white },
-  scrollContent: { paddingBottom: Spacing.xxxxl },
-
-  searchBar: { flexDirection: 'row', alignItems: 'center', marginHorizontal: Spacing.xl, marginTop: Spacing.sm, marginBottom: Spacing.xl, backgroundColor: Colors.surface, borderRadius: BorderRadius.xl, paddingHorizontal: Spacing.sm, paddingVertical: Spacing.sm, borderWidth: 1, borderColor: Colors.borderLight, ...Shadows.sm },
-  searchIconWrap: { width: 40, height: 40, borderRadius: BorderRadius.lg, backgroundColor: Colors.primary, alignItems: 'center', justifyContent: 'center' },
-  searchPlaceholder: { ...Typography.body, color: Colors.textMuted, flex: 1, marginLeft: Spacing.md },
-  searchFilterBtn: { width: 40, height: 40, borderRadius: BorderRadius.lg, backgroundColor: Colors.primaryLight, alignItems: 'center', justifyContent: 'center' },
-
-  statsRow: { flexDirection: 'row', paddingHorizontal: Spacing.xl, gap: Spacing.md, marginBottom: Spacing.xl },
-  statCard: { flex: 1, backgroundColor: Colors.white, borderRadius: BorderRadius.xl, padding: Spacing.md, alignItems: 'center', borderWidth: 1, borderColor: Colors.borderLight, ...Shadows.sm },
-  statIcon: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.sm },
-  statValue: { ...Typography.h3, color: Colors.textPrimary },
-  statLabel: { ...Typography.small, color: Colors.textMuted, marginTop: 2 },
-
-  filtersRow: { marginBottom: Spacing.xl },
-  filtersList: { paddingHorizontal: Spacing.xl, gap: Spacing.sm },
-  filterPill: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: Spacing.lg, paddingVertical: Spacing.sm + 2, borderRadius: BorderRadius.full, backgroundColor: Colors.surface, borderWidth: 1.5, borderColor: Colors.borderLight },
-  filterPillActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
-  filterPillText: { ...Typography.captionMedium, color: Colors.textSecondary },
-  filterPillTextActive: { color: Colors.white },
-
-  sectionHeader: { paddingHorizontal: Spacing.xl, marginBottom: Spacing.md },
-  featuredList: { paddingHorizontal: Spacing.xl, gap: Spacing.md },
-  featuredCardWrapper: { width: FEATURED_CARD_WIDTH },
-  featuredCard: { backgroundColor: Colors.white, borderRadius: BorderRadius.xl, overflow: 'hidden', borderWidth: 1, borderColor: Colors.borderLight, ...Shadows.md },
-  featuredImageWrap: { position: 'relative' },
-  featuredImage: { width: '100%', height: 180 },
-  featuredGradient: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 80 },
-  featuredBadge: { position: 'absolute', top: Spacing.sm, left: Spacing.sm, flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(0,0,0,0.55)', paddingHorizontal: Spacing.sm + 2, paddingVertical: 4, borderRadius: BorderRadius.full },
-  featuredBadgeText: { ...Typography.small, color: Colors.white, fontWeight: '600' },
-  featuredSaveBtn: { position: 'absolute', top: Spacing.sm, right: Spacing.sm, width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(0,0,0,0.3)', alignItems: 'center', justifyContent: 'center' },
-  featuredPriceOnImage: { position: 'absolute', bottom: Spacing.sm, left: Spacing.sm },
-  featuredPriceText: { ...Typography.bodySemiBold, color: Colors.white, fontSize: 17 },
-  featuredInfo: { padding: Spacing.md },
-  featuredTitle: { ...Typography.bodyMedium, color: Colors.textPrimary },
-  featuredLocation: { flexDirection: 'row', alignItems: 'center', marginTop: 4, gap: 4 },
-  featuredLocationText: { ...Typography.caption, color: Colors.textSecondary, flex: 1 },
-  featuredMeta: { flexDirection: 'row', gap: Spacing.md, marginTop: Spacing.sm },
-  metaChip: { flexDirection: 'row', alignItems: 'center', gap: 3 },
-  metaChipText: { ...Typography.small, color: Colors.textMuted },
-
-  recItem: { paddingHorizontal: Spacing.xl },
-  recSkeletonWrap: { paddingHorizontal: Spacing.xl, gap: Spacing.md },
-  recSkeleton: { flexDirection: 'row', backgroundColor: Colors.white, borderRadius: BorderRadius.lg, padding: Spacing.md, ...Shadows.sm },
-  emptyInline: { paddingVertical: Spacing.xxl },
-});
+const createStyles = (colors: any) =>
+  StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.background },
+    header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.xl, paddingVertical: Spacing.md },
+    headerLeft: { flexDirection: 'row', alignItems: 'center', flex: 1 },
+    avatarCircle: { width: 48, height: 48, borderRadius: 24, backgroundColor: colors.primaryLight, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: colors.primary + '20', overflow: 'hidden' as const },
+    avatarImage: { width: 48, height: 48, borderRadius: 24 },
+    avatarText: { ...Typography.bodySemiBold, color: colors.primary, fontSize: 18 },
+    onlineIndicator: { position: 'absolute', bottom: 1, right: 1, width: 12, height: 12, borderRadius: 6, backgroundColor: colors.success, borderWidth: 2, borderColor: colors.white },
+    greeting: { marginLeft: Spacing.md },
+    greetingSub: { ...Typography.caption, color: colors.textSecondary },
+    greetingName: { ...Typography.h4, color: colors.textPrimary, marginTop: 1 },
+    notificationBtn: { width: 48, height: 48, borderRadius: 24, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.border },
+    notifBadge: { position: 'absolute', top: 4, right: 4, minWidth: 20, height: 20, borderRadius: 10, backgroundColor: colors.error, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 5, borderWidth: 2, borderColor: colors.white },
+    notifBadgeText: { fontSize: 10, fontWeight: '700', color: colors.white },
+    scrollContent: { paddingBottom: Spacing.xxxxl },
+    searchBar: { flexDirection: 'row', alignItems: 'center', marginHorizontal: Spacing.xl, marginTop: Spacing.sm, marginBottom: Spacing.xl, backgroundColor: colors.surface, borderRadius: BorderRadius.xl, paddingHorizontal: Spacing.sm, paddingVertical: Spacing.sm, borderWidth: 1, borderColor: colors.border, ...Shadows.sm },
+    searchIconWrap: { width: 40, height: 40, borderRadius: BorderRadius.lg, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' },
+    searchPlaceholder: { ...Typography.body, color: colors.textMuted, flex: 1, marginLeft: Spacing.md },
+    searchFilterBtn: { width: 40, height: 40, borderRadius: BorderRadius.lg, backgroundColor: colors.primaryLight, alignItems: 'center', justifyContent: 'center' },
+    statsRow: { flexDirection: 'row', paddingHorizontal: Spacing.xl, gap: Spacing.md, marginBottom: Spacing.xl },
+    filtersRow: { marginBottom: Spacing.xl },
+    filtersList: { paddingHorizontal: Spacing.xl, gap: Spacing.sm },
+    filterPill: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: Spacing.lg, paddingVertical: Spacing.sm + 2, borderRadius: BorderRadius.full, backgroundColor: colors.surface, borderWidth: 1.5, borderColor: colors.border },
+    filterPillActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+    filterPillText: { ...Typography.captionMedium, color: colors.textSecondary },
+    filterPillTextActive: { color: colors.white },
+    sectionHeader: { paddingHorizontal: Spacing.xl, marginBottom: Spacing.md },
+    featuredList: { paddingHorizontal: Spacing.xl, gap: Spacing.md },
+    featuredCardWrapper: { width: FEATURED_CARD_WIDTH },
+    emptyInline: { paddingVertical: Spacing.xxl },
+    recItem: { paddingHorizontal: Spacing.xl },
+    recSkeletonWrap: { paddingHorizontal: Spacing.xl, gap: Spacing.md },
+    recSkeleton: { flexDirection: 'row', backgroundColor: colors.surface, borderRadius: BorderRadius.lg, padding: Spacing.md, borderWidth: 1, borderColor: colors.border, ...Shadows.sm },
+  });
 

@@ -212,7 +212,7 @@ export default function ProfileScreen() {
     },
   ];
 
-  const dynamicStyles = useMemo(() => createStyles(colors), [colors]);
+  const dynamicStyles = useMemo(() => createStyles(colors, isDarkMode), [colors, isDarkMode]);
 
   return (
     <View style={[dynamicStyles.container, { paddingTop: insets.top }]}>
@@ -236,7 +236,7 @@ export default function ProfileScreen() {
           {/* ── Profile Header ── */}
           <View style={dynamicStyles.profileHeader}>
             <LinearGradient
-              colors={[colors.primary, colors.accent]}
+              colors={isDarkMode ? [colors.primary, '#7C3AED'] : [colors.primary, colors.accent]}
               style={dynamicStyles.profileBg}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
@@ -298,9 +298,9 @@ export default function ProfileScreen() {
           {/* ── Notifications ── */}
           <Text style={dynamicStyles.sectionTitle}>Notifications</Text>
           <Card style={dynamicStyles.menuCard} padding="xs">
-            <View style={styles.switchRow}>
-              <View style={styles.switchLeft}>
-                <View style={styles.menuIcon}>
+            <View style={dynamicStyles.switchRow}>
+              <View style={dynamicStyles.switchLeft}>
+                <View style={dynamicStyles.menuIcon}>
                   <Ionicons
                     name="notifications-outline"
                     size={20}
@@ -308,8 +308,8 @@ export default function ProfileScreen() {
                   />
                 </View>
                 <View>
-                  <Text style={styles.menuLabel}>Push Notifications</Text>
-                  <Text style={styles.switchDesc}>Receive property alerts & updates</Text>
+                  <Text style={dynamicStyles.menuLabel}>Push Notifications</Text>
+                  <Text style={dynamicStyles.switchDesc}>Receive property alerts & updates</Text>
                 </View>
               </View>
               <Switch
@@ -394,7 +394,7 @@ export default function ProfileScreen() {
 }
 
 function MenuRow({ item }: { item: MenuItem }) {
-  const { colors } = useTheme();
+  const { colors, isDarkMode } = useTheme();
   
   const rowStyles = useMemo(() => {
     return StyleSheet.create({
@@ -409,17 +409,17 @@ function MenuRow({ item }: { item: MenuItem }) {
         width: 40,
         height: 40,
         borderRadius: 12,
-        backgroundColor: colors.primaryLight,
+        backgroundColor: isDarkMode ? colors.primaryLight + '40' : colors.primaryLight,
         alignItems: 'center',
         justifyContent: 'center',
         marginRight: Spacing.md,
       },
-      menuIconDanger: { backgroundColor: colors.errorLight },
+      menuIconDanger: { backgroundColor: isDarkMode ? colors.errorLight + '40' : colors.errorLight },
       menuContent: { flex: 1 },
       menuLabelRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
       menuLabel: { ...Typography.bodyMedium, color: colors.textPrimary },
       menuLabelDanger: { color: colors.error },
-      menuSubtitle: { ...Typography.small, color: colors.textMuted, marginTop: 2 },
+      menuSubtitle: { ...Typography.small, color: isDarkMode ? colors.textSecondary : colors.textMuted, marginTop: 2 },
       menuBadge: {
         backgroundColor: colors.error,
         paddingHorizontal: 8,
@@ -433,7 +433,7 @@ function MenuRow({ item }: { item: MenuItem }) {
         fontSize: 10,
       },
     });
-  }, [colors]);
+  }, [colors, isDarkMode]);
 
   return (
     <TouchableOpacity
@@ -468,7 +468,7 @@ function MenuRow({ item }: { item: MenuItem }) {
   );
 }
 
-const createStyles = (colors: any) =>
+const createStyles = (colors: any, isDarkMode: boolean) =>
   StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   scrollContent: { paddingBottom: Spacing.xxxxl },
@@ -494,9 +494,9 @@ const createStyles = (colors: any) =>
     ...Typography.h3,
     color: colors.white,
     marginBottom: Spacing.lg,
-    textShadowColor: 'rgba(0,0,0,0.2)',
+    textShadowColor: isDarkMode ? 'rgba(0,0,0,0.5)' : 'rgba(0,0,0,0.2)',
     textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
+    textShadowRadius: isDarkMode ? 4 : 3,
   },
   avatarContainer: { position: 'relative', marginBottom: Spacing.md },
   avatar: {
@@ -507,7 +507,7 @@ const createStyles = (colors: any) =>
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 4,
-    borderColor: colors.white,
+    borderColor: isDarkMode ? 'rgba(255,255,255,0.3)' : colors.white,
     overflow: 'hidden' as const,
     ...Shadows.lg,
   },
@@ -524,7 +524,7 @@ const createStyles = (colors: any) =>
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 3,
-    borderColor: colors.white,
+    borderColor: isDarkMode ? 'rgba(255,255,255,0.3)' : colors.white,
   },
   userName: { ...Typography.h3, color: colors.textPrimary },
   userEmail: { ...Typography.caption, color: colors.textSecondary, marginTop: Spacing.xs },
@@ -535,21 +535,24 @@ const createStyles = (colors: any) =>
     paddingHorizontal: Spacing.xl,
     paddingVertical: Spacing.sm + 2,
     borderRadius: BorderRadius.full,
-    backgroundColor: colors.primaryLight,
+    backgroundColor: isDarkMode ? colors.primary + '20' : colors.primaryLight,
     gap: Spacing.xs,
   },
   editButtonText: { ...Typography.captionMedium, color: colors.primary },
 
   sectionTitle: {
     ...Typography.captionMedium,
-    color: colors.textMuted,
+    color: isDarkMode ? colors.textSecondary : colors.textMuted,
     textTransform: 'uppercase',
     letterSpacing: 1,
     paddingHorizontal: Spacing.xl,
     marginTop: Spacing.xxl,
     marginBottom: Spacing.sm,
   },
-  menuCard: { marginHorizontal: Spacing.xl },
+  menuCard: { 
+    marginHorizontal: Spacing.xl,
+    backgroundColor: isDarkMode ? colors.surface : colors.white,
+  },
 
   menuRow: {
     flexDirection: 'row',
@@ -557,6 +560,7 @@ const createStyles = (colors: any) =>
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.lg,
     minHeight: 60,
+    backgroundColor: isDarkMode ? colors.surface : colors.white,
   },
   menuIcon: {
     width: 40,
@@ -585,7 +589,11 @@ const createStyles = (colors: any) =>
     fontWeight: '600',
     fontSize: 10,
   },
-  separator: { height: 1, backgroundColor: colors.borderLight, marginHorizontal: Spacing.lg },
+  separator: { 
+    height: 1, 
+    backgroundColor: isDarkMode ? colors.border : colors.borderLight, 
+    marginHorizontal: Spacing.lg 
+  },
 
   switchRow: {
     flexDirection: 'row',
@@ -594,6 +602,7 @@ const createStyles = (colors: any) =>
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
     minHeight: 60,
+    backgroundColor: isDarkMode ? colors.surface : colors.white,
   },
   switchLeft: { flexDirection: 'row', alignItems: 'center', flex: 1 },
   switchDesc: { ...Typography.small, color: colors.textMuted, marginTop: 1 },
@@ -603,7 +612,8 @@ const createStyles = (colors: any) =>
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(255,255,255,0.7)',
+    // Use semi-transparent white for light mode, semi-transparent dark for dark mode
+    backgroundColor: isDarkMode ? 'rgba(0,0,0,0.5)' : 'rgba(255,255,255,0.7)',
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: BorderRadius.xl,
@@ -618,17 +628,15 @@ const createStyles = (colors: any) =>
     paddingVertical: Spacing.lg,
     borderRadius: BorderRadius.xl,
     borderWidth: 1.5,
-    borderColor: colors.error + '40',
-    backgroundColor: colors.errorLight + '30',
+    borderColor: isDarkMode ? colors.error + '60' : colors.error + '40',
+    backgroundColor: isDarkMode ? colors.errorLight + '50' : colors.errorLight + '30',
     gap: Spacing.sm,
   },
   logoutText: { ...Typography.bodySemiBold, color: colors.error },
   version: {
     ...Typography.small,
-    color: colors.textMuted,
+    color: isDarkMode ? colors.textSecondary : colors.textMuted,
     textAlign: 'center',
     marginTop: Spacing.xxl,
   },
 });
-
-const styles = createStyles(Colors);

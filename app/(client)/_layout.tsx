@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { StyleSheet, View, Platform } from 'react-native';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors, Spacing, Shadows, Typography } from '@/constants/theme';
+import { useTheme } from '@/hooks/useTheme';
+import { Spacing, Shadows, Typography } from '@/constants/theme';
 
 const TAB_CONFIG = [
   { name: 'dashboard', title: 'Home', icon: 'home' },
@@ -13,15 +14,19 @@ const TAB_CONFIG = [
 ] as const;
 
 export default function ClientLayout() {
+  const { colors } = useTheme();
+
+  const dynamicStyles = useMemo(() => createStyles(colors), [colors]);
+
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: Colors.primary,
-        tabBarInactiveTintColor: Colors.textMuted,
-        tabBarLabelStyle: styles.tabLabel,
-        tabBarStyle: styles.tabBar,
-        tabBarItemStyle: styles.tabItem,
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.textMuted,
+        tabBarLabelStyle: dynamicStyles.tabLabel,
+        tabBarStyle: dynamicStyles.tabBar,
+        tabBarItemStyle: dynamicStyles.tabItem,
       }}
     >
       {TAB_CONFIG.map((tab) => (
@@ -31,7 +36,7 @@ export default function ClientLayout() {
           options={{
             title: tab.title,
             tabBarIcon: ({ focused, color, size }) => (
-              <View style={[styles.iconWrap, focused && styles.iconWrapActive]}>
+              <View style={[dynamicStyles.iconWrap, focused && dynamicStyles.iconWrapActive]}>
                 <Ionicons
                   name={focused ? (tab.icon as any) : (`${tab.icon}-outline` as any)}
                   size={22}
@@ -57,31 +62,32 @@ export default function ClientLayout() {
   );
 }
 
-const styles = StyleSheet.create({
-  tabBar: {
-    backgroundColor: Colors.white,
-    borderTopWidth: 1,
-    borderTopColor: Colors.borderLight,
-    height: Platform.OS === 'ios' ? 88 : 64,
-    paddingTop: Spacing.xs,
-    ...Shadows.sm,
-  },
-  tabLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-    marginTop: 2,
-  },
-  tabItem: {
-    paddingTop: 4,
-  },
-  iconWrap: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: 40,
-    height: 28,
-    borderRadius: 14,
-  },
-  iconWrapActive: {
-    backgroundColor: Colors.primaryLight,
-  },
-});
+const createStyles = (colors: any) =>
+  StyleSheet.create({
+    tabBar: {
+      backgroundColor: colors.tabBarBackground,
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+      height: Platform.OS === 'ios' ? 88 : 64,
+      paddingTop: Spacing.xs,
+      ...Shadows.sm,
+    },
+    tabLabel: {
+      fontSize: 11,
+      fontWeight: '600',
+      marginTop: 2,
+    },
+    tabItem: {
+      paddingTop: 4,
+    },
+    iconWrap: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      width: 40,
+      height: 28,
+      borderRadius: 14,
+    },
+    iconWrapActive: {
+      backgroundColor: colors.primaryLight,
+    },
+  });

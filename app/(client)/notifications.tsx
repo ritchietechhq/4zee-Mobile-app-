@@ -3,7 +3,7 @@
 // View, manage, and interact with notifications
 // ============================================================
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -22,6 +22,7 @@ import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { Colors, Spacing, Typography, BorderRadius, Shadows } from '@/constants/theme';
+import { useTheme } from '@/hooks/useTheme';
 import type { Notification } from '@/types';
 
 type NotificationIcon = keyof typeof Ionicons.glyphMap;

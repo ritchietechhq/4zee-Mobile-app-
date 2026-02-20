@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -10,22 +10,25 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '@/hooks/useTheme';
 import favoritesService from '@/services/favorites.service';
 import { PropertyCard } from '@/components/property/PropertyCard';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
-import { Colors, Spacing, Typography, BorderRadius, Shadows } from '@/constants/theme';
+import { Spacing, Typography, BorderRadius, Shadows } from '@/constants/theme';
 import type { Property } from '@/types';
 
 type ViewMode = 'list' | 'grid';
 
 export default function SavedScreen() {
   const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
   const [favorites, setFavorites] = useState<Property[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  const dynamicStyles = useMemo(() => createStyles(colors), [colors]);
 
   const fetchFavorites = useCallback(async () => {
     try {
@@ -50,28 +53,28 @@ export default function SavedScreen() {
   }, []);
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={[dynamicStyles.container, { paddingTop: insets.top }]}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={dynamicStyles.header}>
         <View>
-          <Text style={styles.title}>Saved Properties</Text>
-          <Text style={styles.subtitle}>
+          <Text style={dynamicStyles.title}>Saved Properties</Text>
+          <Text style={dynamicStyles.subtitle}>
             {isLoading ? 'Loading...' : `${favorites.length} ${favorites.length === 1 ? 'property' : 'properties'} saved`}
           </Text>
         </View>
         <TouchableOpacity
-          style={styles.viewToggle}
+          style={dynamicStyles.viewToggle}
           onPress={() => setViewMode(viewMode === 'list' ? 'grid' : 'list')}
           activeOpacity={0.7}
         >
-          <Ionicons name={viewMode === 'list' ? 'grid-outline' : 'list-outline'} size={20} color={Colors.primary} />
+          <Ionicons name={viewMode === 'list' ? 'grid-outline' : 'list-outline'} size={20} color={colors.primary} />
         </TouchableOpacity>
       </View>
 
       {isLoading && favorites.length === 0 ? (
-        <View style={styles.skeletonWrap}>
+        <View style={dynamicStyles.skeletonWrap}>
           {[1, 2, 3].map((i) => (
-            <View key={i} style={styles.skeletonItem}>
+            <View key={i} style={dynamicStyles.skeletonItem}>
               <Skeleton width={120} height={100} borderRadius={BorderRadius.lg} />
               <View style={{ flex: 1, marginLeft: Spacing.md }}>
                 <Skeleton width="70%" height={14} style={{ marginBottom: 8 }} />
@@ -88,12 +91,12 @@ export default function SavedScreen() {
             data={favorites}
             numColumns={viewMode === 'grid' ? 2 : 1}
             keyExtractor={(item) => item.id}
-            contentContainerStyle={styles.listContent}
-            columnWrapperStyle={viewMode === 'grid' ? styles.gridRow : undefined}
+            contentContainerStyle={dynamicStyles.listContent}
+            columnWrapperStyle={viewMode === 'grid' ? dynamicStyles.gridRow : undefined}
             showsVerticalScrollIndicator={false}
-            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} />}
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
             renderItem={({ item }) => (
-              <View style={viewMode === 'grid' ? styles.gridItem : styles.listItem}>
+              <View style={viewMode === 'grid' ? dynamicStyles.gridItem : dynamicStyles.listItem}>
                 <PropertyCard property={item} variant={viewMode === 'grid' ? 'vertical' : 'horizontal'} />
               </View>
             )}
@@ -112,17 +115,18 @@ export default function SavedScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: Spacing.xl, paddingVertical: Spacing.lg, borderBottomWidth: 1, borderBottomColor: Colors.borderLight },
-  title: { ...Typography.h3, color: Colors.textPrimary },
-  subtitle: { ...Typography.caption, color: Colors.textSecondary, marginTop: 2 },
-  viewToggle: { width: 44, height: 44, borderRadius: 22, backgroundColor: Colors.primaryLight, alignItems: 'center', justifyContent: 'center' },
-  listContent: { paddingHorizontal: Spacing.xl, paddingTop: Spacing.md, paddingBottom: Spacing.xxxxl },
-  listItem: { marginBottom: Spacing.sm },
-  gridRow: { justifyContent: 'space-between' },
-  gridItem: { width: '48%', marginBottom: Spacing.md },
-  skeletonWrap: { paddingHorizontal: Spacing.xl, paddingTop: Spacing.lg, gap: Spacing.md },
-  skeletonItem: { flexDirection: 'row', backgroundColor: Colors.white, borderRadius: BorderRadius.lg, padding: Spacing.md, ...Shadows.sm },
-});
+const createStyles = (colors: any) =>
+  StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.background },
+    header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: Spacing.xl, paddingVertical: Spacing.lg, borderBottomWidth: 1, borderBottomColor: colors.border },
+    title: { ...Typography.h3, color: colors.textPrimary },
+    subtitle: { ...Typography.caption, color: colors.textSecondary, marginTop: 2 },
+    viewToggle: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.primaryLight, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.border },
+    listContent: { paddingHorizontal: Spacing.xl, paddingTop: Spacing.md, paddingBottom: Spacing.xxxxl },
+    listItem: { marginBottom: Spacing.sm },
+    gridRow: { justifyContent: 'space-between' },
+    gridItem: { width: '48%', marginBottom: Spacing.md },
+    skeletonWrap: { paddingHorizontal: Spacing.xl, paddingTop: Spacing.lg, gap: Spacing.md },
+    skeletonItem: { flexDirection: 'row', backgroundColor: colors.surface, borderRadius: BorderRadius.lg, padding: Spacing.md, borderWidth: 1, borderColor: colors.border, ...Shadows.sm },
+  });
 

@@ -3,7 +3,7 @@
 // View all payments, status, and receipts
 // ============================================================
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -19,7 +19,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
-import { Colors, Spacing, Typography, BorderRadius, Shadows } from '@/constants/theme';
+import { Spacing, Typography, BorderRadius, Shadows } from '@/constants/theme';
+import { useTheme } from '@/hooks/useTheme';
 import { paymentService } from '@/services/payment.service';
 import { formatCurrency } from '@/utils/formatCurrency';
 import type { PaymentDetail } from '@/types';
@@ -35,7 +36,9 @@ const FILTER_TABS: { key: FilterTab; label: string }[] = [
 
 export default function PaymentsScreen() {
   const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  const dynamicStyles = useMemo(() => createStyles(colors), [colors]);
 
   const [payments, setPayments] = useState<PaymentDetail[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -248,7 +251,7 @@ export default function PaymentsScreen() {
   }
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={[dynamicStyles.container, { paddingTop: insets.top }]}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
@@ -329,8 +332,9 @@ export default function PaymentsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background },
+const createStyles = (colors: any) =>
+  StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.background },
   loaderWrap: { alignItems: 'center', justifyContent: 'center', gap: Spacing.md },
   loaderText: { ...Typography.caption, color: Colors.textMuted },
 
@@ -341,25 +345,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.borderLight,
-    backgroundColor: Colors.white,
-  },
-  backBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: Colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerTitle: { ...Typography.h4, color: Colors.textPrimary },
-
-  // Stats
-  statsRow: {
-    flexDirection: 'row',
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.lg,
-    gap: Spacing.sm,
+      borderBottomColor: colors.borderLight,
+      backgroundColor: colors.surface,
+    },
+    backBtn: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: colors.primaryLight,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    headerTitle: { ...Typography.h4, color: colors.textPrimary },
   },
   statCard: {
     flex: 1,

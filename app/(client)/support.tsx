@@ -3,7 +3,7 @@
 // Submit and track support tickets
 // ============================================================
 
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -28,7 +28,8 @@ import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Skeleton } from '@/components/ui/Skeleton';
-import { Colors, Spacing, Typography, BorderRadius, Shadows } from '@/constants/theme';
+import { Spacing, Typography, BorderRadius, Shadows } from '@/constants/theme';
+import { useTheme } from '@/hooks/useTheme';
 import type { SupportTicket, TicketCategory, TicketPriority, CreateTicketRequest } from '@/types';
 
 type ViewMode = 'new' | 'history';
@@ -64,6 +65,8 @@ const CONTACT_OPTIONS = [
 
 export default function SupportScreen() {
   const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
+  const dynamicStyles = useMemo(() => createStyles(colors), [colors]);
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
   const [viewMode, setViewMode] = useState<ViewMode>('new');
@@ -199,26 +202,26 @@ export default function SupportScreen() {
       activeOpacity={0.7}
       onPress={() => Alert.alert('Ticket', `Ticket #${item.ticketNumber}\n\n${item.subject}`)}
     >
-      <Card style={styles.ticketCard}>
-        <View style={styles.ticketHeader}>
-          <Text style={styles.ticketNumber}>#{item.ticketNumber}</Text>
+      <Card style={dynamicStyles.ticketCard}>
+        <View style={dynamicStyles.ticketHeader}>
+          <Text style={dynamicStyles.ticketNumber}>#{item.ticketNumber}</Text>
           <Badge
             label={item.status.replace('_', ' ')}
             variant={getStatusVariant(item.status)}
             size="sm"
           />
         </View>
-        <Text style={styles.ticketSubject} numberOfLines={1}>
+        <Text style={dynamicStyles.ticketSubject} numberOfLines={1}>
           {item.subject}
         </Text>
-        <View style={styles.ticketMeta}>
-          <View style={styles.ticketMetaItem}>
-            <Ionicons name="folder-outline" size={14} color={Colors.textMuted} />
-            <Text style={styles.ticketMetaText}>{item.category}</Text>
+        <View style={dynamicStyles.ticketMeta}>
+          <View style={dynamicStyles.ticketMetaItem}>
+            <Ionicons name="folder-outline" size={14} color={colors.textMuted} />
+            <Text style={dynamicStyles.ticketMetaText}>{item.category}</Text>
           </View>
           <View style={styles.ticketMetaItem}>
-            <Ionicons name="calendar-outline" size={14} color={Colors.textMuted} />
-            <Text style={styles.ticketMetaText}>{formatDate(item.createdAt)}</Text>
+            <Ionicons name="calendar-outline" size={14} color={colors.textMuted} />
+            <Text style={dynamicStyles.ticketMetaText}>{formatDate(item.createdAt)}</Text>
           </View>
         </View>
       </Card>
@@ -226,45 +229,45 @@ export default function SupportScreen() {
   );
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={[dynamicStyles.container, { paddingTop: insets.top }]}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={dynamicStyles.header}>
         <TouchableOpacity
-          style={styles.backBtn}
+          style={dynamicStyles.backBtn}
           onPress={() => router.back()}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
-          <Ionicons name="arrow-back" size={24} color={Colors.textPrimary} />
+          <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Contact Support</Text>
+        <Text style={dynamicStyles.headerTitle}>Contact Support</Text>
         <View style={{ width: 40 }} />
       </View>
 
       {/* View Mode Tabs */}
-      <View style={styles.tabContainer}>
+      <View style={dynamicStyles.tabContainer}>
         <TouchableOpacity
-          style={[styles.tab, viewMode === 'new' && styles.tabActive]}
+          style={[dynamicStyles.tab, viewMode === 'new' && dynamicStyles.tabActive]}
           onPress={() => setViewMode('new')}
         >
           <Ionicons
             name="create-outline"
             size={18}
-            color={viewMode === 'new' ? Colors.primary : Colors.textMuted}
+            color={viewMode === 'new' ? colors.primary : colors.textMuted}
           />
-          <Text style={[styles.tabText, viewMode === 'new' && styles.tabTextActive]}>
+          <Text style={[dynamicStyles.tabText, viewMode === 'new' && dynamicStyles.tabTextActive]}>
             New Ticket
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.tab, viewMode === 'history' && styles.tabActive]}
+          style={[dynamicStyles.tab, viewMode === 'history' && dynamicStyles.tabActive]}
           onPress={() => setViewMode('history')}
         >
           <Ionicons
             name="time-outline"
             size={18}
-            color={viewMode === 'history' ? Colors.primary : Colors.textMuted}
+            color={viewMode === 'history' ? colors.primary : colors.textMuted}
           />
-          <Text style={[styles.tabText, viewMode === 'history' && styles.tabTextActive]}>
+          <Text style={[dynamicStyles.tabText, viewMode === 'history' && dynamicStyles.tabTextActive]}>
             My Tickets
           </Text>
         </TouchableOpacity>
@@ -273,11 +276,11 @@ export default function SupportScreen() {
       {viewMode === 'new' ? (
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={styles.flex}
+          style={dynamicStyles.flex}
         >
           <ScrollView
             showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.scrollContent}
+            contentContainerStyle={dynamicStyles.scrollContent}
             keyboardShouldPersistTaps="handled"
           >
             <Animated.View
@@ -294,16 +297,16 @@ export default function SupportScreen() {
               }}
             >
               {/* Quick Contact Options */}
-              <View style={styles.contactOptions}>
+              <View style={dynamicStyles.contactOptions}>
                 {CONTACT_OPTIONS.map((option, idx) => (
                   <TouchableOpacity
                     key={idx}
-                    style={styles.contactOption}
+                    style={dynamicStyles.contactOption}
                     onPress={option.action}
                     activeOpacity={0.7}
                   >
-                    <View style={styles.contactOptionIcon}>
-                      <Ionicons name={option.icon} size={20} color={Colors.primary} />
+                    <View style={dynamicStyles.contactOptionIcon}>
+                      <Ionicons name={option.icon} size={20} color={colors.primary} />
                     </View>
                     <Text style={styles.contactOptionLabel}>{option.label}</Text>
                     <Text style={styles.contactOptionValue} numberOfLines={1}>
@@ -349,7 +352,7 @@ export default function SupportScreen() {
                       <Ionicons
                         name={cat.icon}
                         size={20}
-                        color={selectedCategory === cat.value ? Colors.white : Colors.primary}
+                        color={selectedCategory === cat.value ? colors.white : colors.primary}
                       />
                     </View>
                     <Text
@@ -392,7 +395,7 @@ export default function SupportScreen() {
                   <TextInput
                     style={[styles.textArea, errors.message && styles.textAreaError]}
                     placeholder="Describe your issue in detail..."
-                    placeholderTextColor={Colors.textMuted}
+                    placeholderTextColor={colors.textMuted}
                     value={message}
                     onChangeText={(v) => {
                       setMessage(v);
@@ -418,7 +421,7 @@ export default function SupportScreen() {
                   loading={isSubmitting}
                   variant="primary"
                   size="lg"
-                  icon={<Ionicons name="send" size={18} color={Colors.white} />}
+                  icon={<Ionicons name="send" size={18} color={colors.white} />}
                 />
               </Card>
 
@@ -463,8 +466,8 @@ export default function SupportScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background },
+const createStyles = (colors: any) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.background },
   flex: { flex: 1 },
   scrollContent: { paddingBottom: Spacing.xxxxl },
 
@@ -475,26 +478,26 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.borderLight,
-    backgroundColor: Colors.white,
+    borderBottomColor: colors.borderLight,
+    backgroundColor: colors.surface,
   },
   backBtn: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: Colors.surface,
+    backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  headerTitle: { ...Typography.h4, color: Colors.textPrimary },
+  headerTitle: { ...Typography.h4, color: colors.textPrimary },
 
   tabContainer: {
     flexDirection: 'row',
-    backgroundColor: Colors.white,
+    backgroundColor: colors.surface,
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.sm,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.borderLight,
+    borderBottomColor: colors.borderLight,
     gap: Spacing.md,
   },
   tab: {
@@ -507,14 +510,14 @@ const styles = StyleSheet.create({
     gap: Spacing.xs,
   },
   tabActive: {
-    backgroundColor: Colors.primaryLight,
+    backgroundColor: colors.primaryLight,
   },
   tabText: {
     ...Typography.captionMedium,
-    color: Colors.textMuted,
+    color: colors.textMuted,
   },
   tabTextActive: {
-    color: Colors.primary,
+    color: colors.primary,
   },
 
   contactOptions: {
@@ -525,29 +528,29 @@ const styles = StyleSheet.create({
   },
   contactOption: {
     flex: 1,
-    backgroundColor: Colors.white,
+    backgroundColor: colors.surface,
     borderRadius: BorderRadius.xl,
     padding: Spacing.md,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: Colors.borderLight,
+    borderColor: colors.borderLight,
   },
   contactOptionIcon: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: Colors.primaryLight,
+    backgroundColor: colors.primaryLight,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: Spacing.sm,
   },
   contactOptionLabel: {
     ...Typography.captionMedium,
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
   },
   contactOptionValue: {
     ...Typography.small,
-    color: Colors.textMuted,
+    color: colors.textMuted,
     marginTop: 2,
   },
 
@@ -561,16 +564,16 @@ const styles = StyleSheet.create({
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: Colors.borderLight,
+    backgroundColor: colors.borderLight,
   },
   dividerText: {
     ...Typography.caption,
-    color: Colors.textMuted,
+    color: colors.textMuted,
   },
 
   sectionLabel: {
     ...Typography.bodyMedium,
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
     paddingHorizontal: Spacing.xl,
     marginBottom: Spacing.md,
   },
@@ -583,41 +586,41 @@ const styles = StyleSheet.create({
   },
   categoryCard: {
     width: '47%',
-    backgroundColor: Colors.white,
+    backgroundColor: colors.surface,
     borderRadius: BorderRadius.xl,
     padding: Spacing.lg,
     alignItems: 'center',
     borderWidth: 1.5,
-    borderColor: Colors.borderLight,
+    borderColor: colors.borderLight,
   },
   categoryCardActive: {
-    borderColor: Colors.primary,
-    backgroundColor: Colors.primaryLight + '30',
+    borderColor: colors.primary,
+    backgroundColor: colors.primaryLight + '30',
   },
   categoryIcon: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: Colors.primaryLight,
+    backgroundColor: colors.primaryLight,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: Spacing.sm,
   },
   categoryIconActive: {
-    backgroundColor: Colors.primary,
+    backgroundColor: colors.primary,
   },
   categoryLabel: {
     ...Typography.captionMedium,
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     textAlign: 'center',
   },
   categoryLabelActive: {
-    color: Colors.primary,
+    color: colors.primary,
   },
 
   errorText: {
     ...Typography.small,
-    color: Colors.error,
+    color: colors.error,
     marginTop: Spacing.xs,
     paddingHorizontal: Spacing.xl,
   },
@@ -633,35 +636,35 @@ const styles = StyleSheet.create({
   },
   inputLabel: {
     ...Typography.captionMedium,
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     marginBottom: Spacing.sm,
   },
   required: {
-    color: Colors.error,
+    color: colors.error,
   },
   textArea: {
     ...Typography.body,
-    backgroundColor: Colors.surface,
+    backgroundColor: colors.surface,
     borderRadius: BorderRadius.lg,
     borderWidth: 1,
-    borderColor: Colors.borderLight,
+    borderColor: colors.borderLight,
     padding: Spacing.md,
     minHeight: 120,
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
   },
   textAreaError: {
-    borderColor: Colors.error,
+    borderColor: colors.error,
   },
   charCount: {
     ...Typography.small,
-    color: Colors.textMuted,
+    color: colors.textMuted,
     textAlign: 'right',
     marginTop: Spacing.xs,
   },
 
   responseNote: {
     ...Typography.caption,
-    color: Colors.textMuted,
+    color: colors.textMuted,
     textAlign: 'center',
     marginTop: Spacing.lg,
   },
@@ -682,11 +685,11 @@ const styles = StyleSheet.create({
   },
   ticketNumber: {
     ...Typography.captionMedium,
-    color: Colors.textMuted,
+    color: colors.textMuted,
   },
   ticketSubject: {
     ...Typography.bodyMedium,
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
   },
   ticketMeta: {
     flexDirection: 'row',
@@ -700,7 +703,7 @@ const styles = StyleSheet.create({
   },
   ticketMetaText: {
     ...Typography.small,
-    color: Colors.textMuted,
+    color: colors.textMuted,
   },
 
   skeletonList: {

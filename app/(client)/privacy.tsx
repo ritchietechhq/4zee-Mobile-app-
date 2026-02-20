@@ -3,7 +3,7 @@
 // Legal privacy policy document
 // ============================================================
 
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -15,8 +15,9 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import { useTheme } from '@/hooks/useTheme';
 import { Card } from '@/components/ui/Card';
-import { Colors, Spacing, Typography, BorderRadius } from '@/constants/theme';
+import { Spacing, Typography, BorderRadius } from '@/constants/theme';
 
 const LAST_UPDATED = 'February 1, 2026';
 
@@ -131,7 +132,9 @@ For data protection inquiries, contact our Data Protection Officer at dpo@4zeepr
 
 export default function PrivacyScreen() {
   const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  const dynamicStyles = useMemo(() => createStyles(colors), [colors]);
 
   useEffect(() => {
     Animated.spring(fadeAnim, {
@@ -143,23 +146,23 @@ export default function PrivacyScreen() {
   }, []);
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={[dynamicStyles.container, { paddingTop: insets.top }]}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={dynamicStyles.header}>
         <TouchableOpacity
-          style={styles.backBtn}
+          style={dynamicStyles.backBtn}
           onPress={() => router.back()}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
-          <Ionicons name="arrow-back" size={24} color={Colors.textPrimary} />
+          <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Privacy Policy</Text>
+        <Text style={dynamicStyles.headerTitle}>Privacy Policy</Text>
         <View style={{ width: 40 }} />
       </View>
 
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={dynamicStyles.scrollContent}
       >
         <Animated.View
           style={{
@@ -175,30 +178,30 @@ export default function PrivacyScreen() {
           }}
         >
           {/* Hero */}
-          <View style={styles.heroSection}>
-            <View style={styles.heroIcon}>
-              <Ionicons name="shield-checkmark" size={40} color={Colors.primary} />
+          <View style={dynamicStyles.heroSection}>
+            <View style={dynamicStyles.heroIcon}>
+              <Ionicons name="shield-checkmark" size={40} color={colors.primary} />
             </View>
-            <Text style={styles.heroTitle}>Your Privacy Matters</Text>
-            <Text style={styles.heroSubtitle}>
+            <Text style={dynamicStyles.heroTitle}>Your Privacy Matters</Text>
+            <Text style={dynamicStyles.heroSubtitle}>
               We are committed to protecting your personal information and being transparent about how we use it.
             </Text>
-            <View style={styles.updateBadge}>
-              <Ionicons name="calendar-outline" size={14} color={Colors.textMuted} />
-              <Text style={styles.updateText}>Last updated: {LAST_UPDATED}</Text>
+            <View style={dynamicStyles.updateBadge}>
+              <Ionicons name="calendar-outline" size={14} color={colors.textMuted} />
+              <Text style={dynamicStyles.updateText}>Last updated: {LAST_UPDATED}</Text>
             </View>
           </View>
 
           {/* Content */}
           {PRIVACY_SECTIONS.map((section, idx) => (
-            <Card key={idx} style={styles.sectionCard}>
-              <View style={styles.sectionHeader}>
-                <View style={styles.sectionNumber}>
-                  <Text style={styles.sectionNumberText}>{idx + 1}</Text>
+            <Card key={idx} style={dynamicStyles.sectionCard}>
+              <View style={dynamicStyles.sectionHeader}>
+                <View style={dynamicStyles.sectionNumber}>
+                  <Text style={dynamicStyles.sectionNumberText}>{idx + 1}</Text>
                 </View>
-                <Text style={styles.sectionTitle}>{section.title}</Text>
+                <Text style={dynamicStyles.sectionTitle}>{section.title}</Text>
               </View>
-              <Text style={styles.sectionContent}>{section.content}</Text>
+              <Text style={dynamicStyles.sectionContent}>{section.content}</Text>
             </Card>
           ))}
 
@@ -209,102 +212,103 @@ export default function PrivacyScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background },
-  scrollContent: { paddingBottom: Spacing.xxxxl },
+const createStyles = (colors: any) =>
+  StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.background },
+    scrollContent: { paddingBottom: Spacing.xxxxl },
 
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.borderLight,
-    backgroundColor: Colors.white,
-  },
-  backBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: Colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerTitle: { ...Typography.h4, color: Colors.textPrimary },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: Spacing.lg,
+      paddingVertical: Spacing.md,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.borderLight,
+      backgroundColor: colors.surface,
+    },
+    backBtn: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: colors.primaryLight,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    headerTitle: { ...Typography.h4, color: colors.textPrimary },
 
-  heroSection: {
-    alignItems: 'center',
-    paddingVertical: Spacing.xxl,
-    paddingHorizontal: Spacing.xl,
-  },
-  heroIcon: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: Colors.primaryLight,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: Spacing.md,
-  },
-  heroTitle: {
-    ...Typography.h3,
-    color: Colors.textPrimary,
-    marginBottom: Spacing.xs,
-  },
-  heroSubtitle: {
-    ...Typography.body,
-    color: Colors.textMuted,
-    textAlign: 'center',
-    lineHeight: 22,
-  },
-  updateBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.surface,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    borderRadius: BorderRadius.full,
-    marginTop: Spacing.lg,
-    gap: Spacing.xs,
-  },
-  updateText: {
-    ...Typography.caption,
-    color: Colors.textMuted,
-  },
+    heroSection: {
+      alignItems: 'center',
+      paddingVertical: Spacing.xxl,
+      paddingHorizontal: Spacing.xl,
+    },
+    heroIcon: {
+      width: 72,
+      height: 72,
+      borderRadius: 36,
+      backgroundColor: colors.primaryLight,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: Spacing.md,
+    },
+    heroTitle: {
+      ...Typography.h3,
+      color: colors.textPrimary,
+      marginBottom: Spacing.xs,
+    },
+    heroSubtitle: {
+      ...Typography.body,
+      color: colors.textSecondary,
+      textAlign: 'center',
+      lineHeight: 22,
+    },
+    updateBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.primaryLight,
+      paddingHorizontal: Spacing.md,
+      paddingVertical: Spacing.sm,
+      borderRadius: BorderRadius.full,
+      marginTop: Spacing.lg,
+      gap: Spacing.xs,
+    },
+    updateText: {
+      ...Typography.caption,
+      color: colors.textSecondary,
+    },
 
-  sectionCard: {
-    marginHorizontal: Spacing.xl,
-    marginBottom: Spacing.lg,
-    padding: Spacing.xl,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: Spacing.md,
-    gap: Spacing.md,
-  },
-  sectionNumber: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: Colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  sectionNumberText: {
-    ...Typography.captionMedium,
-    color: Colors.white,
-    fontWeight: '700',
-  },
-  sectionTitle: {
-    ...Typography.bodyMedium,
-    color: Colors.textPrimary,
-    flex: 1,
-  },
-  sectionContent: {
-    ...Typography.body,
-    color: Colors.textSecondary,
-    lineHeight: 24,
-  },
-});
+    sectionCard: {
+      marginHorizontal: Spacing.xl,
+      marginBottom: Spacing.lg,
+      padding: Spacing.xl,
+    },
+    sectionHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: Spacing.md,
+      gap: Spacing.md,
+    },
+    sectionNumber: {
+      width: 28,
+      height: 28,
+      borderRadius: 14,
+      backgroundColor: colors.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    sectionNumberText: {
+      ...Typography.captionMedium,
+      color: colors.white,
+      fontWeight: '700',
+    },
+    sectionTitle: {
+      ...Typography.bodyMedium,
+      color: colors.textPrimary,
+      flex: 1,
+    },
+    sectionContent: {
+      ...Typography.body,
+      color: colors.textSecondary,
+      lineHeight: 24,
+    },
+  });

@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback, useState, useRef } from 'react';
+import React, { useEffect, useCallback, useState, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -16,11 +16,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { usePropertyStore } from '@/store/property.store';
+import { useTheme } from '@/hooks/useTheme';
 import { PropertyCard } from '@/components/property/PropertyCard';
 import { FilterChip } from '@/components/ui/FilterChip';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
-import { Colors, Spacing, Typography, BorderRadius, Shadows } from '@/constants/theme';
+import { Spacing, Typography, BorderRadius, Shadows } from '@/constants/theme';
 import type { PropertyType, PropertySearchFilters } from '@/types';
 
 const TYPES: { label: string; value: PropertyType | undefined; icon: keyof typeof Ionicons.glyphMap }[] = [
@@ -39,6 +40,7 @@ const SORT_OPTIONS: { label: string; value: PropertySearchFilters['sortBy']; ico
 
 export default function SearchScreen() {
   const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
   const {
     properties, isLoading, isLoadingMore, isRefreshing, hasMore,
     searchProperties, loadMore, refresh, setFilters, filters,
@@ -51,6 +53,8 @@ export default function SearchScreen() {
   const [isFocused, setIsFocused] = useState(false);
   const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inputRef = useRef<TextInput>(null);
+
+  const dynamicStyles = useMemo(() => createStyles(colors), [colors]);
 
   useEffect(() => { searchProperties(); }, []);
 
@@ -88,9 +92,9 @@ export default function SearchScreen() {
   const renderFooter = () => {
     if (!isLoadingMore) return <View style={{ height: Spacing.xxxxl }} />;
     return (
-      <View style={styles.footerLoader}>
-        <ActivityIndicator color={Colors.primary} />
-        <Text style={styles.loadingMoreText}>Loading more...</Text>
+      <View style={dynamicStyles.footerLoader}>
+        <ActivityIndicator color={colors.primary} />
+        <Text style={dynamicStyles.loadingMoreText}>Loading more...</Text>
       </View>
     );
   };
@@ -109,16 +113,16 @@ export default function SearchScreen() {
   };
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={[dynamicStyles.container, { paddingTop: insets.top }]}>
       {/* ── Search Header ── */}
-      <View style={styles.searchHeader}>
-        <View style={[styles.searchInputWrap, isFocused && styles.searchInputFocused]}>
-          <Ionicons name="search-outline" size={20} color={isFocused ? Colors.primary : Colors.textMuted} />
+      <View style={dynamicStyles.searchHeader}>
+        <View style={[dynamicStyles.searchInputWrap, isFocused && dynamicStyles.searchInputFocused]}>
+          <Ionicons name="search-outline" size={20} color={isFocused ? colors.primary : colors.textMuted} />
           <TextInput
             ref={inputRef}
-            style={styles.searchInput}
+            style={[dynamicStyles.searchInput, { color: colors.textPrimary }]}
             placeholder="Search location, type, keyword..."
-            placeholderTextColor={Colors.textMuted}
+            placeholderTextColor={colors.textMuted}
             value={query}
             onChangeText={handleSearch}
             onFocus={() => setIsFocused(true)}
@@ -129,49 +133,49 @@ export default function SearchScreen() {
           />
           {query.length > 0 && (
             <TouchableOpacity onPress={() => handleSearch('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <Ionicons name="close-circle" size={20} color={Colors.textMuted} />
+              <Ionicons name="close-circle" size={20} color={colors.textMuted} />
             </TouchableOpacity>
           )}
         </View>
-        <TouchableOpacity style={styles.viewToggle} onPress={() => setIsGridView(!isGridView)} activeOpacity={0.7}>
-          <Ionicons name={isGridView ? 'list-outline' : 'grid-outline'} size={22} color={Colors.primary} />
+        <TouchableOpacity style={dynamicStyles.viewToggle} onPress={() => setIsGridView(!isGridView)} activeOpacity={0.7}>
+          <Ionicons name={isGridView ? 'list-outline' : 'grid-outline'} size={22} color={colors.primary} />
         </TouchableOpacity>
       </View>
 
       {/* ── Type Filters ── */}
-      <View style={styles.filterRow}>
+      <View style={dynamicStyles.filterRow}>
         <FlatList
           horizontal showsHorizontalScrollIndicator={false}
           data={TYPES} keyExtractor={(item) => item.label}
-          contentContainerStyle={styles.filterList}
+          contentContainerStyle={dynamicStyles.filterList}
           renderItem={({ item }) => (
             <TouchableOpacity
-              style={[styles.typeChip, activeType === item.value && styles.typeChipActive]}
+              style={[dynamicStyles.typeChip, activeType === item.value && dynamicStyles.typeChipActive]}
               onPress={() => handleTypeFilter(item.value)}
               activeOpacity={0.7}
             >
-              <Ionicons name={item.icon} size={15} color={activeType === item.value ? Colors.white : Colors.textSecondary} />
-              <Text style={[styles.typeChipText, activeType === item.value && styles.typeChipTextActive]}>{item.label}</Text>
+              <Ionicons name={item.icon} size={15} color={activeType === item.value ? colors.white : colors.textSecondary} />
+              <Text style={[dynamicStyles.typeChipText, activeType === item.value && dynamicStyles.typeChipTextActive]}>{item.label}</Text>
             </TouchableOpacity>
           )}
         />
       </View>
 
       {/* ── Sort Row ── */}
-      <View style={styles.sortRow}>
-        <Text style={styles.resultCount}>
+      <View style={dynamicStyles.sortRow}>
+        <Text style={dynamicStyles.resultCount}>
           {isLoading ? 'Searching...' : `${properties.length} ${properties.length === 1 ? 'property' : 'properties'}`}
         </Text>
-        <View style={styles.sortChips}>
+        <View style={dynamicStyles.sortChips}>
           {SORT_OPTIONS.map((opt) => (
             <TouchableOpacity
               key={opt.value}
-              style={[styles.sortChip, activeSort === opt.value && styles.sortChipActive]}
+              style={[dynamicStyles.sortChip, activeSort === opt.value && dynamicStyles.sortChipActive]}
               onPress={() => handleSortChange(opt.value)}
               activeOpacity={0.7}
             >
-              <Ionicons name={opt.icon} size={13} color={activeSort === opt.value ? Colors.primary : Colors.textMuted} />
-              <Text style={[styles.sortChipText, activeSort === opt.value && styles.sortChipTextActive]}>{opt.label}</Text>
+              <Ionicons name={opt.icon} size={13} color={activeSort === opt.value ? colors.primary : colors.textMuted} />
+              <Text style={[dynamicStyles.sortChipText, activeSort === opt.value && dynamicStyles.sortChipTextActive]}>{opt.label}</Text>
             </TouchableOpacity>
           ))}
         </View>
@@ -179,21 +183,21 @@ export default function SearchScreen() {
 
       {/* ── Results ── */}
       {isLoading && properties.length === 0 ? (
-        <SearchSkeleton isGrid={isGridView} />
+        <SearchSkeleton isGrid={isGridView} colors={colors} />
       ) : (
         <FlatList
           key={isGridView ? 'grid' : 'list'}
           data={properties}
           numColumns={isGridView ? 2 : 1}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.listContent}
-          columnWrapperStyle={isGridView ? styles.gridRow : undefined}
+          contentContainerStyle={dynamicStyles.listContent}
+          columnWrapperStyle={isGridView ? dynamicStyles.gridRow : undefined}
           showsVerticalScrollIndicator={false}
           onEndReached={handleEndReached}
           onEndReachedThreshold={0.3}
-          refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={refresh} tintColor={Colors.primary} />}
+          refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={refresh} tintColor={colors.primary} />}
           renderItem={({ item }) => (
-            <View style={isGridView ? styles.gridItem : styles.listItem}>
+            <View style={isGridView ? dynamicStyles.gridItem : dynamicStyles.listItem}>
               <PropertyCard property={item} variant={isGridView ? 'vertical' : 'horizontal'} />
             </View>
           )}
@@ -205,12 +209,13 @@ export default function SearchScreen() {
   );
 }
 
-function SearchSkeleton({ isGrid }: { isGrid: boolean }) {
+function SearchSkeleton({ isGrid, colors }: { isGrid: boolean; colors: any }) {
+  const skeletonStyles = useMemo(() => createSkeletonStyles(colors), [colors]);
   if (isGrid) {
     return (
-      <View style={styles.skeletonGrid}>
+      <View style={skeletonStyles.skeletonGrid}>
         {[1, 2, 3, 4].map((i) => (
-          <View key={i} style={styles.skeletonGridItem}>
+          <View key={i} style={skeletonStyles.skeletonGridItem}>
             <Skeleton width="100%" height={140} borderRadius={BorderRadius.lg} />
             <View style={{ padding: Spacing.sm }}>
               <Skeleton width="60%" height={12} style={{ marginBottom: 6 }} />
@@ -222,9 +227,9 @@ function SearchSkeleton({ isGrid }: { isGrid: boolean }) {
     );
   }
   return (
-    <View style={styles.skeletonList}>
+    <View style={skeletonStyles.skeletonList}>
       {[1, 2, 3, 4, 5].map((i) => (
-        <View key={i} style={styles.skeletonListItem}>
+        <View key={i} style={skeletonStyles.skeletonListItem}>
           <Skeleton width={120} height={100} borderRadius={BorderRadius.lg} />
           <View style={{ flex: 1, marginLeft: Spacing.md }}>
             <Skeleton width="70%" height={14} style={{ marginBottom: 8 }} />
@@ -237,40 +242,40 @@ function SearchSkeleton({ isGrid }: { isGrid: boolean }) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background },
-  searchHeader: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: Spacing.xl, paddingVertical: Spacing.sm, gap: Spacing.sm },
-  searchInputWrap: { flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.surface, borderRadius: BorderRadius.xl, paddingHorizontal: Spacing.md, height: 48, borderWidth: 1.5, borderColor: Colors.borderLight },
-  searchInputFocused: { borderColor: Colors.primary, backgroundColor: Colors.white },
-  searchInput: { flex: 1, ...Typography.body, color: Colors.textPrimary, marginLeft: Spacing.sm, paddingVertical: 0 },
-  viewToggle: { width: 48, height: 48, borderRadius: BorderRadius.xl, backgroundColor: Colors.primaryLight, alignItems: 'center', justifyContent: 'center' },
+const createStyles = (colors: any) =>
+  StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.background },
+    searchHeader: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: Spacing.xl, paddingVertical: Spacing.sm, gap: Spacing.sm },
+    searchInputWrap: { flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface, borderRadius: BorderRadius.xl, paddingHorizontal: Spacing.md, height: 48, borderWidth: 1.5, borderColor: colors.border },
+    searchInputFocused: { borderColor: colors.primary, backgroundColor: colors.surface },
+    searchInput: { flex: 1, ...Typography.body, marginLeft: Spacing.sm, paddingVertical: 0 },
+    viewToggle: { width: 48, height: 48, borderRadius: BorderRadius.xl, backgroundColor: colors.primaryLight, alignItems: 'center', justifyContent: 'center' },
+    filterRow: { marginBottom: Spacing.sm },
+    filterList: { paddingHorizontal: Spacing.xl, gap: Spacing.sm },
+    typeChip: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: Spacing.md + 2, paddingVertical: Spacing.sm, borderRadius: BorderRadius.full, backgroundColor: colors.surface, borderWidth: 1.5, borderColor: colors.border },
+    typeChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+    typeChipText: { ...Typography.captionMedium, color: colors.textSecondary },
+    typeChipTextActive: { color: colors.white },
+    sortRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.xl, paddingBottom: Spacing.md },
+    resultCount: { ...Typography.captionMedium, color: colors.textSecondary },
+    sortChips: { flexDirection: 'row', gap: Spacing.xs },
+    sortChip: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: Spacing.md, paddingVertical: Spacing.xs + 1, borderRadius: BorderRadius.full, backgroundColor: colors.surface },
+    sortChipActive: { backgroundColor: colors.primaryLight },
+    sortChipText: { ...Typography.small, color: colors.textMuted },
+    sortChipTextActive: { color: colors.primary, fontWeight: '600' },
+    listContent: { paddingHorizontal: Spacing.xl, paddingBottom: Spacing.xxxxl },
+    listItem: { marginBottom: Spacing.sm },
+    gridRow: { justifyContent: 'space-between' },
+    gridItem: { width: '48%', marginBottom: Spacing.md },
+    footerLoader: { paddingVertical: Spacing.xxl, alignItems: 'center', gap: Spacing.xs },
+    loadingMoreText: { ...Typography.small, color: colors.textMuted },
+  });
 
-  filterRow: { marginBottom: Spacing.sm },
-  filterList: { paddingHorizontal: Spacing.xl, gap: Spacing.sm },
-  typeChip: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: Spacing.md + 2, paddingVertical: Spacing.sm, borderRadius: BorderRadius.full, backgroundColor: Colors.surface, borderWidth: 1.5, borderColor: Colors.borderLight },
-  typeChipActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
-  typeChipText: { ...Typography.captionMedium, color: Colors.textSecondary },
-  typeChipTextActive: { color: Colors.white },
-
-  sortRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.xl, paddingBottom: Spacing.md },
-  resultCount: { ...Typography.captionMedium, color: Colors.textSecondary },
-  sortChips: { flexDirection: 'row', gap: Spacing.xs },
-  sortChip: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: Spacing.md, paddingVertical: Spacing.xs + 1, borderRadius: BorderRadius.full, backgroundColor: Colors.surface },
-  sortChipActive: { backgroundColor: Colors.primaryLight },
-  sortChipText: { ...Typography.small, color: Colors.textMuted },
-  sortChipTextActive: { color: Colors.primary, fontWeight: '600' },
-
-  listContent: { paddingHorizontal: Spacing.xl, paddingBottom: Spacing.xxxxl },
-  listItem: { marginBottom: Spacing.sm },
-  gridRow: { justifyContent: 'space-between' },
-  gridItem: { width: '48%', marginBottom: Spacing.md },
-
-  footerLoader: { paddingVertical: Spacing.xxl, alignItems: 'center', gap: Spacing.xs },
-  loadingMoreText: { ...Typography.small, color: Colors.textMuted },
-
-  skeletonGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', paddingHorizontal: Spacing.xl, gap: Spacing.md },
-  skeletonGridItem: { width: '48%', backgroundColor: Colors.white, borderRadius: BorderRadius.lg, overflow: 'hidden', ...Shadows.sm, marginBottom: Spacing.md },
-  skeletonList: { paddingHorizontal: Spacing.xl, gap: Spacing.md },
-  skeletonListItem: { flexDirection: 'row', backgroundColor: Colors.white, borderRadius: BorderRadius.lg, padding: Spacing.md, ...Shadows.sm },
-});
+const createSkeletonStyles = (colors: any) =>
+  StyleSheet.create({
+    skeletonGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', paddingHorizontal: Spacing.xl, gap: Spacing.md },
+    skeletonGridItem: { width: '48%', backgroundColor: colors.surface, borderRadius: BorderRadius.lg, overflow: 'hidden', borderWidth: 1, borderColor: colors.border, ...Shadows.sm, marginBottom: Spacing.md },
+    skeletonList: { paddingHorizontal: Spacing.xl, gap: Spacing.md },
+    skeletonListItem: { flexDirection: 'row', backgroundColor: colors.surface, borderRadius: BorderRadius.lg, padding: Spacing.md, borderWidth: 1, borderColor: colors.border, ...Shadows.sm },
+  });
 
