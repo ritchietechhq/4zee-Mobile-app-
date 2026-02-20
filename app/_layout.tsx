@@ -4,7 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useColorScheme, AppState, AppStateStatus } from 'react-native';
+import { AppState, AppStateStatus } from 'react-native';
 import { useAuthStore } from '@/store/auth.store';
 import { useThemeStore } from '@/store/theme.store';
 import { useTheme } from '@/hooks/useTheme';
@@ -17,10 +17,8 @@ const ONBOARDING_KEY = '4zee_onboarding_seen';
 function AuthGuard({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading, role, loadSession } = useAuthStore();
   const { isDarkMode } = useTheme();
-  const loadThemePreference = useThemeStore((s) => s.loadThemePreference);
-  const setSystemScheme = useThemeStore((s) => s.setSystemScheme);
+  const loadSavedTheme = useThemeStore((s) => s.loadSavedTheme);
   const segments = useSegments();
-  const systemColorScheme = useColorScheme();
 
   /** true once session + onboarding flag have been read */
   const [isReady, setIsReady] = useState(false);
@@ -38,7 +36,7 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
         loadSession(),
         AsyncStorage.getItem(ONBOARDING_KEY),
         warmUpBackend(), // ← wake up the server / DB during splash
-        loadThemePreference(), // ← load theme preference
+        loadSavedTheme(), // ← load theme preference
       ]);
       await useAuthStore.getState().loadRole();
       setHasSeenOnboarding(onboardingSeen === 'true');
@@ -46,13 +44,6 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
     };
     init();
   }, []);
-
-  // Update system scheme whenever it changes
-  useEffect(() => {
-    if (systemColorScheme) {
-      setSystemScheme(systemColorScheme);
-    }
-  }, [systemColorScheme, setSystemScheme]);
 
   // Re-read the onboarding flag whenever segments change so it stays fresh
   // (e.g. after the user completes onboarding and navigates to role-select)

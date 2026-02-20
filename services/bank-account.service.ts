@@ -11,13 +11,18 @@ import type {
   AddBankAccountRequest,
   VerifyAccountRequest,
   VerifyAccountResponse,
+  VerifyAndSaveRequest,
+  VerifyAndSaveResponse,
 } from '@/types';
 
 class BankAccountService {
   /** GET /bank-accounts */
   async list(): Promise<BankAccount[]> {
-    const res = await api.get<BankAccount[]>('/bank-accounts');
-    return res.data!;
+    const res = await api.get<BankAccount[] | { accounts: BankAccount[] }>('/bank-accounts');
+    const raw = res.data;
+    if (Array.isArray(raw)) return raw;
+    if (raw && typeof raw === 'object' && 'accounts' in raw) return (raw as any).accounts;
+    return [];
   }
 
   /** POST /bank-accounts — idempotent */
@@ -38,6 +43,17 @@ class BankAccountService {
   ): Promise<VerifyAccountResponse> {
     const res = await api.post<VerifyAccountResponse>(
       '/bank-accounts/verify',
+      payload,
+    );
+    return res.data!;
+  }
+
+  /** POST /bank-accounts/verify-and-save — verify with Paystack + persist in one call */
+  async verifyAndSave(
+    payload: VerifyAndSaveRequest,
+  ): Promise<VerifyAndSaveResponse> {
+    const res = await api.post<VerifyAndSaveResponse>(
+      '/bank-accounts/verify-and-save',
       payload,
     );
     return res.data!;

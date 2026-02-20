@@ -35,3 +35,21 @@ export interface VerifyAccountResponse {
   accountName: string;
   bankCode: string;
 }
+
+export interface VerifyAndSaveRequest {
+  accountNumber: string;
+  bankCode: string;
+  bankName: string;
+}
+
+export interface VerifyAndSaveResponse {
+  id: string;
+  accountName: string;
+  accountNumber: string;
+  bankCode: string;
+  bankName: string;
+  isDefault: boolean;
+  isVerified: boolean;
+  message: string;
+  alreadyExists: boolean;
+}

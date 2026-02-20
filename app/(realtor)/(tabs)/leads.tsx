@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   View, Text, StyleSheet, FlatList, RefreshControl,
   TouchableOpacity, ActivityIndicator, Linking,
@@ -11,16 +11,20 @@ import { formatCurrency } from '@/utils/formatCurrency';
 import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Skeleton } from '@/components/ui/Skeleton';
-import { Colors, Spacing, Typography, BorderRadius, Shadows } from '@/constants/theme';
-
-const statusColors: Record<CommissionStatus, { bg: string; text: string }> = {
-  PENDING: { bg: Colors.warningLight, text: Colors.warning },
-  APPROVED: { bg: Colors.primaryLight, text: Colors.primary },
-  PAID: { bg: Colors.successLight, text: Colors.success },
-  CANCELLED: { bg: Colors.errorLight, text: Colors.error },
-};
+import { Spacing, Typography, BorderRadius, Shadows } from '@/constants/theme';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import type { ThemeColors } from '@/constants/colors';
 
 export default function LeadsScreen() {
+  const colors = useThemeColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+
+  const statusColors: Record<CommissionStatus, { bg: string; text: string }> = {
+    PENDING: { bg: colors.warningLight, text: colors.warning },
+    APPROVED: { bg: colors.primaryLight, text: colors.primary },
+    PAID: { bg: colors.successLight, text: colors.success },
+    CANCELLED: { bg: colors.errorLight, text: colors.error },
+  };
   const [leads, setLeads] = useState<Commission[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -87,7 +91,7 @@ export default function LeadsScreen() {
   };
 
   const renderLead = ({ item }: { item: Commission }) => {
-    const colors = statusColors[item.status] || statusColors.PENDING;
+    const sc = statusColors[item.status] || statusColors.PENDING;
     const clientName = item.sale?.client?.user
       ? `${item.sale.client.user.firstName} ${item.sale.client.user.lastName}`
       : 'Unknown Client';
@@ -105,22 +109,22 @@ export default function LeadsScreen() {
             <Text style={styles.clientName} numberOfLines={1}>{clientName}</Text>
             <Text style={styles.propertyName} numberOfLines={1}>{propertyTitle}</Text>
           </View>
-          <View style={[styles.statusBadge, { backgroundColor: colors.bg }]}>
-            <Text style={[styles.statusText, { color: colors.text }]}>{item.status}</Text>
+          <View style={[styles.statusBadge, { backgroundColor: sc.bg }]}>
+            <Text style={[styles.statusText, { color: sc.text }]}>{item.status}</Text>
           </View>
         </View>
 
         <View style={styles.leadMeta}>
           <View style={styles.metaItem}>
-            <Ionicons name="cash-outline" size={14} color={Colors.textMuted} />
+            <Ionicons name="cash-outline" size={14} color={colors.textMuted} />
             <Text style={styles.metaText}>{formatCurrency(item.amount)}</Text>
           </View>
           <View style={styles.metaItem}>
-            <Ionicons name={item.type === 'DIRECT' ? 'storefront-outline' : 'people-outline'} size={14} color={Colors.textMuted} />
+            <Ionicons name={item.type === 'DIRECT' ? 'storefront-outline' : 'people-outline'} size={14} color={colors.textMuted} />
             <Text style={styles.metaText}>{item.type === 'DIRECT' ? 'Direct Sale' : 'Referral'}</Text>
           </View>
           <View style={styles.metaItem}>
-            <Ionicons name="time-outline" size={14} color={Colors.textMuted} />
+            <Ionicons name="time-outline" size={14} color={colors.textMuted} />
             <Text style={styles.metaText}>{new Date(item.createdAt).toLocaleDateString()}</Text>
           </View>
         </View>
@@ -164,7 +168,7 @@ export default function LeadsScreen() {
           }
           ListFooterComponent={isLoadingMore ? (
             <View style={styles.footer}>
-              <ActivityIndicator size="small" color={Colors.primary} />
+              <ActivityIndicator size="small" color={colors.primary} />
             </View>
           ) : null}
           onEndReached={loadMore}
@@ -172,7 +176,7 @@ export default function LeadsScreen() {
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
           refreshControl={
-            <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} tintColor={Colors.primary} />
+            <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} tintColor={colors.primary} />
           }
         />
       )}
@@ -180,31 +184,31 @@ export default function LeadsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background },
+const makeStyles = (colors: ThemeColors) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.background },
   header: { paddingHorizontal: Spacing.xl, paddingTop: Spacing.lg, paddingBottom: Spacing.sm },
-  headerTitle: { ...Typography.h3, color: Colors.textPrimary },
-  headerSub: { ...Typography.caption, color: Colors.textSecondary, marginTop: 2 },
+  headerTitle: { ...Typography.h3, color: colors.textPrimary },
+  headerSub: { ...Typography.caption, color: colors.textSecondary, marginTop: 2 },
   filterRow: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.lg, flexWrap: 'wrap' },
-  filterChip: { paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm, borderRadius: BorderRadius.full, backgroundColor: Colors.surface, borderWidth: 1, borderColor: Colors.borderLight },
-  filterChipActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
-  filterText: { ...Typography.captionMedium, color: Colors.textSecondary },
-  filterTextActive: { color: Colors.white },
+  filterChip: { paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm, borderRadius: BorderRadius.full, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.borderLight },
+  filterChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  filterText: { ...Typography.captionMedium, color: colors.textSecondary },
+  filterTextActive: { color: colors.white },
   listContent: { paddingHorizontal: Spacing.xl, paddingBottom: Spacing.xxl },
   leadCard: { marginBottom: Spacing.md },
   leadHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, marginBottom: Spacing.md },
-  clientAvatar: { width: 34, height: 34, borderRadius: 17, backgroundColor: Colors.primaryLight, alignItems: 'center', justifyContent: 'center' },
-  clientAvatarText: { ...Typography.bodySemiBold, color: Colors.primary },
-  clientName: { ...Typography.bodySemiBold, color: Colors.textPrimary },
-  propertyName: { ...Typography.caption, color: Colors.textSecondary, marginTop: 2 },
+  clientAvatar: { width: 34, height: 34, borderRadius: 17, backgroundColor: colors.primaryLight, alignItems: 'center', justifyContent: 'center' },
+  clientAvatarText: { ...Typography.bodySemiBold, color: colors.primary },
+  clientName: { ...Typography.bodySemiBold, color: colors.textPrimary },
+  propertyName: { ...Typography.caption, color: colors.textSecondary, marginTop: 2 },
   statusBadge: { paddingHorizontal: Spacing.sm, paddingVertical: 3, borderRadius: BorderRadius.full },
   statusText: { ...Typography.small, fontWeight: '600' },
   leadMeta: { flexDirection: 'row', gap: Spacing.lg, flexWrap: 'wrap' },
   metaItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  metaText: { ...Typography.caption, color: Colors.textMuted },
-  leadDivider: { height: 1, backgroundColor: Colors.borderLight, marginVertical: Spacing.md },
+  metaText: { ...Typography.caption, color: colors.textMuted },
+  leadDivider: { height: 1, backgroundColor: colors.borderLight, marginVertical: Spacing.md },
   leadActions: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  rateText: { ...Typography.captionMedium, color: Colors.primary },
+  rateText: { ...Typography.captionMedium, color: colors.primary },
   skeletonWrap: { paddingHorizontal: Spacing.xl },
   footer: { padding: Spacing.lg, alignItems: 'center' },
 });

@@ -1,4 +1,4 @@
-import { Colors } from './colors';
+import { Colors, LightColors, DarkColors, type ThemeColors } from './colors';
 import { Typography, FontSize, LineHeight } from './typography';
 import { Spacing, BorderRadius, IconSize, HitSlop, MIN_TOUCH_TARGET } from './spacing';
 import { ViewStyle } from 'react-native';
@@ -49,4 +49,5 @@ export const Theme = {
 
 export type AppTheme = typeof Theme;
 
-export { Colors, Typography, FontSize, LineHeight, Spacing, BorderRadius, IconSize, HitSlop, MIN_TOUCH_TARGET };
+export { Colors, LightColors, DarkColors, Typography, FontSize, LineHeight, Spacing, BorderRadius, IconSize, HitSlop, MIN_TOUCH_TARGET };
+export type { ThemeColors };

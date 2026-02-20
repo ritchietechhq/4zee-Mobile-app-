@@ -1,12 +1,13 @@
 import { Stack } from 'expo-router';
-import { Colors } from '@/constants/theme';
+import { useThemeColors } from '@/hooks/useThemeColors';
 
 export default function KYCLayout() {
+  const colors = useThemeColors();
   return (
     <Stack
       screenOptions={{
         headerShown: false,
-        contentStyle: { backgroundColor: Colors.background },
+        contentStyle: { backgroundColor: colors.background },
         animation: 'slide_from_right',
       }}
     >

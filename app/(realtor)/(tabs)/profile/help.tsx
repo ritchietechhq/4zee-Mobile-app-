@@ -3,7 +3,7 @@
 // Frequently asked questions with search
 // ============================================================
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -21,7 +21,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { Card } from '@/components/ui/Card';
-import { Colors, Spacing, Typography, BorderRadius, Shadows } from '@/constants/theme';
+import { Spacing, Typography, BorderRadius, Shadows } from '@/constants/theme';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import type { ThemeColors } from '@/constants/colors';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -130,6 +132,8 @@ const CATEGORIES = ['All', 'Getting Started', 'Commissions', 'Payouts', 'Referra
 
 export default function HelpScreen() {
   const insets = useSafeAreaInsets();
+  const colors = useThemeColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -179,7 +183,7 @@ export default function HelpScreen() {
           onPress={() => router.back()}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
-          <Ionicons name="arrow-back" size={24} color={Colors.textPrimary} />
+          <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Help & FAQ</Text>
         <View style={{ width: 40 }} />
@@ -205,7 +209,7 @@ export default function HelpScreen() {
           {/* Hero Section */}
           <View style={styles.heroSection}>
             <View style={styles.heroIcon}>
-              <Ionicons name="help-circle" size={36} color={Colors.primary} />
+              <Ionicons name="help-circle" size={36} color={colors.primary} />
             </View>
             <Text style={styles.heroTitle}>How can we help you?</Text>
             <Text style={styles.heroSubtitle}>
@@ -216,17 +220,17 @@ export default function HelpScreen() {
           {/* Search Bar */}
           <View style={styles.searchContainer}>
             <View style={styles.searchBar}>
-              <Ionicons name="search" size={20} color={Colors.textMuted} />
+              <Ionicons name="search" size={20} color={colors.textMuted} />
               <TextInput
                 style={styles.searchInput}
                 placeholder="Search FAQs..."
-                placeholderTextColor={Colors.textMuted}
+                placeholderTextColor={colors.textMuted}
                 value={searchQuery}
                 onChangeText={setSearchQuery}
               />
               {searchQuery.length > 0 && (
                 <TouchableOpacity onPress={() => setSearchQuery('')}>
-                  <Ionicons name="close-circle" size={20} color={Colors.textMuted} />
+                  <Ionicons name="close-circle" size={20} color={colors.textMuted} />
                 </TouchableOpacity>
               )}
             </View>
@@ -262,7 +266,7 @@ export default function HelpScreen() {
           {/* FAQ List */}
           {filteredFAQs.length === 0 ? (
             <View style={styles.emptyState}>
-              <Ionicons name="search-outline" size={48} color={Colors.textMuted} />
+              <Ionicons name="search-outline" size={48} color={colors.textMuted} />
               <Text style={styles.emptyTitle}>No results found</Text>
               <Text style={styles.emptyDesc}>
                 Try different keywords or browse all categories
@@ -304,7 +308,7 @@ export default function HelpScreen() {
           {/* Still Need Help? */}
           <Card style={styles.contactCard}>
             <View style={styles.contactIcon}>
-              <Ionicons name="chatbubbles" size={22} color={Colors.primary} />
+              <Ionicons name="chatbubbles" size={22} color={colors.primary} />
             </View>
             <Text style={styles.contactTitle}>Still need help?</Text>
             <Text style={styles.contactDesc}>
@@ -314,7 +318,7 @@ export default function HelpScreen() {
               style={styles.contactButton}
               onPress={() => Linking.openURL('mailto:support@4zeeproperties.com')}
             >
-              <Ionicons name="mail-outline" size={18} color={Colors.white} />
+              <Ionicons name="mail-outline" size={18} color={colors.white} />
               <Text style={styles.contactButtonText}>Contact Support</Text>
             </TouchableOpacity>
           </Card>
@@ -335,6 +339,8 @@ function FAQItemComponent({
   isExpanded: boolean;
   onToggle: () => void;
 }) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
     <TouchableOpacity
       style={styles.faqItem}
@@ -347,7 +353,7 @@ function FAQItemComponent({
           <Ionicons
             name={isExpanded ? 'remove' : 'add'}
             size={14}
-            color={isExpanded ? Colors.white : Colors.primary}
+            color={isExpanded ? colors.white : colors.primary}
           />
         </View>
       </View>
@@ -358,8 +364,8 @@ function FAQItemComponent({
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background },
+const makeStyles = (colors: ThemeColors) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.background },
   scrollContent: { paddingBottom: Spacing.xxxxl },
 
   header: {
@@ -369,18 +375,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.borderLight,
-    backgroundColor: Colors.white,
+    borderBottomColor: colors.borderLight,
+    backgroundColor: colors.cardBackground,
   },
   backBtn: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: Colors.surface,
+    backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  headerTitle: { ...Typography.h4, color: Colors.textPrimary },
+  headerTitle: { ...Typography.h4, color: colors.textPrimary },
 
   heroSection: {
     alignItems: 'center',
@@ -391,19 +397,19 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: Colors.primaryLight,
+    backgroundColor: colors.primaryLight,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: Spacing.md,
   },
   heroTitle: {
     ...Typography.h3,
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
     marginBottom: Spacing.xs,
   },
   heroSubtitle: {
     ...Typography.body,
-    color: Colors.textMuted,
+    color: colors.textMuted,
     textAlign: 'center',
   },
 
@@ -414,19 +420,19 @@ const styles = StyleSheet.create({
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.white,
+    backgroundColor: colors.cardBackground,
     borderRadius: BorderRadius.xl,
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
     borderWidth: 1,
-    borderColor: Colors.borderLight,
+    borderColor: colors.borderLight,
     gap: Spacing.sm,
     ...Shadows.sm,
   },
   searchInput: {
     flex: 1,
     ...Typography.body,
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
     padding: 0,
   },
 
@@ -439,18 +445,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.sm,
     borderRadius: BorderRadius.full,
-    backgroundColor: Colors.surface,
+    backgroundColor: colors.surface,
     marginRight: Spacing.sm,
   },
   categoryTabActive: {
-    backgroundColor: Colors.primary,
+    backgroundColor: colors.primary,
   },
   categoryTabText: {
     ...Typography.captionMedium,
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
   },
   categoryTabTextActive: {
-    color: Colors.white,
+    color: colors.white,
   },
 
   categorySection: {
@@ -459,7 +465,7 @@ const styles = StyleSheet.create({
   },
   categorySectionTitle: {
     ...Typography.bodyMedium,
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
     marginBottom: Spacing.sm,
     paddingLeft: Spacing.xs,
   },
@@ -480,29 +486,29 @@ const styles = StyleSheet.create({
   },
   faqQuestion: {
     ...Typography.bodyMedium,
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
     flex: 1,
   },
   faqToggle: {
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: Colors.primaryLight,
+    backgroundColor: colors.primaryLight,
     alignItems: 'center',
     justifyContent: 'center',
   },
   faqToggleActive: {
-    backgroundColor: Colors.primary,
+    backgroundColor: colors.primary,
   },
   faqAnswer: {
     ...Typography.body,
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     marginTop: Spacing.md,
     lineHeight: 22,
   },
   faqDivider: {
     height: 1,
-    backgroundColor: Colors.borderLight,
+    backgroundColor: colors.borderLight,
     marginHorizontal: Spacing.lg,
   },
 
@@ -513,12 +519,12 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     ...Typography.h4,
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
     marginTop: Spacing.md,
   },
   emptyDesc: {
     ...Typography.body,
-    color: Colors.textMuted,
+    color: colors.textMuted,
     textAlign: 'center',
     marginTop: Spacing.xs,
   },
@@ -533,25 +539,25 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: Colors.primaryLight,
+    backgroundColor: colors.primaryLight,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: Spacing.md,
   },
   contactTitle: {
     ...Typography.h4,
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
   },
   contactDesc: {
     ...Typography.body,
-    color: Colors.textMuted,
+    color: colors.textMuted,
     marginTop: Spacing.xs,
     textAlign: 'center',
   },
   contactButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.primary,
+    backgroundColor: colors.primary,
     paddingHorizontal: Spacing.xl,
     paddingVertical: Spacing.md,
     borderRadius: BorderRadius.xl,
@@ -560,6 +566,6 @@ const styles = StyleSheet.create({
   },
   contactButtonText: {
     ...Typography.bodySemiBold,
-    color: Colors.white,
+    color: colors.white,
   },
 });

@@ -3,7 +3,7 @@
 // View, manage, and interact with notifications
 // ============================================================
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -21,7 +21,9 @@ import notificationService from '@/services/notification.service';
 import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Skeleton } from '@/components/ui/Skeleton';
-import { Colors, Spacing, Typography, BorderRadius, Shadows } from '@/constants/theme';
+import { Spacing, Typography, BorderRadius, Shadows } from '@/constants/theme';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import type { ThemeColors } from '@/constants/colors';
 import type { Notification } from '@/types';
 
 type NotificationIcon = keyof typeof Ionicons.glyphMap;
@@ -50,6 +52,8 @@ const getNotificationIcon = (type: string): { icon: NotificationIcon; color: str
 
 export default function NotificationsScreen() {
   const insets = useSafeAreaInsets();
+  const colors = useThemeColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -257,7 +261,7 @@ export default function NotificationsScreen() {
               onPress={() => handleDeleteNotification(item)}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
-              <Ionicons name="ellipsis-vertical" size={18} color={Colors.textMuted} />
+              <Ionicons name="ellipsis-vertical" size={18} color={colors.textMuted} />
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
@@ -289,7 +293,7 @@ export default function NotificationsScreen() {
           onPress={() => router.back()}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
-          <Ionicons name="arrow-back" size={24} color={Colors.textPrimary} />
+          <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
         </TouchableOpacity>
         <View style={styles.headerCenter}>
           <Text style={styles.headerTitle}>Notifications</Text>
@@ -307,7 +311,7 @@ export default function NotificationsScreen() {
           <Ionicons
             name="checkmark-done"
             size={20}
-            color={unreadCount > 0 ? Colors.primary : Colors.textMuted}
+            color={unreadCount > 0 ? colors.primary : colors.textMuted}
           />
         </TouchableOpacity>
       </View>
@@ -364,7 +368,7 @@ export default function NotificationsScreen() {
             <RefreshControl
               refreshing={isRefreshing}
               onRefresh={handleRefresh}
-              tintColor={Colors.primary}
+              tintColor={colors.primary}
             />
           }
           onEndReached={() => hasMore && !isLoading && loadNotifications(false)}
@@ -376,8 +380,8 @@ export default function NotificationsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background },
+const makeStyles = (colors: ThemeColors) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.background },
 
   header: {
     flexDirection: 'row',
@@ -386,14 +390,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.borderLight,
-    backgroundColor: Colors.white,
+    borderBottomColor: colors.borderLight,
+    backgroundColor: colors.cardBackground,
   },
   backBtn: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: Colors.surface,
+    backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -402,26 +406,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.sm,
   },
-  headerTitle: { ...Typography.h4, color: Colors.textPrimary },
+  headerTitle: { ...Typography.h4, color: colors.textPrimary },
   headerBadge: {
     minWidth: 22,
     height: 22,
     borderRadius: 11,
-    backgroundColor: Colors.error,
+    backgroundColor: colors.error,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 6,
   },
   headerBadgeText: {
     ...Typography.small,
-    color: Colors.white,
+    color: colors.white,
     fontWeight: '700',
   },
   markAllBtn: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: Colors.surface,
+    backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -430,7 +434,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
-    backgroundColor: Colors.white,
+    backgroundColor: colors.cardBackground,
     gap: Spacing.sm,
   },
   filterTab: {
@@ -439,24 +443,24 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.sm,
     borderRadius: BorderRadius.full,
-    backgroundColor: Colors.surface,
+    backgroundColor: colors.surface,
     gap: Spacing.xs,
   },
   filterTabActive: {
-    backgroundColor: Colors.primary,
+    backgroundColor: colors.primary,
   },
   filterTabText: {
     ...Typography.captionMedium,
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
   },
   filterTabTextActive: {
-    color: Colors.white,
+    color: colors.white,
   },
   filterBadge: {
     minWidth: 18,
     height: 18,
     borderRadius: 9,
-    backgroundColor: Colors.borderLight,
+    backgroundColor: colors.borderLight,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 5,
@@ -466,12 +470,12 @@ const styles = StyleSheet.create({
   },
   filterBadgeText: {
     ...Typography.small,
-    color: Colors.textMuted,
+    color: colors.textMuted,
     fontWeight: '600',
     fontSize: 10,
   },
   filterBadgeTextActive: {
-    color: Colors.white,
+    color: colors.white,
   },
 
   listContent: {
@@ -483,10 +487,10 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     paddingHorizontal: Spacing.xl,
     paddingVertical: Spacing.lg,
-    backgroundColor: Colors.white,
+    backgroundColor: colors.cardBackground,
   },
   notificationUnread: {
-    backgroundColor: Colors.primaryLight + '30',
+    backgroundColor: colors.primaryLight + '30',
   },
   iconContainer: {
     width: 40,
@@ -506,24 +510,24 @@ const styles = StyleSheet.create({
   },
   notificationTitle: {
     ...Typography.bodyMedium,
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
     flex: 1,
   },
   unreadDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: Colors.primary,
+    backgroundColor: colors.primary,
   },
   notificationMessage: {
     ...Typography.caption,
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     marginTop: 4,
     lineHeight: 18,
   },
   notificationTime: {
     ...Typography.small,
-    color: Colors.textMuted,
+    color: colors.textMuted,
     marginTop: 6,
   },
   moreBtn: {
@@ -532,7 +536,7 @@ const styles = StyleSheet.create({
 
   separator: {
     height: 1,
-    backgroundColor: Colors.borderLight,
+    backgroundColor: colors.borderLight,
     marginLeft: 80,
   },
 

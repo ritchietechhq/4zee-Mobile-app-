@@ -5,19 +5,20 @@
 
 import { useMemo } from 'react';
 import { useThemeStore } from '@/store/theme.store';
-import { Colors, DarkModeColors } from '@/constants/colors';
+import { LightColors, DarkColors } from '@/constants/colors';
 
 export const useTheme = () => {
-  const isDarkMode = useThemeStore((s) => s.isDarkMode);
+  const isDark = useThemeStore((s) => s.isDark);
   const mode = useThemeStore((s) => s.mode);
-  const setThemeMode = useThemeStore((s) => s.setThemeMode);
+  const setMode = useThemeStore((s) => s.setMode);
 
-  const colors = useMemo(() => (isDarkMode ? DarkModeColors : Colors), [isDarkMode]);
+  const colors = useMemo(() => (isDark ? DarkColors : LightColors), [isDark]);
 
   return {
-    isDarkMode,
+    isDarkMode: isDark,   // backward compat alias
+    isDark,
     mode,
     colors,
-    setThemeMode,
+    setThemeMode: setMode, // backward compat alias
   };
 };

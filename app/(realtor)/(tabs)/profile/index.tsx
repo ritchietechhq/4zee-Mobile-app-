@@ -8,8 +8,9 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as Clipboard from 'expo-clipboard';
 import { useAuthStore } from '@/store/auth.store';
-import { useTheme } from '@/hooks/useTheme';
+import { useThemeStore } from '@/store/theme.store';
 import { referralService } from '@/services/referral.service';
 import { kycService } from '@/services/kyc.service';
 import type { ReferralInfo, KYC, KYCStatus } from '@/types';
@@ -17,7 +18,9 @@ import { formatCurrency } from '@/utils/formatCurrency';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Skeleton } from '@/components/ui/Skeleton';
-import { Colors, Spacing, Typography, BorderRadius, Shadows } from '@/constants/theme';
+import { Spacing, Typography, BorderRadius, Shadows } from '@/constants/theme';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import type { ThemeColors } from '@/constants/colors';
 
 const kycBadge: Record<KYCStatus, { label: string; variant: 'success' | 'warning' | 'error' | 'info' }> = {
   NOT_SUBMITTED: { label: 'Not Verified', variant: 'warning' },
@@ -32,13 +35,15 @@ export default function RealtorProfile() {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
-  const { isDarkMode, setThemeMode, colors } = useTheme();
+  const colors = useThemeColors();
+  const isDark = useThemeStore((s) => s.isDark);
+  const themeMode = useThemeStore((s) => s.mode);
+  const setThemeMode = useThemeStore((s) => s.setMode);
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [referralInfo, setReferralInfo] = useState<ReferralInfo | null>(null);
   const [kyc, setKyc] = useState<KYC | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
-
-  const dynamicStyles = useMemo(() => createRealtorStyles(colors), [colors]);
 
   const fetchAll = useCallback(async () => {
     try {
@@ -59,6 +64,12 @@ export default function RealtorProfile() {
     setIsRefreshing(true); await fetchAll(); setIsRefreshing(false);
   };
 
+  const handleCopyReferralCode = async () => {
+    if (!referralInfo?.referralCode) return;
+    await Clipboard.setStringAsync(referralInfo.referralCode);
+    Alert.alert('Copied!', 'Referral code copied to clipboard.');
+  };
+
   const handleShareReferral = async () => {
     if (!referralInfo?.referralCode) return;
     try {
@@ -76,14 +87,6 @@ export default function RealtorProfile() {
     ]);
   };
 
-  const handleToggleDarkMode = async (value: boolean) => {
-    try {
-      await setThemeMode(value ? 'dark' : 'light');
-    } catch {
-      Alert.alert('Error', 'Failed to update theme setting');
-    }
-  };
-
   const kycStatus: KYCStatus = kyc?.kycStatus || 'NOT_SUBMITTED';
   const kycInfo = kycBadge[kycStatus];
 
@@ -99,36 +102,36 @@ export default function RealtorProfile() {
   const initials = `${user?.firstName?.charAt(0) || ''}${user?.lastName?.charAt(0) || ''}`;
 
   return (
-    <SafeAreaView style={[dynamicStyles.container]} edges={['top']}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
       >
-        <View style={dynamicStyles.header}>
-          <Text style={dynamicStyles.headerTitle}>Profile</Text>
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Profile</Text>
         </View>
 
         {/* Avatar Card */}
-        <Card variant="elevated" padding="xl" style={dynamicStyles.profileCard}>
-          <View style={dynamicStyles.avatarWrap}>
+        <Card variant="elevated" padding="xl" style={styles.profileCard}>
+          <View style={styles.avatarWrap}>
             {user?.profilePicture ? (
-              <Image source={{ uri: user.profilePicture }} style={dynamicStyles.avatar} contentFit="cover" />
+              <Image source={{ uri: user.profilePicture }} style={styles.avatar} contentFit="cover" accessibilityLabel="Profile picture" />
             ) : (
-              <LinearGradient colors={[colors.primary, colors.accent]} style={dynamicStyles.avatar}>
-                <Text style={dynamicStyles.avatarText}>{initials}</Text>
+              <LinearGradient colors={[colors.primary, colors.accent]} style={styles.avatar}>
+                <Text style={styles.avatarText}>{initials}</Text>
               </LinearGradient>
             )}
-            <View style={dynamicStyles.kycDot}>
-              <View style={[dynamicStyles.kycDotInner, { backgroundColor: kycStatus === 'APPROVED' ? colors.success : kycStatus === 'PENDING' ? colors.primary : colors.warning }]} />
+            <View style={styles.kycDot}>
+              <View style={[styles.kycDotInner, { backgroundColor: kycStatus === 'APPROVED' ? colors.success : kycStatus === 'PENDING' ? colors.primary : colors.warning }]} />
             </View>
           </View>
-          <Text style={dynamicStyles.name}>{user?.firstName} {user?.lastName}</Text>
-          <Text style={dynamicStyles.email}>{user?.email}</Text>
-          {user?.phone && <Text style={dynamicStyles.phone}>{user.phone}</Text>}
-          <View style={dynamicStyles.badges}>
-            <View style={[dynamicStyles.roleBadge, { backgroundColor: colors.primaryLight }]}>
+          <Text style={styles.name}>{user?.firstName} {user?.lastName}</Text>
+          <Text style={styles.email}>{user?.email}</Text>
+          {user?.phone && <Text style={styles.phone}>{user.phone}</Text>}
+          <View style={styles.badges}>
+            <View style={styles.roleBadge}>
               <Ionicons name="briefcase" size={11} color={colors.primary} />
-              <Text style={[dynamicStyles.roleText, { color: colors.primary }]}>Realtor</Text>
+              <Text style={styles.roleText}>Realtor</Text>
             </View>
             <Badge label={kycInfo.label} variant={kycInfo.variant} size="sm" />
           </View>
@@ -140,109 +143,115 @@ export default function RealtorProfile() {
             <Skeleton width="100%" height={180} />
           </View>
         ) : referralInfo ? (
-          <Card variant="outlined" padding="xl" style={dynamicStyles.referralCard}>
-            <View style={dynamicStyles.referralHeader}>
+          <Card variant="outlined" padding="xl" style={styles.referralCard}>
+            <View style={styles.referralHeader}>
               <Ionicons name="link" size={18} color={colors.primary} />
-              <Text style={dynamicStyles.referralTitle}>Your Referral Code</Text>
+              <Text style={styles.referralTitle}>Your Referral Code</Text>
             </View>
-            <TouchableOpacity style={[dynamicStyles.codeBox, { backgroundColor: colors.surface, borderColor: colors.borderLight }]} onPress={handleShareReferral} activeOpacity={0.7}>
-              <Text style={[dynamicStyles.codeText, { color: colors.primary }]}>{referralInfo.referralCode}</Text>
+            <TouchableOpacity style={styles.codeBox} onPress={handleCopyReferralCode} activeOpacity={0.7}>
+              <Text style={styles.codeText}>{referralInfo.referralCode}</Text>
               <Ionicons name="copy-outline" size={16} color={colors.primary} />
             </TouchableOpacity>
-            <View style={dynamicStyles.refStats}>
-              <View style={[dynamicStyles.refStatItem, { backgroundColor: colors.surface }]}>
-                <Text style={[dynamicStyles.refStatVal, { color: colors.textPrimary }]}>{referralInfo.totalReferrals}</Text>
-                <Text style={[dynamicStyles.refStatLabel, { color: colors.textMuted }]}>Referrals</Text>
+            <View style={styles.refStats}>
+              <View style={styles.refStatItem}>
+                <Text style={styles.refStatVal}>{referralInfo.totalReferrals}</Text>
+                <Text style={styles.refStatLabel}>Referrals</Text>
               </View>
-              <View style={[dynamicStyles.refStatItem, { backgroundColor: colors.surface }]}>
-                <Text style={[dynamicStyles.refStatVal, { color: colors.textPrimary }]}>{referralInfo.activeReferrals}</Text>
-                <Text style={[dynamicStyles.refStatLabel, { color: colors.textMuted }]}>Active</Text>
+              <View style={styles.refStatItem}>
+                <Text style={styles.refStatVal}>{referralInfo.activeReferrals}</Text>
+                <Text style={styles.refStatLabel}>Active</Text>
               </View>
-              <View style={[dynamicStyles.refStatItem, { backgroundColor: colors.surface }]}>
-                <Text style={[dynamicStyles.refStatVal, { color: colors.textPrimary }]}>{formatCurrency(referralInfo.totalReferralEarnings)}</Text>
-                <Text style={[dynamicStyles.refStatLabel, { color: colors.textMuted }]}>Earned</Text>
+              <View style={styles.refStatItem}>
+                <Text style={styles.refStatVal}>{formatCurrency(referralInfo.totalReferralEarnings)}</Text>
+                <Text style={styles.refStatLabel}>Earned</Text>
               </View>
             </View>
-            <TouchableOpacity style={[dynamicStyles.shareBtn, { backgroundColor: colors.primary }]} onPress={handleShareReferral} activeOpacity={0.8}>
+            <TouchableOpacity style={styles.shareBtn} onPress={handleShareReferral} activeOpacity={0.8}>
               <Ionicons name="share-social-outline" size={16} color={colors.white} />
-              <Text style={dynamicStyles.shareBtnText}>Share Referral Code</Text>
+              <Text style={styles.shareBtnText}>Share Referral Code</Text>
             </TouchableOpacity>
           </Card>
         ) : null}
 
         {/* Menu Items */}
-        <View style={dynamicStyles.section}>
-          <Text style={dynamicStyles.sectionTitle}>Settings</Text>
-          <Card variant="outlined" padding="xs" style={[dynamicStyles.menuCard, { padding: 0 }]}>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Settings</Text>
+          <Card variant="outlined" padding="xs" style={[styles.menuCard, { padding: 0 }]}>
             {menuItems.map((item, i) => (
               <TouchableOpacity
-                key={i}
-                style={[dynamicStyles.menuItem, i === menuItems.length - 1 && { borderBottomWidth: 0 }]}
+                key={item.label}
+                style={[styles.menuItem, i === menuItems.length - 1 && { borderBottomWidth: 0 }]}
                 onPress={item.onPress}
                 activeOpacity={0.6}
               >
-                <View style={dynamicStyles.menuLeft}>
-                  <View style={[dynamicStyles.menuIcon, { backgroundColor: colors.primaryLight }]}>
+                <View style={styles.menuLeft}>
+                  <View style={styles.menuIcon}>
                     <Ionicons name={item.icon as any} size={18} color={colors.primary} />
                   </View>
-                  <Text style={[dynamicStyles.menuText, { color: colors.textPrimary }]}>{item.label}</Text>
+                  <Text style={styles.menuText}>{item.label}</Text>
                 </View>
-                <View style={dynamicStyles.menuRight}>
+                <View style={styles.menuRight}>
                   {item.badge && (
-                    <Text style={[dynamicStyles.menuBadge, { color: colors.textMuted }]}>{item.badge}</Text>
+                    <Text style={styles.menuBadge}>{item.badge}</Text>
                   )}
                   <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
                 </View>
               </TouchableOpacity>
             ))}
-            
-            {/* Dark Mode Toggle */}
-            <View style={[dynamicStyles.menuItem, { borderBottomWidth: 0 }]}>
-              <View style={dynamicStyles.menuLeft}>
-                <View style={[dynamicStyles.menuIcon, { backgroundColor: colors.primaryLight }]}>
-                  <Ionicons name={isDarkMode ? 'moon' : 'sunny-outline'} size={18} color={colors.primary} />
+          </Card>
+        </View>
+
+        {/* Appearance */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Appearance</Text>
+          <Card variant="outlined" padding="xs" style={[styles.menuCard, { padding: 0 }]}>
+            <View style={styles.themeRow}>
+              <View style={styles.menuLeft}>
+                <View style={[styles.menuIcon, isDark && { backgroundColor: colors.surface }]}>
+                  <Ionicons name={isDark ? 'moon' : 'sunny'} size={18} color={isDark ? colors.primary : '#F59E0B'} />
                 </View>
                 <View>
-                  <Text style={[dynamicStyles.menuText, { color: colors.textPrimary }]}>Dark Mode</Text>
-                  <Text style={[dynamicStyles.menuSubtitle, { color: colors.textMuted }]}>{isDarkMode ? 'Enabled' : 'Disabled'}</Text>
+                  <Text style={styles.menuText}>Dark Mode</Text>
+                  <Text style={styles.themeHint}>
+                    {themeMode === 'system' ? 'Following system' : themeMode === 'dark' ? 'Always dark' : 'Always light'}
+                  </Text>
                 </View>
               </View>
               <Switch
-                value={isDarkMode}
-                onValueChange={handleToggleDarkMode}
-                trackColor={{ false: colors.border, true: colors.primaryLight }}
-                thumbColor={isDarkMode ? colors.primary : colors.textMuted}
+                value={isDark}
+                onValueChange={(v) => setThemeMode(v ? 'dark' : 'light')}
+                trackColor={{ false: colors.border, true: colors.primary }}
+                thumbColor={colors.white}
               />
             </View>
           </Card>
         </View>
 
         {/* Logout */}
-        <View style={dynamicStyles.section}>
-          <TouchableOpacity style={[dynamicStyles.logoutBtn, { backgroundColor: colors.errorLight }]} onPress={handleLogout} activeOpacity={0.7}>
+        <View style={styles.section}>
+          <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout} activeOpacity={0.7}>
             <Ionicons name="log-out-outline" size={18} color={colors.error} />
-            <Text style={[dynamicStyles.logoutText, { color: colors.error }]}>Logout</Text>
+            <Text style={styles.logoutText}>Logout</Text>
           </TouchableOpacity>
         </View>
 
-        <Text style={dynamicStyles.version}>4Zee Properties v1.0.0</Text>
+        <Text style={styles.version}>4Zee Properties v1.0.0</Text>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-const createRealtorStyles = (colors: any) =>
-  StyleSheet.create({
+const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   header: { paddingHorizontal: Spacing.xl, paddingTop: Spacing.lg, paddingBottom: Spacing.sm },
   headerTitle: { ...Typography.h3, color: colors.textPrimary },
-  profileCard: { marginHorizontal: Spacing.xl, marginBottom: Spacing.xl, alignItems: 'center' },
+  profileCard: { marginHorizontal: Spacing.xl, marginBottom: Spacing.xl, alignItems: 'center', backgroundColor: colors.cardBackground },
   avatarWrap: { position: 'relative', marginBottom: Spacing.md },
-  avatar: { width: 72, height: 72, borderRadius: 36, alignItems: 'center', justifyContent: 'center' },
+  avatar: { width: 72, height: 72, borderRadius: 36, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' as const },
   avatarText: { ...Typography.h3, color: colors.white, fontWeight: '700' },
   kycDot: {
     position: 'absolute', bottom: 2, right: 2, width: 18, height: 18,
-    borderRadius: 9, backgroundColor: colors.white, alignItems: 'center', justifyContent: 'center',
+    borderRadius: 9, backgroundColor: colors.cardBackground, alignItems: 'center', justifyContent: 'center',
   },
   kycDotInner: { width: 12, height: 12, borderRadius: 6 },
   name: { ...Typography.h4, color: colors.textPrimary },
@@ -252,50 +261,52 @@ const createRealtorStyles = (colors: any) =>
   roleBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
     paddingHorizontal: Spacing.md, paddingVertical: Spacing.xs,
-    borderRadius: BorderRadius.full,
+    backgroundColor: colors.primaryLight, borderRadius: BorderRadius.full,
   },
-  roleText: { ...Typography.captionMedium },
-  referralCard: { marginHorizontal: Spacing.xl, marginBottom: Spacing.xl },
+  roleText: { ...Typography.captionMedium, color: colors.primary },
+  referralCard: { marginHorizontal: Spacing.xl, marginBottom: Spacing.xl, backgroundColor: colors.cardBackground },
   referralHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.lg },
   referralTitle: { ...Typography.bodySemiBold, color: colors.textPrimary },
   codeBox: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    borderRadius: BorderRadius.lg, padding: Spacing.lg,
-    borderWidth: 1, borderStyle: 'dashed', marginBottom: Spacing.lg,
+    backgroundColor: colors.surface, borderRadius: BorderRadius.lg, padding: Spacing.lg,
+    borderWidth: 1, borderColor: colors.borderLight, borderStyle: 'dashed', marginBottom: Spacing.lg,
   },
-  codeText: { ...Typography.h4, letterSpacing: 2 },
+  codeText: { ...Typography.h4, color: colors.primary, letterSpacing: 2 },
   refStats: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.lg },
-  refStatItem: { flex: 1, alignItems: 'center', borderRadius: BorderRadius.lg, padding: Spacing.md },
-  refStatVal: { ...Typography.bodySemiBold },
-  refStatLabel: { ...Typography.small, marginTop: 2 },
+  refStatItem: { flex: 1, alignItems: 'center', backgroundColor: colors.surface, borderRadius: BorderRadius.lg, padding: Spacing.md },
+  refStatVal: { ...Typography.bodySemiBold, color: colors.textPrimary },
+  refStatLabel: { ...Typography.small, color: colors.textMuted, marginTop: 2 },
   shareBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.sm,
-    borderRadius: BorderRadius.lg, paddingVertical: Spacing.md,
+    backgroundColor: colors.primary, borderRadius: BorderRadius.lg, paddingVertical: Spacing.md,
   },
   shareBtnText: { ...Typography.bodySemiBold, color: colors.white },
   section: { paddingHorizontal: Spacing.xl, marginBottom: Spacing.xl },
   sectionTitle: { ...Typography.captionMedium, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: Spacing.md },
-  menuCard: { overflow: 'hidden' },
+  menuCard: { overflow: 'hidden', backgroundColor: colors.cardBackground },
   menuItem: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingVertical: Spacing.lg, paddingHorizontal: Spacing.lg,
     borderBottomWidth: 1, borderBottomColor: colors.borderLight,
   },
-  menuLeft: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, flex: 1 },
+  menuLeft: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
   menuIcon: {
     width: 30, height: 30, borderRadius: 8,
-    alignItems: 'center', justifyContent: 'center',
+    backgroundColor: colors.primaryLight, alignItems: 'center', justifyContent: 'center',
   },
-  menuText: { ...Typography.body },
-  menuSubtitle: { ...Typography.small, marginTop: 2 },
+  menuText: { ...Typography.body, color: colors.textPrimary },
   menuRight: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
-  menuBadge: { ...Typography.small },
+  menuBadge: { ...Typography.small, color: colors.textMuted },
+  themeRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingVertical: Spacing.lg, paddingHorizontal: Spacing.lg,
+  },
+  themeHint: { ...Typography.small, color: colors.textMuted, marginTop: 1 },
   logoutBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.sm,
-    paddingVertical: Spacing.lg, borderRadius: BorderRadius.lg,
+    paddingVertical: Spacing.lg, backgroundColor: colors.errorLight, borderRadius: BorderRadius.lg,
   },
-  logoutText: { ...Typography.bodySemiBold },
-  version: { ...Typography.small, color: colors.textMuted, textAlign: 'center', paddingBottom: Spacing.xxxl },
+  logoutText: { ...Typography.bodySemiBold, color: colors.error },
+  version: { ...Typography.small, color: colors.textTertiary, textAlign: 'center', paddingBottom: Spacing.xxxl },
 });
-
-const styles = createRealtorStyles(Colors);

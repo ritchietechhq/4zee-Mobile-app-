@@ -3,7 +3,7 @@
 // Secure password update with validation
 // ============================================================
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -22,7 +22,9 @@ import api from '@/services/api';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
-import { Colors, Spacing, Typography, BorderRadius, Shadows } from '@/constants/theme';
+import { Spacing, Typography, BorderRadius, Shadows } from '@/constants/theme';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import type { ThemeColors } from '@/constants/colors';
 
 interface PasswordStrength {
   score: number;
@@ -32,6 +34,8 @@ interface PasswordStrength {
 
 export default function ChangePasswordScreen() {
   const insets = useSafeAreaInsets();
+  const colors = useThemeColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
   const [isLoading, setIsLoading] = useState(false);
@@ -72,9 +76,9 @@ export default function ChangePasswordScreen() {
     if (/\d/.test(password)) score++;
     if (/[!@#$%^&*(),.?":{}|<>]/.test(password)) score++;
 
-    if (score <= 2) return { score: 1, label: 'Weak', color: Colors.error };
-    if (score <= 4) return { score: 2, label: 'Medium', color: Colors.warning };
-    return { score: 3, label: 'Strong', color: Colors.success };
+    if (score <= 2) return { score: 1, label: 'Weak', color: colors.error };
+    if (score <= 4) return { score: 2, label: 'Medium', color: colors.warning };
+    return { score: 3, label: 'Strong', color: colors.success };
   };
 
   const validateForm = (): boolean => {
@@ -146,7 +150,7 @@ export default function ChangePasswordScreen() {
           onPress={() => router.back()}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
-          <Ionicons name="arrow-back" size={24} color={Colors.textPrimary} />
+          <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Change Password</Text>
         <View style={{ width: 40 }} />
@@ -177,7 +181,7 @@ export default function ChangePasswordScreen() {
             {/* Security Icon */}
             <View style={styles.iconSection}>
               <View style={styles.securityIcon}>
-                <Ionicons name="lock-closed" size={26} color={Colors.primary} />
+                <Ionicons name="lock-closed" size={26} color={colors.primary} />
               </View>
               <Text style={styles.securityTitle}>Update Your Password</Text>
               <Text style={styles.securityDesc}>
@@ -224,7 +228,7 @@ export default function ChangePasswordScreen() {
                             backgroundColor:
                               level <= passwordStrength.score
                                 ? passwordStrength.color
-                                : Colors.borderLight,
+                                : colors.borderLight,
                           },
                         ]}
                       />
@@ -268,7 +272,7 @@ export default function ChangePasswordScreen() {
                 loading={isLoading}
                 variant="primary"
                 size="lg"
-                icon={<Ionicons name="checkmark-circle" size={20} color={Colors.white} />}
+                icon={<Ionicons name="checkmark-circle" size={20} color={colors.white} />}
               />
             </View>
 
@@ -287,26 +291,28 @@ export default function ChangePasswordScreen() {
 }
 
 function RequirementItem({ met, text }: { met: boolean; text: string }) {
+  const colors = useThemeColors();
+  const reqStyles = useMemo(() => makeReqStyles(colors), [colors]);
   return (
     <View style={reqStyles.item}>
       <Ionicons
         name={met ? 'checkmark-circle' : 'ellipse-outline'}
         size={18}
-        color={met ? Colors.success : Colors.textMuted}
+        color={met ? colors.success : colors.textMuted}
       />
       <Text style={[reqStyles.text, met && reqStyles.textMet]}>{text}</Text>
     </View>
   );
 }
 
-const reqStyles = StyleSheet.create({
+const makeReqStyles = (colors: ThemeColors) => StyleSheet.create({
   item: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
-  text: { ...Typography.caption, color: Colors.textMuted },
-  textMet: { color: Colors.success },
+  text: { ...Typography.caption, color: colors.textMuted },
+  textMet: { color: colors.success },
 });
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background },
+const makeStyles = (colors: ThemeColors) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.background },
   flex: { flex: 1 },
   scrollContent: { paddingBottom: Spacing.xxxxl },
 
@@ -317,18 +323,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.borderLight,
-    backgroundColor: Colors.white,
+    borderBottomColor: colors.borderLight,
+    backgroundColor: colors.cardBackground,
   },
   backBtn: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: Colors.surface,
+    backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  headerTitle: { ...Typography.h4, color: Colors.textPrimary },
+  headerTitle: { ...Typography.h4, color: colors.textPrimary },
 
   iconSection: {
     alignItems: 'center',
@@ -338,19 +344,19 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: Colors.primaryLight,
+    backgroundColor: colors.primaryLight,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: Spacing.md,
   },
   securityTitle: {
     ...Typography.h4,
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
     marginBottom: Spacing.xs,
   },
   securityDesc: {
     ...Typography.caption,
-    color: Colors.textMuted,
+    color: colors.textMuted,
     textAlign: 'center',
     paddingHorizontal: Spacing.xxl,
   },
@@ -361,7 +367,7 @@ const styles = StyleSheet.create({
   },
   divider: {
     height: 1,
-    backgroundColor: Colors.borderLight,
+    backgroundColor: colors.borderLight,
     marginVertical: Spacing.lg,
   },
 
@@ -395,7 +401,7 @@ const styles = StyleSheet.create({
   },
   requirementsTitle: {
     ...Typography.captionMedium,
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     marginBottom: Spacing.md,
   },
   requirementsList: {
@@ -413,6 +419,6 @@ const styles = StyleSheet.create({
   },
   forgotText: {
     ...Typography.caption,
-    color: Colors.primary,
+    color: colors.primary,
   },
 });

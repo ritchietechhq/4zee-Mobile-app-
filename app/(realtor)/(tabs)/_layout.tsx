@@ -1,8 +1,10 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { StyleSheet, View, Platform } from 'react-native';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors, Spacing, BorderRadius, Shadows } from '@/constants/theme';
+import { Spacing, BorderRadius, Shadows } from '@/constants/theme';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import type { ThemeColors } from '@/constants/colors';
 
 const TAB_CONFIG = [
   { name: 'dashboard', title: 'Dashboard', iconFocused: 'grid', iconDefault: 'grid-outline' },
@@ -13,12 +15,15 @@ const TAB_CONFIG = [
 ] as const;
 
 export default function RealtorTabsLayout() {
+  const colors = useThemeColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: Colors.primary,
-        tabBarInactiveTintColor: Colors.textMuted,
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.textMuted,
         tabBarLabelStyle: styles.tabLabel,
         tabBarStyle: styles.tabBar,
         tabBarItemStyle: styles.tabItem,
@@ -30,12 +35,12 @@ export default function RealtorTabsLayout() {
           name={tab.name}
           options={{
             title: tab.title,
-            tabBarIcon: ({ focused, color }) => (
+            tabBarIcon: ({ focused }) => (
               <View style={[styles.iconWrap, focused && styles.iconWrapActive]}>
                 <Ionicons
                   name={(focused ? tab.iconFocused : tab.iconDefault) as any}
                   size={22}
-                  color={focused ? Colors.primary : Colors.textMuted}
+                  color={focused ? colors.primary : colors.textMuted}
                 />
               </View>
             ),
@@ -46,9 +51,9 @@ export default function RealtorTabsLayout() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   tabBar: {
-    backgroundColor: Colors.white,
+    backgroundColor: colors.tabBarBackground,
     borderTopWidth: 0,
     height: Platform.OS === 'ios' ? 84 : 62,
     paddingTop: Spacing.xs,
@@ -73,6 +78,6 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.lg,
   },
   iconWrapActive: {
-    backgroundColor: Colors.primaryLight,
+    backgroundColor: colors.primaryLight,
   },
 });

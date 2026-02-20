@@ -94,6 +94,8 @@ export type {
   AddBankAccountRequest,
   VerifyAccountRequest,
   VerifyAccountResponse,
+  VerifyAndSaveRequest,
+  VerifyAndSaveResponse,
 } from './bank-account';
 
 // Commissions

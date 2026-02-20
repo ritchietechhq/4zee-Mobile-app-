@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   View, Text, StyleSheet, FlatList, RefreshControl,
   TouchableOpacity, ActivityIndicator, Alert,
@@ -16,26 +16,30 @@ import { formatCurrency } from '@/utils/formatCurrency';
 import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Skeleton } from '@/components/ui/Skeleton';
-import { Colors, Spacing, Typography, BorderRadius, Shadows } from '@/constants/theme';
+import { Spacing, Typography, BorderRadius, Shadows } from '@/constants/theme';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import type { ThemeColors } from '@/constants/colors';
 
 type ActiveTab = 'commissions' | 'payouts';
 
-const commissionStatusColors: Record<CommissionStatus, { bg: string; text: string }> = {
-  PENDING: { bg: Colors.warningLight, text: Colors.warning },
-  APPROVED: { bg: Colors.primaryLight, text: Colors.primary },
-  PAID: { bg: Colors.successLight, text: Colors.success },
-  CANCELLED: { bg: Colors.errorLight, text: Colors.error },
-};
-
-const payoutStatusColors: Record<PayoutStatus, { bg: string; text: string }> = {
-  PENDING: { bg: Colors.warningLight, text: Colors.warning },
-  PROCESSING: { bg: Colors.primaryLight, text: Colors.primary },
-  COMPLETED: { bg: Colors.successLight, text: Colors.success },
-  FAILED: { bg: Colors.errorLight, text: Colors.error },
-  CANCELLED: { bg: Colors.surface, text: Colors.textMuted },
-};
-
 export default function PaymentsScreen() {
+  const colors = useThemeColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+
+  const commissionStatusColors: Record<CommissionStatus, { bg: string; text: string }> = {
+    PENDING: { bg: colors.warningLight, text: colors.warning },
+    APPROVED: { bg: colors.primaryLight, text: colors.primary },
+    PAID: { bg: colors.successLight, text: colors.success },
+    CANCELLED: { bg: colors.errorLight, text: colors.error },
+  };
+
+  const payoutStatusColors: Record<PayoutStatus, { bg: string; text: string }> = {
+    PENDING: { bg: colors.warningLight, text: colors.warning },
+    PROCESSING: { bg: colors.primaryLight, text: colors.primary },
+    COMPLETED: { bg: colors.successLight, text: colors.success },
+    FAILED: { bg: colors.errorLight, text: colors.error },
+    CANCELLED: { bg: colors.surface, text: colors.textMuted },
+  };
   const [activeTab, setActiveTab] = useState<ActiveTab>('commissions');
   const [summary, setSummary] = useState<CommissionSummary | null>(null);
   const [balance, setBalance] = useState<PayoutBalance | null>(null);
@@ -136,7 +140,7 @@ export default function PaymentsScreen() {
     if (!balance && !summary) return null;
     return (
       <LinearGradient
-        colors={[Colors.primary, Colors.accent]}
+        colors={[colors.primary, colors.accent]}
         style={styles.balanceCard}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
@@ -173,10 +177,10 @@ export default function PaymentsScreen() {
           activeOpacity={0.8}
         >
           {isRequestingPayout ? (
-            <ActivityIndicator size="small" color={Colors.primary} />
+            <ActivityIndicator size="small" color={colors.primary} />
           ) : (
             <>
-              <Ionicons name="arrow-up-outline" size={16} color={Colors.primary} />
+              <Ionicons name="arrow-up-outline" size={16} color={colors.primary} />
               <Text style={styles.payoutBtnText}>Request Payout</Text>
             </>
           )}
@@ -206,8 +210,8 @@ export default function PaymentsScreen() {
     return (
       <Card variant="outlined" padding="md" style={styles.itemCard}>
         <View style={styles.itemRow}>
-          <View style={[styles.typeIcon, { backgroundColor: item.type === 'DIRECT' ? Colors.primaryLight : Colors.successLight }]}>
-            <Ionicons name={item.type === 'DIRECT' ? 'storefront-outline' : 'people-outline'} size={18} color={item.type === 'DIRECT' ? Colors.primary : Colors.success} />
+          <View style={[styles.typeIcon, { backgroundColor: item.type === 'DIRECT' ? colors.primaryLight : colors.successLight }]}>
+            <Ionicons name={item.type === 'DIRECT' ? 'storefront-outline' : 'people-outline'} size={18} color={item.type === 'DIRECT' ? colors.primary : colors.success} />
           </View>
           <View style={{ flex: 1 }}>
             <Text style={styles.itemTitle} numberOfLines={1}>{item.sale?.property?.title || 'Commission'}</Text>
@@ -250,8 +254,8 @@ export default function PaymentsScreen() {
     return (
       <Card variant="outlined" padding="md" style={styles.itemCard}>
         <View style={styles.itemRow}>
-          <View style={[styles.typeIcon, { backgroundColor: Colors.successLight }]}>
-            <Ionicons name="arrow-up-outline" size={18} color={Colors.success} />
+          <View style={[styles.typeIcon, { backgroundColor: colors.successLight }]}>
+            <Ionicons name="arrow-up-outline" size={18} color={colors.success} />
           </View>
           <View style={{ flex: 1 }}>
             <Text style={styles.itemTitle} numberOfLines={1}>{item.bankAccount?.bankName || 'Bank Transfer'}</Text>
@@ -266,7 +270,7 @@ export default function PaymentsScreen() {
         </View>
         {canCancel && (
           <TouchableOpacity style={styles.cancelBtn} onPress={handleCancel} activeOpacity={0.7}>
-            <Ionicons name="close-circle-outline" size={16} color={Colors.error} />
+            <Ionicons name="close-circle-outline" size={16} color={colors.error} />
             <Text style={styles.cancelBtnText}>Cancel Request</Text>
           </TouchableOpacity>
         )}
@@ -307,48 +311,48 @@ export default function PaymentsScreen() {
               description={activeTab === 'commissions' ? 'Your commissions from sales will appear here.' : 'Your payout history will appear here.'}
             />
           }
-          ListFooterComponent={isLoadingMore ? <View style={styles.footer}><ActivityIndicator size="small" color={Colors.primary} /></View> : null}
+          ListFooterComponent={isLoadingMore ? <View style={styles.footer}><ActivityIndicator size="small" color={colors.primary} /></View> : null}
           onEndReached={onEndReached}
           onEndReachedThreshold={0.3}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
-          refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} tintColor={Colors.primary} />}
+          refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
         />
       )}
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background },
+const makeStyles = (colors: ThemeColors) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.background },
   header: { paddingHorizontal: Spacing.xl, paddingTop: Spacing.lg, paddingBottom: Spacing.sm },
-  headerTitle: { ...Typography.h3, color: Colors.textPrimary },
+  headerTitle: { ...Typography.h3, color: colors.textPrimary },
   balanceCard: { borderRadius: BorderRadius.xl, padding: Spacing.xl, marginBottom: Spacing.lg },
   balanceLabel: { ...Typography.caption, color: 'rgba(255,255,255,0.7)' },
-  balanceValue: { ...Typography.h1, color: Colors.white, marginTop: Spacing.xs },
+  balanceValue: { ...Typography.h1, color: colors.white, marginTop: Spacing.xs },
   balanceDivider: { height: 1, backgroundColor: 'rgba(255,255,255,0.2)', marginVertical: Spacing.lg },
   balanceRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: Spacing.lg },
   balanceItem: { alignItems: 'center' },
-  balanceItemVal: { ...Typography.captionMedium, color: Colors.white },
+  balanceItemVal: { ...Typography.captionMedium, color: colors.white },
   balanceItemLabel: { ...Typography.small, color: 'rgba(255,255,255,0.7)', marginTop: 2 },
-  payoutBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.sm, backgroundColor: Colors.white, borderRadius: BorderRadius.lg, paddingVertical: Spacing.md },
-  payoutBtnText: { ...Typography.bodySemiBold, color: Colors.primary },
+  payoutBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.sm, backgroundColor: colors.cardBackground, borderRadius: BorderRadius.lg, paddingVertical: Spacing.md },
+  payoutBtnText: { ...Typography.bodySemiBold, color: colors.primary },
   tabRow: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.lg },
-  tab: { flex: 1, alignItems: 'center', paddingVertical: Spacing.md, borderRadius: BorderRadius.lg, backgroundColor: Colors.surface, borderWidth: 1, borderColor: Colors.borderLight },
-  tabActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
-  tabText: { ...Typography.bodySemiBold, color: Colors.textSecondary },
-  tabTextActive: { color: Colors.white },
+  tab: { flex: 1, alignItems: 'center', paddingVertical: Spacing.md, borderRadius: BorderRadius.lg, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.borderLight },
+  tabActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  tabText: { ...Typography.bodySemiBold, color: colors.textSecondary },
+  tabTextActive: { color: colors.white },
   listContent: { paddingHorizontal: Spacing.xl, paddingBottom: Spacing.xxl },
   itemCard: { marginBottom: Spacing.sm },
   itemRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
   typeIcon: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
-  itemTitle: { ...Typography.bodyMedium, color: Colors.textPrimary },
-  itemSub: { ...Typography.caption, color: Colors.textMuted, marginTop: 2 },
-  itemAmount: { ...Typography.bodySemiBold, color: Colors.textPrimary },
+  itemTitle: { ...Typography.bodyMedium, color: colors.textPrimary },
+  itemSub: { ...Typography.caption, color: colors.textMuted, marginTop: 2 },
+  itemAmount: { ...Typography.bodySemiBold, color: colors.textPrimary },
   statusBadge: { paddingHorizontal: Spacing.sm, paddingVertical: 2, borderRadius: BorderRadius.full, marginTop: 4 },
   statusText: { ...Typography.small, fontWeight: '600' },
   skeletonWrap: { paddingHorizontal: Spacing.xl },
   footer: { padding: Spacing.lg, alignItems: 'center' },
-  cancelBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.xs, marginTop: Spacing.md, paddingVertical: Spacing.sm, borderTopWidth: 1, borderTopColor: Colors.borderLight },
-  cancelBtnText: { ...Typography.captionMedium, color: Colors.error },
+  cancelBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.xs, marginTop: Spacing.md, paddingVertical: Spacing.sm, borderTopWidth: 1, borderTopColor: colors.borderLight },
+  cancelBtnText: { ...Typography.captionMedium, color: colors.error },
 });

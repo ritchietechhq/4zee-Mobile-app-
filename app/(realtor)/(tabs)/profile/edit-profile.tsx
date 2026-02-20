@@ -3,7 +3,7 @@
 // Update personal info, upload profile picture
 // ============================================================
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -26,11 +26,15 @@ import userService from '@/services/user.service';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
-import { Colors, Spacing, Typography, BorderRadius, Shadows } from '@/constants/theme';
+import { Spacing, Typography, BorderRadius, Shadows } from '@/constants/theme';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import type { ThemeColors } from '@/constants/colors';
 import type { UpdateProfileRequest } from '@/types';
 
 export default function EditProfileScreen() {
   const insets = useSafeAreaInsets();
+  const colors = useThemeColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const user = useAuthStore((s) => s.user);
   const refreshUser = useAuthStore((s) => s.refreshUser);
   const updateUser = useAuthStore((s) => s.updateUser);
@@ -210,7 +214,7 @@ export default function EditProfileScreen() {
           onPress={() => router.back()}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
-          <Ionicons name="arrow-back" size={24} color={Colors.textPrimary} />
+          <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Edit Profile</Text>
         <View style={{ width: 40 }} />
@@ -248,7 +252,7 @@ export default function EditProfileScreen() {
               >
                 <View style={styles.avatar}>
                   {isUploadingPhoto ? (
-                    <ActivityIndicator size="large" color={Colors.primary} />
+                    <ActivityIndicator size="large" color={colors.primary} />
                   ) : user?.profilePicture ? (
                     <Image
                       source={{ uri: user.profilePicture }}
@@ -261,7 +265,7 @@ export default function EditProfileScreen() {
                   )}
                 </View>
                 <View style={styles.cameraBtn}>
-                  <Ionicons name="camera" size={16} color={Colors.white} />
+                  <Ionicons name="camera" size={16} color={colors.white} />
                 </View>
               </TouchableOpacity>
               <Text style={styles.photoHint}>Tap to change photo</Text>
@@ -356,7 +360,7 @@ export default function EditProfileScreen() {
                 loading={isLoading}
                 variant="primary"
                 size="lg"
-                icon={<Ionicons name="checkmark" size={20} color={Colors.white} />}
+                icon={<Ionicons name="checkmark" size={20} color={colors.white} />}
               />
               <Button
                 title="Cancel"
@@ -373,8 +377,8 @@ export default function EditProfileScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background },
+const makeStyles = (colors: ThemeColors) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.background },
   flex: { flex: 1 },
   scrollContent: { paddingBottom: Spacing.xxxxl },
 
@@ -385,18 +389,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.borderLight,
-    backgroundColor: Colors.white,
+    borderBottomColor: colors.borderLight,
+    backgroundColor: colors.cardBackground,
   },
   backBtn: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: Colors.surface,
+    backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  headerTitle: { ...Typography.h4, color: Colors.textPrimary },
+  headerTitle: { ...Typography.h4, color: colors.textPrimary },
 
   photoSection: {
     alignItems: 'center',
@@ -407,16 +411,16 @@ const styles = StyleSheet.create({
     width: 96,
     height: 96,
     borderRadius: 48,
-    backgroundColor: Colors.primaryLight,
+    backgroundColor: colors.primaryLight,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 3,
-    borderColor: Colors.white,
+    borderColor: colors.white,
     overflow: 'hidden' as const,
     ...Shadows.lg,
   },
   avatarImg: { width: 96, height: 96, borderRadius: 48 },
-  avatarText: { ...Typography.h1, color: Colors.primary, fontSize: 34 },
+  avatarText: { ...Typography.h1, color: colors.primary, fontSize: 34 },
   cameraBtn: {
     position: 'absolute',
     bottom: 2,
@@ -424,15 +428,15 @@ const styles = StyleSheet.create({
     width: 30,
     height: 30,
     borderRadius: 15,
-    backgroundColor: Colors.primary,
+    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
-    borderColor: Colors.white,
+    borderColor: colors.white,
   },
   photoHint: {
     ...Typography.caption,
-    color: Colors.textMuted,
+    color: colors.textMuted,
     marginTop: Spacing.sm,
   },
 
@@ -442,7 +446,7 @@ const styles = StyleSheet.create({
   },
   sectionLabel: {
     ...Typography.bodyMedium,
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
     marginBottom: Spacing.lg,
   },
   row: {
@@ -453,7 +457,7 @@ const styles = StyleSheet.create({
   disabledInput: { opacity: 0.6 },
   divider: {
     height: 1,
-    backgroundColor: Colors.borderLight,
+    backgroundColor: colors.borderLight,
     marginVertical: Spacing.xl,
   },
 

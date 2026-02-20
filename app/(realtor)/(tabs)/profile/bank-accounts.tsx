@@ -3,7 +3,7 @@
 // Manage bank accounts: list, add (verify flow), set default, delete
 // ============================================================
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -28,13 +28,17 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Skeleton } from '@/components/ui/Skeleton';
-import { Colors, Spacing, Typography, BorderRadius, Shadows } from '@/constants/theme';
-import type { BankAccount, Bank } from '@/types';
+import { Spacing, Typography, BorderRadius, Shadows } from '@/constants/theme';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import type { ThemeColors } from '@/constants/colors';
+import type { BankAccount, Bank, VerifyAndSaveResponse } from '@/types';
 
 type AddStep = 'select-bank' | 'enter-number' | 'confirm';
 
 export default function BankAccountsScreen() {
   const insets = useSafeAreaInsets();
+  const colors = useThemeColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
 
   // ── List state ──
   const [accounts, setAccounts] = useState<BankAccount[]>([]);
@@ -49,10 +53,8 @@ export default function BankAccountsScreen() {
   const [bankSearch, setBankSearch] = useState('');
   const [selectedBank, setSelectedBank] = useState<Bank | null>(null);
   const [accountNumber, setAccountNumber] = useState('');
-  const [verifiedName, setVerifiedName] = useState('');
+  const [savedResult, setSavedResult] = useState<VerifyAndSaveResponse | null>(null);
   const [isVerifying, setIsVerifying] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const [makeDefault, setMakeDefault] = useState(false);
 
   // ── Load accounts ──
   useFocusEffect(
@@ -64,9 +66,14 @@ export default function BankAccountsScreen() {
   const loadAccounts = async () => {
     try {
       const data = await bankAccountService.list();
-      setAccounts(data);
+      if (Array.isArray(data)) {
+        setAccounts(data);
+      } else if (data && typeof data === 'object' && 'accounts' in (data as any)) {
+        setAccounts((data as any).accounts);
+      }
     } catch (e) {
       console.error('Failed to load bank accounts:', e);
+      // Don't clear existing accounts on refresh error
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
@@ -144,9 +151,8 @@ export default function BankAccountsScreen() {
     setAddStep('select-bank');
     setSelectedBank(null);
     setAccountNumber('');
-    setVerifiedName('');
+    setSavedResult(null);
     setBankSearch('');
-    setMakeDefault(false);
   };
 
   const handleSelectBank = (bank: Bank) => {
@@ -154,41 +160,59 @@ export default function BankAccountsScreen() {
     setAddStep('enter-number');
   };
 
-  const handleVerifyAccount = async () => {
+  const handleVerifyAndSave = async () => {
     if (!selectedBank || accountNumber.length !== 10) return;
     setIsVerifying(true);
     try {
-      const result = await bankAccountService.verifyAccount({
-        bankCode: selectedBank.code,
+      const result = await bankAccountService.verifyAndSave({
         accountNumber,
+        bankCode: selectedBank.code,
+        bankName: selectedBank.name,
       });
-      setVerifiedName(result.accountName);
+      setSavedResult(result);
+
+      // Add the saved account to local state immediately
+      if (result.id) {
+        setAccounts((prev) => {
+          // If this is now default, unset previous default
+          const updated = result.isDefault
+            ? prev.map((a) => ({ ...a, isDefault: false }))
+            : [...prev];
+          // Don't add if it already exists (alreadyExists case)
+          if (result.alreadyExists || prev.some((a) => a.id === result.id)) {
+            return updated.map((a) =>
+              a.id === result.id ? { ...a, ...result, createdAt: a.createdAt } : a
+            );
+          }
+          return [...updated, {
+            id: result.id,
+            accountName: result.accountName,
+            accountNumber: result.accountNumber,
+            bankCode: result.bankCode,
+            bankName: result.bankName,
+            isDefault: result.isDefault,
+            isVerified: result.isVerified,
+            createdAt: new Date().toISOString(),
+          }];
+        });
+      }
+
       setAddStep('confirm');
     } catch (e: any) {
-      Alert.alert('Verification Failed', e?.error?.message || 'Could not verify this account. Please check the details and try again.');
+      Alert.alert(
+        'Verification Failed',
+        e?.error?.message || 'Could not verify this account. Please check the details and try again.',
+      );
     } finally {
       setIsVerifying(false);
     }
   };
 
-  const handleSaveAccount = async () => {
-    if (!selectedBank) return;
-    setIsSaving(true);
-    try {
-      await bankAccountService.add({
-        bankCode: selectedBank.code,
-        accountNumber,
-        isDefault: makeDefault || accounts.length === 0,
-      });
-      setShowAddModal(false);
-      resetAddForm();
-      await loadAccounts();
-      Alert.alert('Success', 'Bank account added successfully!');
-    } catch (e: any) {
-      Alert.alert('Error', e?.error?.message || 'Failed to add bank account.');
-    } finally {
-      setIsSaving(false);
-    }
+  const handleDone = () => {
+    setShowAddModal(false);
+    resetAddForm();
+    // Refresh from server in background for full sync
+    loadAccounts().catch(() => {});
   };
 
   const filteredBanks = bankSearch
@@ -200,7 +224,7 @@ export default function BankAccountsScreen() {
     <Card variant="outlined" padding="lg" style={styles.accountCard}>
       <View style={styles.accountRow}>
         <View style={styles.bankIcon}>
-          <Ionicons name="business" size={20} color={Colors.primary} />
+          <Ionicons name="business" size={20} color={colors.primary} />
         </View>
         <View style={{ flex: 1 }}>
           <View style={styles.accountNameRow}>
@@ -218,13 +242,13 @@ export default function BankAccountsScreen() {
       <View style={styles.accountActions}>
         {!item.isDefault && (
           <TouchableOpacity style={styles.actionBtn} onPress={() => handleSetDefault(item)} activeOpacity={0.7}>
-            <Ionicons name="star-outline" size={16} color={Colors.primary} />
+            <Ionicons name="star-outline" size={16} color={colors.primary} />
             <Text style={styles.actionBtnText}>Set Default</Text>
           </TouchableOpacity>
         )}
         <TouchableOpacity style={styles.actionBtn} onPress={() => handleDelete(item)} activeOpacity={0.7}>
-          <Ionicons name="trash-outline" size={16} color={Colors.error} />
-          <Text style={[styles.actionBtnText, { color: Colors.error }]}>Remove</Text>
+          <Ionicons name="trash-outline" size={16} color={colors.error} />
+          <Text style={[styles.actionBtnText, { color: colors.error }]}>Remove</Text>
         </TouchableOpacity>
       </View>
     </Card>
@@ -237,11 +261,11 @@ export default function BankAccountsScreen() {
           <View style={styles.modalBody}>
             <Text style={styles.modalStepTitle}>Select Your Bank</Text>
             <View style={styles.bankSearchBar}>
-              <Ionicons name="search" size={18} color={Colors.textMuted} />
+              <Ionicons name="search" size={18} color={colors.textMuted} />
               <TextInput
                 style={styles.bankSearchInput}
                 placeholder="Search banks..."
-                placeholderTextColor={Colors.textMuted}
+                placeholderTextColor={colors.textMuted}
                 value={bankSearch}
                 onChangeText={setBankSearch}
                 autoFocus
@@ -249,7 +273,7 @@ export default function BankAccountsScreen() {
             </View>
             {banksLoading ? (
               <View style={styles.loadingWrap}>
-                <ActivityIndicator size="large" color={Colors.primary} />
+                <ActivityIndicator size="large" color={colors.primary} />
                 <Text style={styles.loadingText}>Loading banks...</Text>
               </View>
             ) : (
@@ -265,10 +289,10 @@ export default function BankAccountsScreen() {
                     activeOpacity={0.6}
                   >
                     <View style={styles.bankItemIcon}>
-                      <Ionicons name="business-outline" size={18} color={Colors.primary} />
+                      <Ionicons name="business-outline" size={18} color={colors.primary} />
                     </View>
                     <Text style={styles.bankItemName}>{item.name}</Text>
-                    <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} />
+                    <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
                   </TouchableOpacity>
                 )}
                 ItemSeparatorComponent={() => <View style={styles.bankSep} />}
@@ -288,7 +312,7 @@ export default function BankAccountsScreen() {
             <Text style={styles.modalStepTitle}>Enter Account Number</Text>
             <Card variant="outlined" padding="lg" style={styles.selectedBankCard}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm }}>
-                <Ionicons name="business" size={18} color={Colors.primary} />
+                <Ionicons name="business" size={18} color={colors.primary} />
                 <Text style={styles.selectedBankName}>{selectedBank?.name}</Text>
               </View>
               <TouchableOpacity onPress={() => setAddStep('select-bank')}>
@@ -300,7 +324,7 @@ export default function BankAccountsScreen() {
               <TextInput
                 style={styles.numInput}
                 placeholder="0123456789"
-                placeholderTextColor={Colors.textMuted}
+                placeholderTextColor={colors.textMuted}
                 value={accountNumber}
                 onChangeText={(t) => setAccountNumber(t.replace(/\D/g, '').slice(0, 10))}
                 keyboardType="number-pad"
@@ -310,8 +334,8 @@ export default function BankAccountsScreen() {
               <Text style={styles.inputHint}>{accountNumber.length}/10 digits</Text>
             </View>
             <Button
-              title={isVerifying ? 'Verifying...' : 'Verify Account'}
-              onPress={handleVerifyAccount}
+              title={isVerifying ? 'Verifying & Saving...' : 'Verify & Add Account'}
+              onPress={handleVerifyAndSave}
               loading={isVerifying}
               disabled={accountNumber.length !== 10 || isVerifying}
               variant="primary"
@@ -323,33 +347,29 @@ export default function BankAccountsScreen() {
       case 'confirm':
         return (
           <View style={styles.modalBody}>
-            <Text style={styles.modalStepTitle}>Confirm Account</Text>
+            <Text style={styles.modalStepTitle}>Account Added!</Text>
             <Card variant="elevated" padding="xl" style={styles.confirmCard}>
               <View style={styles.confirmIcon}>
-                <Ionicons name="checkmark-circle" size={40} color={Colors.success} />
+                <Ionicons name="checkmark-circle" size={48} color={colors.success} />
               </View>
-              <Text style={styles.confirmName}>{verifiedName}</Text>
-              <Text style={styles.confirmDetails}>{selectedBank?.name} · {accountNumber}</Text>
+              <Text style={styles.confirmName}>{savedResult?.accountName}</Text>
+              <Text style={styles.confirmDetails}>{savedResult?.bankName} · {savedResult?.accountNumber}</Text>
+              {savedResult?.isDefault && (
+                <View style={styles.confirmDefaultBadge}>
+                  <Ionicons name="star" size={12} color={colors.success} />
+                  <Text style={styles.confirmDefaultText}>Default payout account</Text>
+                </View>
+              )}
+              {savedResult?.alreadyExists && (
+                <Text style={styles.confirmAlreadyExists}>This account was already on file.</Text>
+              )}
             </Card>
-            <TouchableOpacity
-              style={styles.defaultToggle}
-              onPress={() => setMakeDefault(!makeDefault)}
-              activeOpacity={0.7}
-            >
-              <Ionicons
-                name={makeDefault ? 'checkbox' : 'square-outline'}
-                size={22}
-                color={makeDefault ? Colors.primary : Colors.textMuted}
-              />
-              <Text style={styles.defaultToggleText}>Set as default payout account</Text>
-            </TouchableOpacity>
             <Button
-              title={isSaving ? 'Saving...' : 'Add Bank Account'}
-              onPress={handleSaveAccount}
-              loading={isSaving}
+              title="Done"
+              onPress={handleDone}
               variant="primary"
               size="lg"
-              icon={<Ionicons name="add-circle" size={20} color={Colors.white} />}
+              icon={<Ionicons name="checkmark" size={20} color={colors.white} />}
             />
           </View>
         );
@@ -365,7 +385,7 @@ export default function BankAccountsScreen() {
           onPress={() => router.back()}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
-          <Ionicons name="arrow-back" size={24} color={Colors.textPrimary} />
+          <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Bank Accounts</Text>
         <TouchableOpacity
@@ -373,7 +393,7 @@ export default function BankAccountsScreen() {
           onPress={openAddModal}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
-          <Ionicons name="add" size={24} color={Colors.primary} />
+          <Ionicons name="add" size={24} color={colors.primary} />
         </TouchableOpacity>
       </View>
 
@@ -404,7 +424,7 @@ export default function BankAccountsScreen() {
             variant="primary"
             size="lg"
             style={styles.emptyAddBtn}
-            icon={<Ionicons name="add-circle" size={20} color={Colors.white} />}
+            icon={<Ionicons name="add-circle" size={20} color={colors.white} />}
           />
         </View>
       ) : (
@@ -418,12 +438,12 @@ export default function BankAccountsScreen() {
             <RefreshControl
               refreshing={isRefreshing}
               onRefresh={handleRefresh}
-              tintColor={Colors.primary}
+              tintColor={colors.primary}
             />
           }
           ListFooterComponent={
             <TouchableOpacity style={styles.addFooterBtn} onPress={openAddModal} activeOpacity={0.7}>
-              <Ionicons name="add-circle-outline" size={20} color={Colors.primary} />
+              <Ionicons name="add-circle-outline" size={20} color={colors.primary} />
               <Text style={styles.addFooterText}>Add Another Account</Text>
             </TouchableOpacity>
           }
@@ -438,7 +458,7 @@ export default function BankAccountsScreen() {
         >
           <View style={[styles.modalHeader, { paddingTop: insets.top + Spacing.sm }]}>
             <TouchableOpacity onPress={() => setShowAddModal(false)}>
-              <Ionicons name="close" size={24} color={Colors.textPrimary} />
+              <Ionicons name="close" size={24} color={colors.textPrimary} />
             </TouchableOpacity>
             <Text style={styles.modalTitle}>Add Bank Account</Text>
             <View style={{ width: 24 }} />
@@ -482,8 +502,8 @@ export default function BankAccountsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background },
+const makeStyles = (colors: ThemeColors) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.background },
 
   // ── Header ──
   header: {
@@ -493,23 +513,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.borderLight,
-    backgroundColor: Colors.white,
+    borderBottomColor: colors.borderLight,
+    backgroundColor: colors.cardBackground,
   },
   backBtn: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: Colors.surface,
+    backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  headerTitle: { ...Typography.h4, color: Colors.textPrimary },
+  headerTitle: { ...Typography.h4, color: colors.textPrimary },
   addHeaderBtn: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: Colors.primaryLight,
+    backgroundColor: colors.primaryLight,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -523,30 +543,30 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 10,
-    backgroundColor: Colors.primaryLight,
+    backgroundColor: colors.primaryLight,
     alignItems: 'center',
     justifyContent: 'center',
   },
   accountNameRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
-  bankName: { ...Typography.bodySemiBold, color: Colors.textPrimary, flex: 1 },
+  bankName: { ...Typography.bodySemiBold, color: colors.textPrimary, flex: 1 },
   defaultBadge: {
-    backgroundColor: Colors.successLight,
+    backgroundColor: colors.successLight,
     paddingHorizontal: Spacing.sm,
     paddingVertical: 2,
     borderRadius: BorderRadius.full,
   },
-  defaultBadgeText: { ...Typography.small, color: Colors.success, fontWeight: '600' },
-  accountName: { ...Typography.caption, color: Colors.textSecondary, marginTop: 2 },
-  accountNum: { ...Typography.small, color: Colors.textMuted, marginTop: 2 },
+  defaultBadgeText: { ...Typography.small, color: colors.success, fontWeight: '600' },
+  accountName: { ...Typography.caption, color: colors.textSecondary, marginTop: 2 },
+  accountNum: { ...Typography.small, color: colors.textMuted, marginTop: 2 },
   accountActions: {
     flexDirection: 'row',
     gap: Spacing.lg,
     borderTopWidth: 1,
-    borderTopColor: Colors.borderLight,
+    borderTopColor: colors.borderLight,
     paddingTop: Spacing.md,
   },
   actionBtn: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs },
-  actionBtnText: { ...Typography.captionMedium, color: Colors.primary },
+  actionBtnText: { ...Typography.captionMedium, color: colors.primary },
 
   addFooterBtn: {
     flexDirection: 'row',
@@ -555,14 +575,14 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
     paddingVertical: Spacing.xl,
   },
-  addFooterText: { ...Typography.bodySemiBold, color: Colors.primary },
+  addFooterText: { ...Typography.bodySemiBold, color: colors.primary },
 
   // ── Skeleton ──
   skeletonWrap: { padding: Spacing.xl, gap: Spacing.md },
   skeletonCard: {
     flexDirection: 'row',
     padding: Spacing.lg,
-    backgroundColor: Colors.white,
+    backgroundColor: colors.cardBackground,
     borderRadius: BorderRadius.lg,
   },
 
@@ -571,20 +591,20 @@ const styles = StyleSheet.create({
   emptyAddBtn: { marginTop: Spacing.xl },
 
   // ── Modal ──
-  modalContainer: { flex: 1, backgroundColor: Colors.background },
+  modalContainer: { flex: 1, backgroundColor: colors.background },
   modalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: Spacing.xl,
     paddingBottom: Spacing.md,
-    backgroundColor: Colors.white,
+    backgroundColor: colors.cardBackground,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.borderLight,
+    borderBottomColor: colors.borderLight,
   },
-  modalTitle: { ...Typography.h4, color: Colors.textPrimary },
+  modalTitle: { ...Typography.h4, color: colors.textPrimary },
   modalBody: { flex: 1, padding: Spacing.xl },
-  modalStepTitle: { ...Typography.h4, color: Colors.textPrimary, marginBottom: Spacing.lg },
+  modalStepTitle: { ...Typography.h4, color: colors.textPrimary, marginBottom: Spacing.lg },
 
   // ── Step Indicator ──
   stepIndicator: {
@@ -593,39 +613,39 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: Spacing.lg,
     paddingHorizontal: Spacing.xxxxl,
-    backgroundColor: Colors.white,
+    backgroundColor: colors.cardBackground,
   },
   stepDot: {
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: Colors.surface,
+    backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  stepDotActive: { backgroundColor: Colors.primary },
-  stepDotText: { ...Typography.captionMedium, color: Colors.textMuted },
-  stepDotTextActive: { color: Colors.white },
-  stepLine: { flex: 1, height: 2, backgroundColor: Colors.borderLight, marginHorizontal: Spacing.sm },
-  stepLineActive: { backgroundColor: Colors.primary },
+  stepDotActive: { backgroundColor: colors.primary },
+  stepDotText: { ...Typography.captionMedium, color: colors.textMuted },
+  stepDotTextActive: { color: colors.white },
+  stepLine: { flex: 1, height: 2, backgroundColor: colors.borderLight, marginHorizontal: Spacing.sm },
+  stepLineActive: { backgroundColor: colors.primary },
 
   // ── Bank Search ──
   bankSearchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.white,
+    backgroundColor: colors.cardBackground,
     borderRadius: BorderRadius.lg,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
     borderWidth: 1,
-    borderColor: Colors.borderLight,
+    borderColor: colors.borderLight,
     gap: Spacing.sm,
     marginBottom: Spacing.lg,
   },
   bankSearchInput: {
     flex: 1,
     ...Typography.body,
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
     padding: 0,
   },
   bankList: { flex: 1 },
@@ -639,17 +659,17 @@ const styles = StyleSheet.create({
     width: 30,
     height: 30,
     borderRadius: 8,
-    backgroundColor: Colors.primaryLight,
+    backgroundColor: colors.primaryLight,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  bankItemName: { ...Typography.body, color: Colors.textPrimary, flex: 1 },
-  bankSep: { height: 1, backgroundColor: Colors.borderLight },
+  bankItemName: { ...Typography.body, color: colors.textPrimary, flex: 1 },
+  bankSep: { height: 1, backgroundColor: colors.borderLight },
   emptyBanks: { alignItems: 'center', paddingVertical: Spacing.xxl },
-  emptyBanksText: { ...Typography.body, color: Colors.textMuted },
+  emptyBanksText: { ...Typography.body, color: colors.textMuted },
 
   loadingWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: Spacing.md },
-  loadingText: { ...Typography.body, color: Colors.textMuted },
+  loadingText: { ...Typography.body, color: colors.textMuted },
 
   // ── Enter Number ──
   selectedBankCard: {
@@ -658,35 +678,39 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: Spacing.xl,
   },
-  selectedBankName: { ...Typography.bodySemiBold, color: Colors.textPrimary },
-  changeLink: { ...Typography.captionMedium, color: Colors.primary },
+  selectedBankName: { ...Typography.bodySemiBold, color: colors.textPrimary },
+  changeLink: { ...Typography.captionMedium, color: colors.primary },
   inputWrap: { marginBottom: Spacing.xl },
-  inputLabel: { ...Typography.captionMedium, color: Colors.textSecondary, marginBottom: Spacing.sm },
+  inputLabel: { ...Typography.captionMedium, color: colors.textSecondary, marginBottom: Spacing.sm },
   numInput: {
     ...Typography.h3,
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
     letterSpacing: 3,
-    backgroundColor: Colors.white,
+    backgroundColor: colors.cardBackground,
     borderRadius: BorderRadius.lg,
     borderWidth: 1,
-    borderColor: Colors.borderLight,
+    borderColor: colors.borderLight,
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.lg,
     textAlign: 'center',
   },
-  inputHint: { ...Typography.small, color: Colors.textMuted, textAlign: 'right', marginTop: Spacing.xs },
+  inputHint: { ...Typography.small, color: colors.textMuted, textAlign: 'right', marginTop: Spacing.xs },
 
-  // ── Confirm ──
+  // ── Confirm / Success ──
   confirmCard: { alignItems: 'center', marginBottom: Spacing.xl },
   confirmIcon: { marginBottom: Spacing.md },
-  confirmName: { ...Typography.h4, color: Colors.textPrimary, textAlign: 'center' },
-  confirmDetails: { ...Typography.body, color: Colors.textMuted, marginTop: Spacing.xs },
-  defaultToggle: {
+  confirmName: { ...Typography.h3, color: colors.textPrimary, textAlign: 'center' },
+  confirmDetails: { ...Typography.body, color: colors.textMuted, marginTop: Spacing.xs, textAlign: 'center' },
+  confirmDefaultBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.sm,
-    marginBottom: Spacing.xl,
-    paddingVertical: Spacing.sm,
+    gap: 4,
+    marginTop: Spacing.md,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs,
+    backgroundColor: colors.successLight,
+    borderRadius: BorderRadius.full,
   },
-  defaultToggleText: { ...Typography.body, color: Colors.textPrimary },
+  confirmDefaultText: { ...Typography.captionMedium, color: colors.success },
+  confirmAlreadyExists: { ...Typography.caption, color: colors.textMuted, marginTop: Spacing.sm, fontStyle: 'italic' as const },
 });

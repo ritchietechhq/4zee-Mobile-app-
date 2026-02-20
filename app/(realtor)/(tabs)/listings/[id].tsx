@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   ActivityIndicator, Dimensions, FlatList, Share, Linking, Alert,
@@ -14,7 +14,9 @@ import { Badge } from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Skeleton } from '@/components/ui/Skeleton';
-import { Colors, Spacing, Typography, BorderRadius, Shadows } from '@/constants/theme';
+import { Spacing, Typography, BorderRadius, Shadows } from '@/constants/theme';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import type { ThemeColors } from '@/constants/colors';
 
 const { width } = Dimensions.get('window');
 
@@ -28,6 +30,9 @@ export default function PropertyDetail() {
   } = usePropertyStore();
   const [activeImage, setActiveImage] = useState(0);
   const galleryRef = useRef<FlatList>(null);
+
+  const colors = useThemeColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
 
   useEffect(() => {
     if (id) fetchPropertyById(id);
@@ -85,7 +90,7 @@ export default function PropertyDetail() {
       <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.topBar}>
           <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-            <Ionicons name="arrow-back" size={24} color={Colors.textPrimary} />
+            <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
           </TouchableOpacity>
         </View>
         <View style={{ padding: Spacing.xl }}>
@@ -126,23 +131,23 @@ export default function PropertyDetail() {
               </View>
             )}
             <View style={styles.imageCount}>
-              <Ionicons name="images-outline" size={14} color={Colors.white} />
+              <Ionicons name="images-outline" size={14} color={colors.white} />
               <Text style={styles.imageCountText}>{activeImage + 1}/{images.length}</Text>
             </View>
           </View>
         ) : (
           <View style={[styles.galleryImage, styles.noImage]}>
-            <Ionicons name="image-outline" size={48} color={Colors.textMuted} />
+            <Ionicons name="image-outline" size={48} color={colors.textMuted} />
           </View>
         )}
 
         {/* Back + Share overlay */}
         <View style={styles.overlayRow}>
           <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-            <Ionicons name="arrow-back" size={24} color={Colors.textPrimary} />
+            <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
           </TouchableOpacity>
           <TouchableOpacity style={styles.backButton} onPress={handleShare}>
-            <Ionicons name="share-outline" size={22} color={Colors.textPrimary} />
+            <Ionicons name="share-outline" size={22} color={colors.textPrimary} />
           </TouchableOpacity>
         </View>
 
@@ -157,7 +162,7 @@ export default function PropertyDetail() {
           </View>
 
           <View style={styles.locRow}>
-            <Ionicons name="location-outline" size={16} color={Colors.textMuted} />
+            <Ionicons name="location-outline" size={16} color={colors.textMuted} />
             <Text style={styles.location}>{property.address || `${property.city}, ${property.state}`}</Text>
           </View>
 
@@ -165,7 +170,7 @@ export default function PropertyDetail() {
 
           {/* Property type tag */}
           <View style={styles.typeTag}>
-            <Ionicons name="pricetag-outline" size={14} color={Colors.primary} />
+            <Ionicons name="pricetag-outline" size={14} color={colors.primary} />
             <Text style={styles.typeText}>{property.type?.replace(/_/g, ' ')}</Text>
           </View>
 
@@ -174,34 +179,34 @@ export default function PropertyDetail() {
             <View style={styles.statsRow}>
               {property.bedrooms != null && (
                 <View style={styles.statItem}>
-                  <Ionicons name="bed-outline" size={18} color={Colors.primary} />
+                  <Ionicons name="bed-outline" size={18} color={colors.primary} />
                   <Text style={styles.statValue}>{property.bedrooms}</Text>
                   <Text style={styles.statLabel}>Beds</Text>
                 </View>
               )}
               {property.bathrooms != null && (
                 <View style={styles.statItem}>
-                  <Ionicons name="water-outline" size={18} color={Colors.primary} />
+                  <Ionicons name="water-outline" size={18} color={colors.primary} />
                   <Text style={styles.statValue}>{property.bathrooms}</Text>
                   <Text style={styles.statLabel}>Baths</Text>
                 </View>
               )}
               {property.toilets != null && (
                 <View style={styles.statItem}>
-                  <Ionicons name="cube-outline" size={18} color={Colors.primary} />
+                  <Ionicons name="cube-outline" size={18} color={colors.primary} />
                   <Text style={styles.statValue}>{property.toilets}</Text>
                   <Text style={styles.statLabel}>Toilets</Text>
                 </View>
               )}
               {property.area != null && (
                 <View style={styles.statItem}>
-                  <Ionicons name="resize-outline" size={18} color={Colors.primary} />
+                  <Ionicons name="resize-outline" size={18} color={colors.primary} />
                   <Text style={styles.statValue}>{property.area}</Text>
                   <Text style={styles.statLabel}>sqm</Text>
                 </View>
               )}
               <View style={styles.statItem}>
-                <Ionicons name="eye-outline" size={18} color={Colors.primary} />
+                <Ionicons name="eye-outline" size={18} color={colors.primary} />
                 <Text style={styles.statValue}>{property.viewCount}</Text>
                 <Text style={styles.statLabel}>Views</Text>
               </View>
@@ -221,7 +226,7 @@ export default function PropertyDetail() {
               <View style={styles.amenitiesRow}>
                 {property.amenities.map((amenity, index) => (
                   <View key={index} style={styles.amenityChip}>
-                    <Ionicons name="checkmark-circle-outline" size={14} color={Colors.primary} />
+                    <Ionicons name="checkmark-circle-outline" size={14} color={colors.primary} />
                     <Text style={styles.amenityText}>{amenity}</Text>
                   </View>
                 ))}
@@ -253,14 +258,14 @@ export default function PropertyDetail() {
             <Button
               title="Edit Listing"
               variant="outline"
-              icon={<Ionicons name="create-outline" size={18} color={Colors.primary} />}
+              icon={<Ionicons name="create-outline" size={18} color={colors.primary} />}
               onPress={handleEdit}
               style={{ flex: 1 }}
             />
             <Button
               title={isDeleting ? 'Deleting...' : 'Delete'}
               variant="danger"
-              icon={<Ionicons name="trash-outline" size={18} color={Colors.white} />}
+              icon={<Ionicons name="trash-outline" size={18} color={colors.white} />}
               onPress={handleDelete}
               loading={isDeleting}
               style={{ flex: 1 }}
@@ -272,7 +277,7 @@ export default function PropertyDetail() {
             <Button
               title="View Virtual Tour"
               variant="outline"
-              icon={<Ionicons name="videocam-outline" size={18} color={Colors.primary} />}
+              icon={<Ionicons name="videocam-outline" size={18} color={colors.primary} />}
               onPress={() => Linking.openURL(property.virtualTourUrl!)}
               fullWidth
               style={{ marginBottom: Spacing.xl }}
@@ -284,65 +289,65 @@ export default function PropertyDetail() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background },
+const makeStyles = (colors: ThemeColors) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.background },
   topBar: { paddingHorizontal: Spacing.xl, paddingVertical: Spacing.sm },
   galleryImage: { width, height: 240 },
-  noImage: { backgroundColor: Colors.surface, alignItems: 'center', justifyContent: 'center' },
+  noImage: { backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
   dotRow: {
     flexDirection: 'row', justifyContent: 'center', gap: 6,
     position: 'absolute', bottom: Spacing.md, left: 0, right: 0,
   },
   dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.5)' },
-  dotActive: { backgroundColor: Colors.white, width: 20 },
+  dotActive: { backgroundColor: colors.white, width: 20 },
   imageCount: {
     position: 'absolute', bottom: Spacing.md, right: Spacing.md,
     flexDirection: 'row', alignItems: 'center', gap: 4,
     backgroundColor: 'rgba(0,0,0,0.6)', paddingHorizontal: Spacing.sm, paddingVertical: 4,
     borderRadius: BorderRadius.full,
   },
-  imageCountText: { ...Typography.small, color: Colors.white, fontWeight: '600' },
+  imageCountText: { ...Typography.small, color: colors.white, fontWeight: '600' },
   overlayRow: {
     position: 'absolute', top: 10, left: Spacing.xl, right: Spacing.xl,
     flexDirection: 'row', justifyContent: 'space-between',
   },
   backButton: {
     width: 38, height: 38, borderRadius: 19,
-    backgroundColor: Colors.white, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: colors.cardBackground, alignItems: 'center', justifyContent: 'center',
     ...Shadows.md,
   },
   content: { padding: Spacing.xl },
   titleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: Spacing.sm, marginBottom: Spacing.xs },
-  title: { ...Typography.h3, color: Colors.textPrimary, flex: 1 },
+  title: { ...Typography.h3, color: colors.textPrimary, flex: 1 },
   locRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: Spacing.sm },
-  location: { ...Typography.body, color: Colors.textSecondary, flex: 1 },
-  price: { ...Typography.h3, color: Colors.primary, marginBottom: Spacing.md },
+  location: { ...Typography.body, color: colors.textSecondary, flex: 1 },
+  price: { ...Typography.h3, color: colors.primary, marginBottom: Spacing.md },
   typeTag: {
     flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start',
-    backgroundColor: Colors.primaryLight, paddingHorizontal: Spacing.md, paddingVertical: Spacing.xs,
+    backgroundColor: colors.primaryLight, paddingHorizontal: Spacing.md, paddingVertical: Spacing.xs,
     borderRadius: BorderRadius.full, marginBottom: Spacing.xl,
   },
-  typeText: { ...Typography.captionMedium, color: Colors.primary },
+  typeText: { ...Typography.captionMedium, color: colors.primary },
   statsCard: { marginBottom: Spacing.xl },
   statsRow: { flexDirection: 'row', justifyContent: 'space-around' },
   statItem: { alignItems: 'center', gap: 4 },
-  statValue: { ...Typography.bodySemiBold, color: Colors.textPrimary },
-  statLabel: { ...Typography.small, color: Colors.textTertiary },
+  statValue: { ...Typography.bodySemiBold, color: colors.textPrimary },
+  statLabel: { ...Typography.small, color: colors.textTertiary },
   section: { marginBottom: Spacing.xl },
-  sectionTitle: { ...Typography.h4, color: Colors.textPrimary, marginBottom: Spacing.md },
-  description: { ...Typography.body, color: Colors.textSecondary, lineHeight: 22 },
+  sectionTitle: { ...Typography.h4, color: colors.textPrimary, marginBottom: Spacing.md },
+  description: { ...Typography.body, color: colors.textSecondary, lineHeight: 22 },
   amenitiesRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
   amenityChip: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
     paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm,
-    backgroundColor: Colors.primaryLight, borderRadius: BorderRadius.full,
+    backgroundColor: colors.primaryLight, borderRadius: BorderRadius.full,
   },
-  amenityText: { ...Typography.captionMedium, color: Colors.primary },
+  amenityText: { ...Typography.captionMedium, color: colors.primary },
   detailRow: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingVertical: Spacing.sm, borderBottomWidth: 1, borderBottomColor: Colors.borderLight,
+    paddingVertical: Spacing.sm, borderBottomWidth: 1, borderBottomColor: colors.borderLight,
   },
-  detailLabel: { ...Typography.caption, color: Colors.textMuted },
-  detailValue: { ...Typography.bodyMedium, color: Colors.textPrimary, textAlign: 'right', maxWidth: '60%' },
+  detailLabel: { ...Typography.caption, color: colors.textMuted },
+  detailValue: { ...Typography.bodyMedium, color: colors.textPrimary, textAlign: 'right', maxWidth: '60%' },
   actionsRow: { flexDirection: 'row', gap: Spacing.md, marginBottom: Spacing.xl },
 });
