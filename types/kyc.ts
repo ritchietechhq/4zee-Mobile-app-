@@ -1,6 +1,6 @@
 // ============================================================
 // KYC Types
-// Matches: GET /kyc, PUT /kyc
+// Matches: GET /kyc, GET /kyc/status, GET /kyc/documents, PUT /kyc
 // ============================================================
 
 /**
@@ -32,10 +32,20 @@ export interface KYCDocument {
   fileName: string;
   expiryDate?: string;
   status: string;
+  rejectionReason?: string;
+  verifiedAt?: string;
+  createdAt?: string;
+}
+
+/** Summary counts returned by GET /kyc/status */
+export interface KYCStatusSummary {
+  pending: number;
+  approved: number;
+  rejected: number;
 }
 
 /**
- * KYC record returned by `GET /kyc`.
+ * KYC record returned by `GET /kyc` or `GET /kyc/status`.
  *
  * The backend response has a flat shape:
  *   { id, status, idType, idNumber, idDocumentUrl, selfieUrl, ... }
@@ -57,6 +67,10 @@ export interface KYC {
   verifiedAt?: string;
   /** Legacy — kept for backward compat with KYC index screen */
   documents: KYCDocument[];
+  /** Summary counts (from GET /kyc/status) */
+  summary?: KYCStatusSummary;
+  /** Whether the user can submit more documents */
+  canSubmitMore?: boolean;
 }
 
 /** PUT /kyc request body */

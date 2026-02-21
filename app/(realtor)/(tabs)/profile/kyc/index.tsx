@@ -124,6 +124,24 @@ export default function KYCStatusScreen() {
           <Text style={styles.statusDesc}>{cfg.desc}</Text>
         </View>
 
+        {/* Document Summary — shown when backend provides summary counts */}
+        {kyc?.summary && (
+          <View style={styles.summaryRow}>
+            <View style={[styles.summaryItem, { backgroundColor: colors.primaryLight }]}>
+              <Text style={[styles.summaryValue, { color: colors.primary }]}>{kyc.summary.pending}</Text>
+              <Text style={styles.summaryLabel}>Pending</Text>
+            </View>
+            <View style={[styles.summaryItem, { backgroundColor: colors.successLight }]}>
+              <Text style={[styles.summaryValue, { color: colors.success }]}>{kyc.summary.approved}</Text>
+              <Text style={styles.summaryLabel}>Approved</Text>
+            </View>
+            <View style={[styles.summaryItem, { backgroundColor: colors.errorLight }]}>
+              <Text style={[styles.summaryValue, { color: colors.error }]}>{kyc.summary.rejected}</Text>
+              <Text style={styles.summaryLabel}>Rejected</Text>
+            </View>
+          </View>
+        )}
+
         {/* Rejection Reason */}
         {status === 'REJECTED' && (
           <Card variant="outlined" padding="md" style={styles.rejectionCard}>
@@ -136,7 +154,7 @@ export default function KYCStatusScreen() {
         )}
 
         {/* Steps Overview */}
-        {(status === 'NOT_SUBMITTED' || status === 'REJECTED') && (
+        {(status === 'NOT_SUBMITTED' || status === 'REJECTED' || kyc?.canSubmitMore) && (
           <>
             <Text style={styles.sectionTitle}>What You'll Need</Text>
             {STEPS.map((step, i) => (
@@ -225,6 +243,10 @@ const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   statusIcon: { width: 80, height: 80, borderRadius: 40, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.lg },
   statusTitle: { ...Typography.h3, marginBottom: Spacing.sm, textAlign: 'center' },
   statusDesc: { ...Typography.body, color: colors.textSecondary, textAlign: 'center', lineHeight: 22 },
+  summaryRow: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.xl },
+  summaryItem: { flex: 1, alignItems: 'center', paddingVertical: Spacing.md, borderRadius: BorderRadius.lg },
+  summaryValue: { ...Typography.h3, fontWeight: '700' },
+  summaryLabel: { ...Typography.caption, color: colors.textMuted, marginTop: 2 },
   rejectionCard: { marginBottom: Spacing.lg, borderColor: colors.errorLight },
   rejectionRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.sm },
   rejectionTitle: { ...Typography.bodySemiBold, color: colors.error },

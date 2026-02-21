@@ -1,6 +1,7 @@
 // ============================================================
 // KYC Service
-// Endpoints: GET /kyc, PUT /kyc, POST /uploads/direct
+// Endpoints: GET /kyc, GET /kyc/status, GET /kyc/documents,
+//            PUT /kyc, POST /uploads/direct
 // ============================================================
 
 import api from './api';
@@ -29,12 +30,36 @@ const normaliseKYC = (data: any): KYC => ({
   submittedAt: data.submittedAt,
   verifiedAt: data.verifiedAt,
   documents: data.documents ?? [],
+  summary: data.summary,
+  canSubmitMore: data.canSubmitMore,
 });
 
 class KYCService {
-  /** GET /kyc — fetch current KYC record */
+  /**
+   * GET /kyc/status — richer KYC endpoint that includes summary counts
+   * and canSubmitMore flag. Falls back to GET /kyc if the new endpoint
+   * is not yet deployed.
+   */
   async getStatus(): Promise<KYC> {
+    try {
+      const res = await api.get<any>('/kyc/status');
+      return normaliseKYC(res.data);
+    } catch {
+      // Fallback to legacy endpoint if /kyc/status doesn't exist yet
+      const res = await api.get<any>('/kyc');
+      return normaliseKYC(res.data);
+    }
+  }
+
+  /** GET /kyc — legacy endpoint (still works) */
+  async getLegacyStatus(): Promise<KYC> {
     const res = await api.get<any>('/kyc');
+    return normaliseKYC(res.data);
+  }
+
+  /** GET /kyc/documents — alias that returns documents list */
+  async getDocuments(): Promise<KYC> {
+    const res = await api.get<any>('/kyc/documents');
     return normaliseKYC(res.data);
   }
 

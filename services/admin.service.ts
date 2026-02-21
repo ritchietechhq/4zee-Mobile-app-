@@ -244,6 +244,12 @@ class AdminService {
     return res.data!;
   }
 
+  /** GET /admin/kyc/documents — raw listing of ALL KycDocument records (debug) */
+  async getAllKYCDocuments(): Promise<{ total: number; documents: any[] }> {
+    const res = await api.get<{ total: number; documents: any[] }>('/admin/kyc/documents');
+    return res.data!;
+  }
+
   // ─── Properties ────────────────────────────────────────────
   async createProperty(data: Record<string, unknown>): Promise<any> {
     const res = await api.post('/properties', data);
