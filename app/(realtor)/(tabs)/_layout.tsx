@@ -27,6 +27,10 @@ export default function RealtorTabsLayout() {
         tabBarLabelStyle: styles.tabLabel,
         tabBarStyle: styles.tabBar,
         tabBarItemStyle: styles.tabItem,
+        // Reset nested stacks (e.g. profile → kyc) when switching tabs
+        // so tapping Profile always lands on the profile index, not a
+        // sub-screen the user navigated to earlier.
+        popToTopOnBlur: true,
       }}
     >
       {TAB_CONFIG.map((tab) => (

@@ -27,6 +27,7 @@ export default function AdminTabsLayout() {
         tabBarLabelStyle: styles.tabLabel,
         tabBarStyle: styles.tabBar,
         tabBarItemStyle: styles.tabItem,
+        popToTopOnBlur: true,
       }}
     >
       {TAB_CONFIG.map((tab) => (
