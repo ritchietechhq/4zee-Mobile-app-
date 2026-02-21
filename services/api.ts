@@ -3,6 +3,7 @@ import axios, {
   AxiosInstance,
   InternalAxiosRequestConfig,
 } from 'axios';
+import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Crypto from 'expo-crypto';
 import type { ApiResponse } from '@/types';
@@ -237,16 +238,18 @@ class ApiClient {
   }
 
   async upload<T>(url: string, formData: FormData): Promise<ApiResponse<T>> {
-    // 1. Content-Type must be `undefined` so the browser / RN XHR layer
-    //    auto-sets "multipart/form-data; boundary=----…".  Explicitly
-    //    setting it strips the boundary and the server returns 400.
-    // 2. transformRequest passes FormData through untouched (Axios's
-    //    default transform would JSON-stringify it).
-    // 3. Longer timeout for large file uploads.
+    // Web:    Content-Type must be undefined so the browser auto-sets
+    //         "multipart/form-data; boundary=…" with the boundary string.
+    // Native: RN's XHR polyfill sees "multipart/form-data" and auto-appends
+    //         the boundary. We MUST set it explicitly here because the Axios
+    //         instance default is "application/json".
+    const contentType =
+      Platform.OS === 'web'
+        ? (undefined as unknown as string)
+        : 'multipart/form-data';
+
     return this.client.post(url, formData, {
-      headers: {
-        'Content-Type': undefined as unknown as string,
-      },
+      headers: { 'Content-Type': contentType },
       transformRequest: (data: any) => data,
       timeout: 120_000,
     }) as Promise<ApiResponse<T>>;
