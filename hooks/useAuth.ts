@@ -9,6 +9,17 @@ import type { LoginRequest, RegisterRequest } from '@/types';
 import { is2FARequired } from '@/types';
 import { router } from 'expo-router';
 
+/** Route to the correct dashboard for the given role */
+function navigateToDashboard(currentRole: string | null) {
+  if (currentRole === 'ADMIN' || currentRole === 'SUPER_ADMIN') {
+    router.replace('/(admin)/(tabs)/dashboard' as any);
+  } else if (currentRole === 'REALTOR') {
+    router.replace('/(realtor)/dashboard' as any);
+  } else {
+    router.replace('/(client)/dashboard' as any);
+  }
+}
+
 export function useAuth() {
   const {
     user,
@@ -37,12 +48,7 @@ export function useAuth() {
         }
 
         // Navigate based on role
-        const currentRole = useAuthStore.getState().role;
-        if (currentRole === 'REALTOR') {
-          router.replace('/(realtor)/dashboard' as any);
-        } else {
-          router.replace('/(client)/dashboard' as any);
-        }
+        navigateToDashboard(useAuthStore.getState().role);
       } catch {
         // Error is set in store
       }
@@ -54,12 +60,7 @@ export function useAuth() {
     async (payload: RegisterRequest) => {
       try {
         await register(payload);
-        const currentRole = useAuthStore.getState().role;
-        if (currentRole === 'REALTOR') {
-          router.replace('/(realtor)/dashboard' as any);
-        } else {
-          router.replace('/(client)/dashboard' as any);
-        }
+        navigateToDashboard(useAuthStore.getState().role);
       } catch {
         // Error is set in store
       }
@@ -71,12 +72,7 @@ export function useAuth() {
     async (userId: string, code: string) => {
       try {
         await verify2FA(userId, code);
-        const currentRole = useAuthStore.getState().role;
-        if (currentRole === 'REALTOR') {
-          router.replace('/(realtor)/dashboard' as any);
-        } else {
-          router.replace('/(client)/dashboard' as any);
-        }
+        navigateToDashboard(useAuthStore.getState().role);
       } catch {
         // Error is set in store
       }

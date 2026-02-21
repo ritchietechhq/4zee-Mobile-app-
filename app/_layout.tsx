@@ -71,6 +71,8 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
     const inAuthGroup = segments[0] === '(auth)';
     const inClientGroup = segments[0] === '(client)';
     const inRealtorGroup = segments[0] === '(realtor)';
+    const inAdminGroup = segments[0] === '(admin)';
+    const isAdmin = role === 'ADMIN' || role === 'SUPER_ADMIN';
 
     if (!isAuthenticated) {
       // User is NOT logged in — make sure they're in the auth group
@@ -85,18 +87,22 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
       }
       // If already in auth group, let them stay (don't redirect on failed login)
     } else {
-      // User IS logged in — make sure they're NOT in the auth group or root index
-      if (inAuthGroup || (!inClientGroup && !inRealtorGroup)) {
-        if (role === 'REALTOR') {
+      // User IS logged in — route to the correct dashboard for their role
+      if (inAuthGroup || (!inClientGroup && !inRealtorGroup && !inAdminGroup)) {
+        if (isAdmin) {
+          router.replace('/(admin)/(tabs)/dashboard' as any);
+        } else if (role === 'REALTOR') {
           router.replace('/(realtor)/dashboard' as any);
         } else {
           router.replace('/(client)/dashboard' as any);
         }
       }
       // If authenticated but in wrong role group, redirect to correct one
-      else if (role === 'REALTOR' && inClientGroup) {
+      else if (isAdmin && !inAdminGroup) {
+        router.replace('/(admin)/(tabs)/dashboard' as any);
+      } else if (role === 'REALTOR' && !inRealtorGroup) {
         router.replace('/(realtor)/dashboard' as any);
-      } else if (role !== 'REALTOR' && inRealtorGroup) {
+      } else if (role === 'CLIENT' && !inClientGroup) {
         router.replace('/(client)/dashboard' as any);
       }
     }
@@ -134,6 +140,7 @@ export default function RootLayout() {
             <Stack.Screen name="(auth)" />
             <Stack.Screen name="(client)" />
             <Stack.Screen name="(realtor)" />
+            <Stack.Screen name="(admin)" />
             <Stack.Screen
               name="notifications"
               options={{ animation: 'slide_from_bottom' }}

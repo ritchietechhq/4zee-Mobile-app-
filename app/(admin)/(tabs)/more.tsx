@@ -19,7 +19,8 @@ interface MoreItem {
 export default function MoreHub() {
   const colors = useThemeColors();
   const styles = useMemo(() => makeStyles(colors), [colors]);
-  const { logout } = useAuthStore();
+  const { logout, role } = useAuthStore();
+  const isSuperAdmin = role === 'SUPER_ADMIN';
 
   const sections: { title: string; items: MoreItem[] }[] = [
     {
@@ -53,16 +54,21 @@ export default function MoreHub() {
         { title: 'Documents', icon: 'folder-open-outline', color: colors.orange, bg: colors.orangeLight, route: '/(admin)/documents' },
       ],
     },
-    {
-      title: 'User Management',
-      items: [
-        { title: 'All Users', icon: 'people-outline', color: colors.error, bg: colors.errorLight, route: '/(admin)/sa-users' },
-        { title: 'Admin Accounts', icon: 'shield-outline', color: colors.warning, bg: colors.warningLight, route: '/(admin)/sa-admins' },
-        { title: 'System Statistics', icon: 'stats-chart-outline', color: colors.primary, bg: colors.primaryLight, route: '/(admin)/sa-stats' },
-        { title: 'All Realtors', icon: 'briefcase-outline', color: colors.teal, bg: colors.tealLight, route: '/(admin)/sa-realtors' },
-        { title: 'All Clients', icon: 'person-outline', color: colors.indigo, bg: colors.indigoLight, route: '/(admin)/sa-clients' },
-      ],
-    },
+    // Super Admin–only section: user management via /super-admin/* endpoints
+    ...(isSuperAdmin
+      ? [
+          {
+            title: 'Super Admin',
+            items: [
+              { title: 'All Users', icon: 'people-outline', color: colors.error, bg: colors.errorLight, route: '/(admin)/sa-users' },
+              { title: 'Admin Accounts', icon: 'shield-outline', color: colors.warning, bg: colors.warningLight, route: '/(admin)/sa-admins' },
+              { title: 'System Statistics', icon: 'stats-chart-outline', color: colors.primary, bg: colors.primaryLight, route: '/(admin)/sa-stats' },
+              { title: 'All Realtors', icon: 'briefcase-outline', color: colors.teal, bg: colors.tealLight, route: '/(admin)/sa-realtors' },
+              { title: 'All Clients', icon: 'person-outline', color: colors.indigo, bg: colors.indigoLight, route: '/(admin)/sa-clients' },
+            ],
+          },
+        ]
+      : []),
   ];
 
   return (

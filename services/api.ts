@@ -237,9 +237,17 @@ class ApiClient {
   }
 
   async upload<T>(url: string, formData: FormData): Promise<ApiResponse<T>> {
+    // In React Native, we must:
+    // 1. Pass FormData directly (transformRequest prevents JSON serialization)
+    // 2. Set Content-Type to multipart/form-data (RN adds boundary automatically)
+    // 3. Use a longer timeout for file uploads
     return this.client.post(url, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-      transformRequest: (data) => data,
+      headers: {
+        'Content-Type': 'multipart/form-data',
+        Accept: 'application/json',
+      },
+      transformRequest: (data: any) => data,
+      timeout: 120_000,
     }) as Promise<ApiResponse<T>>;
   }
 }

@@ -14,7 +14,9 @@ export function useRole() {
     async (selectedRole: UserRole) => {
       await setRole(selectedRole);
       if (isAuthenticated) {
-        if (selectedRole === 'REALTOR') {
+        if (selectedRole === 'ADMIN' || selectedRole === 'SUPER_ADMIN') {
+          router.replace('/(admin)/(tabs)/dashboard' as any);
+        } else if (selectedRole === 'REALTOR') {
           router.replace('/(realtor)/dashboard' as any);
         } else {
           router.replace('/(client)/dashboard' as any);
@@ -32,11 +34,15 @@ export function useRole() {
 
   const isClient = role === 'CLIENT';
   const isRealtor = role === 'REALTOR';
+  const isAdmin = role === 'ADMIN' || role === 'SUPER_ADMIN';
+  const isSuperAdmin = role === 'SUPER_ADMIN';
 
   return {
     role,
     isClient,
     isRealtor,
+    isAdmin,
+    isSuperAdmin,
     selectRole,
     initializeRole,
   };
