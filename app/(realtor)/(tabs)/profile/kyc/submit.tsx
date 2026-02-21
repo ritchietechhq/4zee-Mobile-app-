@@ -9,6 +9,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { Image } from 'expo-image';
 import { kycService } from '@/services/kyc.service';
+import { appendFile } from '@/utils/formData';
 import type { KYCIdType } from '@/types';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -64,11 +65,13 @@ export default function KYCSubmitScreen() {
       setIsUploading(true);
 
       const formData = new FormData();
-      formData.append('file', {
-        uri: asset.uri,
-        name: asset.fileName || `kyc_${Date.now()}.jpg`,
-        type: asset.mimeType || 'image/jpeg',
-      } as any);
+      await appendFile(
+        formData,
+        'file',
+        asset.uri,
+        asset.fileName || `kyc_${Date.now()}.jpg`,
+        asset.mimeType || 'image/jpeg',
+      );
       formData.append('category', 'KYC_DOCUMENT');
 
       const uploadedUrl = await kycService.uploadDocument(formData);

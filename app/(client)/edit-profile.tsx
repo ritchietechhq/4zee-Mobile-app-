@@ -23,6 +23,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useAuthStore } from '@/store/auth.store';
 import userService from '@/services/user.service';
+import { appendFile } from '@/utils/formData';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -168,11 +169,7 @@ export default function EditProfileScreen() {
       const match = /\.(\w+)$/.exec(filename);
       const type = match ? `image/${match[1]}` : 'image/jpeg';
 
-      formData.append('file', {
-        uri,
-        name: filename,
-        type,
-      } as any);
+      await appendFile(formData, 'file', uri, filename, type);
       formData.append('category', 'PROFILE_PHOTO');
 
       const url = await userService.uploadProfilePicture(formData);
