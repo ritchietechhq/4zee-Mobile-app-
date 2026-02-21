@@ -11,6 +11,7 @@ import { useTheme } from '@/hooks/useTheme';
 import { Colors } from '@/constants/theme';
 import AnimatedSplash from '@/components/splash/AnimatedSplash';
 import { warmUpBackend } from '@/services/warmup.service';
+import { pushService } from '@/services/push.service';
 
 const ONBOARDING_KEY = '4zee_onboarding_seen';
 
@@ -44,6 +45,16 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
     };
     init();
   }, []);
+
+  // ─── Push notifications: register when authenticated, teardown when not ──
+  useEffect(() => {
+    if (!isReady) return;
+    if (isAuthenticated) {
+      pushService.init();
+    } else {
+      pushService.teardown();
+    }
+  }, [isAuthenticated, isReady]);
 
   // Re-read the onboarding flag whenever segments change so it stays fresh
   // (e.g. after the user completes onboarding and navigates to role-select)

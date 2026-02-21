@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  Alert, Share, RefreshControl, Switch,
+  Alert, Share, RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -137,40 +137,53 @@ export default function RealtorProfile() {
           </View>
         </Card>
 
-        {/* Referral Card */}
+        {/* Referral Hub */}
         {isLoading ? (
           <View style={{ marginHorizontal: Spacing.xl, marginBottom: Spacing.xl }}>
             <Skeleton width="100%" height={180} />
           </View>
         ) : referralInfo ? (
-          <Card variant="outlined" padding="xl" style={styles.referralCard}>
-            <View style={styles.referralHeader}>
-              <Ionicons name="link" size={18} color={colors.primary} />
-              <Text style={styles.referralTitle}>Your Referral Code</Text>
-            </View>
-            <TouchableOpacity style={styles.codeBox} onPress={handleCopyReferralCode} activeOpacity={0.7}>
-              <Text style={styles.codeText}>{referralInfo.referralCode}</Text>
-              <Ionicons name="copy-outline" size={16} color={colors.primary} />
-            </TouchableOpacity>
-            <View style={styles.refStats}>
-              <View style={styles.refStatItem}>
-                <Text style={styles.refStatVal}>{referralInfo.totalReferrals}</Text>
-                <Text style={styles.refStatLabel}>Referrals</Text>
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Referral Hub</Text>
+            <Card variant="outlined" padding="md" style={styles.referralHubCard}>
+              <View style={styles.referralCodeRow}>
+                <View style={styles.referralCodeBox}>
+                  <Text style={styles.referralCodeLabel}>Your Code</Text>
+                  <Text style={styles.referralCodeValue}>{referralInfo.referralCode}</Text>
+                </View>
+                <View style={styles.referralActions}>
+                  <TouchableOpacity style={styles.referralActionBtn} onPress={handleCopyReferralCode} activeOpacity={0.7}>
+                    <Ionicons name="copy-outline" size={18} color={colors.primary} />
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[styles.referralActionBtn, { backgroundColor: colors.primary }]} onPress={handleShareReferral} activeOpacity={0.7}>
+                    <Ionicons name="share-social-outline" size={18} color={colors.white} />
+                  </TouchableOpacity>
+                </View>
               </View>
-              <View style={styles.refStatItem}>
-                <Text style={styles.refStatVal}>{referralInfo.activeReferrals}</Text>
-                <Text style={styles.refStatLabel}>Active</Text>
+              <View style={styles.referralStatsRow}>
+                <View style={styles.referralStatItem}>
+                  <Text style={styles.referralStatValue}>{referralInfo.totalReferrals}</Text>
+                  <Text style={styles.referralStatLabel}>Referrals</Text>
+                </View>
+                <View style={styles.referralStatDivider} />
+                <View style={styles.referralStatItem}>
+                  <Text style={styles.referralStatValue}>{referralInfo.activeReferrals}</Text>
+                  <Text style={styles.referralStatLabel}>Active</Text>
+                </View>
+                <View style={styles.referralStatDivider} />
+                <View style={styles.referralStatItem}>
+                  <Text style={styles.referralStatValue}>{formatCurrency(referralInfo.totalReferralEarnings)}</Text>
+                  <Text style={styles.referralStatLabel}>Earned</Text>
+                </View>
               </View>
-              <View style={styles.refStatItem}>
-                <Text style={styles.refStatVal}>{formatCurrency(referralInfo.totalReferralEarnings)}</Text>
-                <Text style={styles.refStatLabel}>Earned</Text>
-              </View>
-            </View>
-            <TouchableOpacity style={styles.shareBtn} onPress={handleShareReferral} activeOpacity={0.8}>
-              <Ionicons name="share-social-outline" size={16} color={colors.white} />
-              <Text style={styles.shareBtnText}>Share Referral Code</Text>
-            </TouchableOpacity>
-          </Card>
+              {referralInfo.referralLink ? (
+                <View style={styles.referralLinkRow}>
+                  <Ionicons name="link-outline" size={14} color={colors.textMuted} />
+                  <Text style={styles.referralLinkText} numberOfLines={1}>{referralInfo.referralLink}</Text>
+                </View>
+              ) : null}
+            </Card>
+          </View>
         ) : null}
 
         {/* Menu Items */}
@@ -211,18 +224,30 @@ export default function RealtorProfile() {
                   <Ionicons name={isDark ? 'moon' : 'sunny'} size={18} color={isDark ? colors.primary : '#F59E0B'} />
                 </View>
                 <View>
-                  <Text style={styles.menuText}>Dark Mode</Text>
+                  <Text style={styles.menuText}>Theme</Text>
                   <Text style={styles.themeHint}>
-                    {themeMode === 'system' ? 'Following system' : themeMode === 'dark' ? 'Always dark' : 'Always light'}
+                    {themeMode === 'system' ? 'Follows device' : themeMode === 'dark' ? 'Always dark' : 'Always light'}
                   </Text>
                 </View>
               </View>
-              <Switch
-                value={isDark}
-                onValueChange={(v) => setThemeMode(v ? 'dark' : 'light')}
-                trackColor={{ false: colors.border, true: colors.primary }}
-                thumbColor={colors.white}
-              />
+            </View>
+            <View style={styles.themePicker}>
+              {(['system', 'light', 'dark'] as const).map((opt) => {
+                const active = themeMode === opt;
+                const iconName = opt === 'system' ? 'phone-portrait-outline' : opt === 'dark' ? 'moon' : 'sunny';
+                const label = opt === 'system' ? 'Auto' : opt === 'dark' ? 'Dark' : 'Light';
+                return (
+                  <TouchableOpacity
+                    key={opt}
+                    style={[styles.themeOption, active && styles.themeOptionActive]}
+                    onPress={() => setThemeMode(opt)}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name={iconName as any} size={18} color={active ? colors.primary : colors.textMuted} />
+                    <Text style={[styles.themeOptionText, active && styles.themeOptionTextActive]}>{label}</Text>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           </Card>
         </View>
@@ -264,24 +289,20 @@ const makeStyles = (colors: ThemeColors) => StyleSheet.create({
     backgroundColor: colors.primaryLight, borderRadius: BorderRadius.full,
   },
   roleText: { ...Typography.captionMedium, color: colors.primary },
-  referralCard: { marginHorizontal: Spacing.xl, marginBottom: Spacing.xl, backgroundColor: colors.cardBackground },
-  referralHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.lg },
-  referralTitle: { ...Typography.bodySemiBold, color: colors.textPrimary },
-  codeBox: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    backgroundColor: colors.surface, borderRadius: BorderRadius.lg, padding: Spacing.lg,
-    borderWidth: 1, borderColor: colors.borderLight, borderStyle: 'dashed', marginBottom: Spacing.lg,
-  },
-  codeText: { ...Typography.h4, color: colors.primary, letterSpacing: 2 },
-  refStats: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.lg },
-  refStatItem: { flex: 1, alignItems: 'center', backgroundColor: colors.surface, borderRadius: BorderRadius.lg, padding: Spacing.md },
-  refStatVal: { ...Typography.bodySemiBold, color: colors.textPrimary },
-  refStatLabel: { ...Typography.small, color: colors.textMuted, marginTop: 2 },
-  shareBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.sm,
-    backgroundColor: colors.primary, borderRadius: BorderRadius.lg, paddingVertical: Spacing.md,
-  },
-  shareBtnText: { ...Typography.bodySemiBold, color: colors.white },
+  referralHubCard: { backgroundColor: colors.cardBackground },
+  referralCodeRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: Spacing.md },
+  referralCodeBox: { flex: 1 },
+  referralCodeLabel: { ...Typography.small, color: colors.textMuted },
+  referralCodeValue: { ...Typography.h4, color: colors.primary, letterSpacing: 1, marginTop: 2 },
+  referralActions: { flexDirection: 'row', gap: Spacing.sm },
+  referralActionBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.primaryLight, alignItems: 'center', justifyContent: 'center' },
+  referralStatsRow: { flexDirection: 'row', alignItems: 'center', borderTopWidth: 1, borderTopColor: colors.borderLight, paddingTop: Spacing.md },
+  referralStatItem: { flex: 1, alignItems: 'center' },
+  referralStatValue: { ...Typography.h4, color: colors.textPrimary },
+  referralStatLabel: { ...Typography.small, color: colors.textMuted, marginTop: 2 },
+  referralStatDivider: { width: 1, height: 28, backgroundColor: colors.borderLight },
+  referralLinkRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs, marginTop: Spacing.md, paddingTop: Spacing.md, borderTopWidth: 1, borderTopColor: colors.borderLight },
+  referralLinkText: { ...Typography.small, color: colors.textMuted, flex: 1 },
   section: { paddingHorizontal: Spacing.xl, marginBottom: Spacing.xl },
   sectionTitle: { ...Typography.captionMedium, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: Spacing.md },
   menuCard: { overflow: 'hidden', backgroundColor: colors.cardBackground },
@@ -303,6 +324,21 @@ const makeStyles = (colors: ThemeColors) => StyleSheet.create({
     paddingVertical: Spacing.lg, paddingHorizontal: Spacing.lg,
   },
   themeHint: { ...Typography.small, color: colors.textMuted, marginTop: 1 },
+  themePicker: {
+    flexDirection: 'row', gap: Spacing.sm,
+    paddingHorizontal: Spacing.lg, paddingBottom: Spacing.lg,
+  },
+  themeOption: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: Spacing.xs, paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.lg, borderWidth: 1, borderColor: colors.borderLight,
+    backgroundColor: colors.surface,
+  },
+  themeOptionActive: {
+    borderColor: colors.primary, backgroundColor: colors.primaryLight,
+  },
+  themeOptionText: { ...Typography.captionMedium, color: colors.textMuted },
+  themeOptionTextActive: { color: colors.primary },
   logoutBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.sm,
     paddingVertical: Spacing.lg, backgroundColor: colors.errorLight, borderRadius: BorderRadius.lg,

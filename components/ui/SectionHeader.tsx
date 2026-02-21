@@ -1,8 +1,9 @@
 import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ViewStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useTheme } from '@/hooks/useTheme';
 import { Spacing, Typography } from '@/constants/theme';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import type { ThemeColors } from '@/constants/colors';
 
 interface SectionHeaderProps {
   title: string;
@@ -12,16 +13,15 @@ interface SectionHeaderProps {
 }
 
 export function SectionHeader({ title, actionLabel, onAction, style }: SectionHeaderProps) {
-  const { colors } = useTheme();
-  
-  const dynamicStyles = useMemo(() => createStyles(colors), [colors]);
+  const colors = useThemeColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
 
   return (
-    <View style={[dynamicStyles.container, style]}>
-      <Text style={dynamicStyles.title}>{title}</Text>
+    <View style={[styles.container, style]}>
+      <Text style={styles.title}>{title}</Text>
       {actionLabel && onAction && (
-        <TouchableOpacity onPress={onAction} style={dynamicStyles.actionBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} activeOpacity={0.7}>
-          <Text style={dynamicStyles.action}>{actionLabel}</Text>
+        <TouchableOpacity onPress={onAction} style={styles.actionBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} activeOpacity={0.7}>
+          <Text style={styles.action}>{actionLabel}</Text>
           <Ionicons name="chevron-forward" size={14} color={colors.primary} />
         </TouchableOpacity>
       )}
@@ -29,26 +29,25 @@ export function SectionHeader({ title, actionLabel, onAction, style }: SectionHe
   );
 }
 
-const createStyles = (colors: any) =>
-  StyleSheet.create({
-    container: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-    },
-    title: {
-      ...Typography.h4,
-      color: colors.textPrimary,
-    },
-    actionBtn: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 2,
-    },
-    action: {
-      ...Typography.captionMedium,
-      color: colors.primary,
-    },
-  });
+const makeStyles = (colors: ThemeColors) => StyleSheet.create({
+  container: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  title: {
+    ...Typography.h4,
+    color: colors.textPrimary,
+  },
+  actionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+  },
+  action: {
+    ...Typography.captionMedium,
+    color: colors.primary,
+  },
+});
 
 export default SectionHeader;

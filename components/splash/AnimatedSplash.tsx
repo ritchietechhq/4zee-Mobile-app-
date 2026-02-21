@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -6,290 +6,246 @@ import {
   Animated,
   Dimensions,
   Image,
+  Easing,
 } from 'react-native';
-import { Colors, Typography, Spacing } from '@/constants/theme';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
+// ─── Brand colors (theme-independent — splash always looks the same) ───
+const BRAND = {
+  primary: '#1E40AF',
+  accent: '#3B82F6',
+} as const;
 
 interface SplashScreenProps {
   onReady: () => void;
 }
 
 /**
- * Custom animated splash screen.
+ * Splash screen — 4Zee Properties
  *
- * While this screen is visible the parent component should be:
- *  1. Loading the user session from AsyncStorage  (frontend)
- *  2. Hitting the backend health / warm-up endpoint (frontend → backend)
+ * ✦  Theme-independent: always shows brand colors regardless of
+ *    light/dark mode so the first impression is always consistent.
  *
- * ──────────────────────────────────────────────────────────
- *  🔧  BACKEND TODO — Expose a lightweight warm-up endpoint
- * ──────────────────────────────────────────────────────────
- *  The frontend calls  GET /api/v1/health  (or /ping) on app
- *  start so the server is awake by the time the user interacts.
- *
- *  Suggested contract:
- *    GET  /api/v1/health
- *    Response 200:
- *    {
- *      "status": "ok",
- *      "timestamp": "2026-02-18T12:00:00.000Z",
- *      "dbConnected": true,
- *      "version": "1.0.0"
- *    }
- *
- *  This endpoint should:
- *    • Run a trivial DB query (SELECT 1) to open the pool.
- *    • Be publicly accessible (no auth required).
- *    • Respond in < 500 ms when the server is warm.
- *    • Return dbConnected: false (not 500) if the DB is down.
- * ──────────────────────────────────────────────────────────
+ * ✦  Clean, confident timeline (~2.5 s):
+ *    Phase 1  (0–600 ms)   – Logo fades in with subtle scale
+ *    Phase 2  (400 ms)     – App name fades in
+ *    Phase 3  (700 ms)     – Tagline fades in
+ *    Phase 4  (1000 ms)    – Bottom branding fades in
+ *    Ready    (2500 ms)    – onReady fires
  */
 export default function AnimatedSplash({ onReady }: SplashScreenProps) {
-  /* ---- Animated values ---- */
-  const logoScale = useRef(new Animated.Value(0.3)).current;
+  // ─── Animated values ─────────────────────────────────────────
+  const logoScale = useRef(new Animated.Value(0.85)).current;
   const logoOpacity = useRef(new Animated.Value(0)).current;
-  const textOpacity = useRef(new Animated.Value(0)).current;
-  const textTranslateY = useRef(new Animated.Value(20)).current;
+
+  const nameOpacity = useRef(new Animated.Value(0)).current;
   const taglineOpacity = useRef(new Animated.Value(0)).current;
-  const taglineTranslateY = useRef(new Animated.Value(12)).current;
-  const loaderOpacity = useRef(new Animated.Value(0)).current;
-  const pulseAnim = useRef(new Animated.Value(1)).current;
-  const shimmerPos = useRef(new Animated.Value(-1)).current;
-  const bgGlowOpacity = useRef(new Animated.Value(0)).current;
+  const bottomOpacity = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    /* ---- Phase 1: Logo entrance (0 → 600ms) ---- */
+    // ── Phase 1: Logo — smooth scale-up + fade in ──────────────
     Animated.parallel([
-      Animated.spring(logoScale, {
-        toValue: 1,
-        tension: 50,
-        friction: 7,
-        useNativeDriver: true,
-      }),
       Animated.timing(logoOpacity, {
         toValue: 1,
-        duration: 500,
+        duration: 600,
+        easing: Easing.out(Easing.cubic),
         useNativeDriver: true,
       }),
-      Animated.timing(bgGlowOpacity, {
+      Animated.timing(logoScale, {
         toValue: 1,
-        duration: 800,
+        duration: 700,
+        easing: Easing.out(Easing.cubic),
         useNativeDriver: true,
       }),
     ]).start();
 
-    /* ---- Phase 2: App name (600ms) ---- */
-    setTimeout(() => {
-      Animated.parallel([
-        Animated.timing(textOpacity, {
-          toValue: 1,
-          duration: 450,
-          useNativeDriver: true,
-        }),
-        Animated.spring(textTranslateY, {
-          toValue: 0,
-          tension: 60,
-          friction: 8,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    }, 500);
-
-    /* ---- Phase 3: Tagline (900ms) ---- */
-    setTimeout(() => {
-      Animated.parallel([
-        Animated.timing(taglineOpacity, {
-          toValue: 1,
-          duration: 400,
-          useNativeDriver: true,
-        }),
-        Animated.spring(taglineTranslateY, {
-          toValue: 0,
-          tension: 60,
-          friction: 8,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    }, 850);
-
-    /* ---- Phase 4: Loader bar + pulse (1100ms) ---- */
-    setTimeout(() => {
-      Animated.timing(loaderOpacity, {
+    // ── Phase 2: App name (400ms) ──────────────────────────────
+    const t1 = setTimeout(() => {
+      Animated.timing(nameOpacity, {
         toValue: 1,
-        duration: 300,
+        duration: 500,
+        easing: Easing.out(Easing.cubic),
         useNativeDriver: true,
       }).start();
+    }, 400);
 
-      // Gentle logo pulse
-      Animated.loop(
-        Animated.sequence([
-          Animated.timing(pulseAnim, {
-            toValue: 1.04,
-            duration: 1000,
-            useNativeDriver: true,
-          }),
-          Animated.timing(pulseAnim, {
-            toValue: 1,
-            duration: 1000,
-            useNativeDriver: true,
-          }),
-        ]),
-      ).start();
+    // ── Phase 3: Tagline (700ms) ───────────────────────────────
+    const t2 = setTimeout(() => {
+      Animated.timing(taglineOpacity, {
+        toValue: 1,
+        duration: 500,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }).start();
+    }, 700);
 
-      // Progress bar shimmer
-      Animated.loop(
-        Animated.timing(shimmerPos, {
-          toValue: 1,
-          duration: 1500,
-          useNativeDriver: true,
-        }),
-      ).start();
+    // ── Phase 4: Bottom branding (1000ms) ──────────────────────
+    const t3 = setTimeout(() => {
+      Animated.timing(bottomOpacity, {
+        toValue: 1,
+        duration: 500,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }).start();
     }, 1000);
 
-    /* ---- Signal parent that the minimum visual time is done ---- */
-    const timeout = setTimeout(() => {
-      onReady();
-    }, 2800);
-
-    return () => clearTimeout(timeout);
+    // ── Signal ready ───────────────────────────────────────────
+    const ready = setTimeout(() => onReady(), 2500);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      clearTimeout(t3);
+      clearTimeout(ready);
+    };
   }, []);
-
-  const shimmerTranslateX = shimmerPos.interpolate({
-    inputRange: [-1, 1],
-    outputRange: [-SCREEN_WIDTH * 0.6, SCREEN_WIDTH * 0.6],
-  });
 
   return (
     <View style={styles.container}>
-      {/* Background glow circle */}
-      <Animated.View style={[styles.bgGlow, { opacity: bgGlowOpacity }]} />
+      {/* ── Subtle background glow (static) ── */}
+      <View style={styles.bgGlow} />
 
-      {/* Logo */}
+      {/* ── Logo ── */}
       <Animated.View
         style={[
           styles.logoWrap,
           {
             opacity: logoOpacity,
-            transform: [{ scale: logoScale }, { scale: pulseAnim }],
+            transform: [{ scale: logoScale }],
           },
         ]}
       >
-        <View style={styles.logoCircle}>
-          <Image
-            source={require('../../assets/logo.png')}
-            style={styles.logo}
-            resizeMode="contain"
-          />
+        <View style={styles.logoRing}>
+          <View style={styles.logoCircle}>
+            <Image
+              source={require('../../assets/logo.png')}
+              style={styles.logo}
+              resizeMode="contain"
+            />
+          </View>
         </View>
       </Animated.View>
 
-      {/* App name */}
-      <Animated.View
-        style={{
-          opacity: textOpacity,
-          transform: [{ translateY: textTranslateY }],
-        }}
-      >
-        <Text style={styles.appName}>4Zee Properties</Text>
+      {/* ── App name ── */}
+      <Animated.View style={[styles.nameWrap, { opacity: nameOpacity }]}>
+        <Text style={styles.appNameLight}>4Zee</Text>
+        <Text style={styles.appNameBold}> Properties</Text>
       </Animated.View>
 
-      {/* Tagline */}
-      <Animated.View
-        style={{
-          opacity: taglineOpacity,
-          transform: [{ translateY: taglineTranslateY }],
-        }}
-      >
+      {/* ── Tagline ── */}
+      <Animated.View style={{ opacity: taglineOpacity }}>
         <Text style={styles.tagline}>Your gateway to smart property investment</Text>
       </Animated.View>
 
-      {/* Progress bar */}
-      <Animated.View style={[styles.loaderWrap, { opacity: loaderOpacity }]}>
-        <View style={styles.loaderTrack}>
-          <Animated.View
-            style={[
-              styles.loaderShimmer,
-              { transform: [{ translateX: shimmerTranslateX }] },
-            ]}
-          />
-        </View>
-        <Text style={styles.loaderText}>Connecting…</Text>
+      {/* ── Bottom branding ── */}
+      <Animated.View style={[styles.bottomWrap, { opacity: bottomOpacity }]}>
+        <View style={styles.bottomDivider} />
+        <Text style={styles.bottomText}>Powered by Ritchietech</Text>
       </Animated.View>
     </View>
   );
 }
 
+// ─── Static styles (hardcoded brand colors — never changes with theme) ──
+const LOGO_SIZE = 140;
+const LOGO_IMG = 96;
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.primary,
+    backgroundColor: BRAND.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
+
+  /* Subtle static background glow */
   bgGlow: {
     position: 'absolute',
     width: SCREEN_WIDTH * 1.4,
     height: SCREEN_WIDTH * 1.4,
     borderRadius: SCREEN_WIDTH * 0.7,
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    backgroundColor: 'rgba(59, 130, 246, 0.08)',
   },
+
+  /* Logo */
   logoWrap: {
-    marginBottom: Spacing.xxl,
-  },
-  logoCircle: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    marginBottom: 32,
     alignItems: 'center',
     justifyContent: 'center',
-    // Double ring
-    borderWidth: 3,
-    borderColor: 'rgba(255, 255, 255, 0.25)',
+  },
+  logoRing: {
+    width: LOGO_SIZE + 16,
+    height: LOGO_SIZE + 16,
+    borderRadius: (LOGO_SIZE + 16) / 2,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logoCircle: {
+    width: LOGO_SIZE,
+    height: LOGO_SIZE,
+    borderRadius: LOGO_SIZE / 2,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 8,
   },
   logo: {
-    width: 72,
-    height: 72,
+    width: LOGO_IMG,
+    height: LOGO_IMG,
   },
-  appName: {
-    fontSize: 30,
-    fontWeight: '700',
+
+  /* App name */
+  nameWrap: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    marginBottom: 10,
+  },
+  appNameLight: {
+    fontSize: 32,
+    fontWeight: '300',
     color: '#FFFFFF',
     letterSpacing: 0.5,
-    textAlign: 'center',
   },
+  appNameBold: {
+    fontSize: 32,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    letterSpacing: 0.5,
+  },
+
+  /* Tagline */
   tagline: {
-    ...Typography.caption,
-    color: 'rgba(255, 255, 255, 0.7)',
+    fontSize: 14,
+    fontWeight: '400',
+    color: 'rgba(255, 255, 255, 0.6)',
     textAlign: 'center',
-    marginTop: Spacing.sm,
     letterSpacing: 0.3,
+    paddingHorizontal: 48,
   },
-  loaderWrap: {
+
+  /* Bottom branding */
+  bottomWrap: {
     position: 'absolute',
-    bottom: 100,
+    bottom: 60,
     alignItems: 'center',
-    width: '100%',
   },
-  loaderTrack: {
-    width: SCREEN_WIDTH * 0.45,
-    height: 3,
-    borderRadius: 2,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    overflow: 'hidden',
+  bottomDivider: {
+    width: 32,
+    height: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    marginBottom: 12,
   },
-  loaderShimmer: {
-    width: '40%',
-    height: '100%',
-    borderRadius: 2,
-    backgroundColor: 'rgba(255, 255, 255, 0.7)',
-  },
-  loaderText: {
-    fontSize: 12,
+  bottomText: {
+    fontSize: 11,
     fontWeight: '500',
-    color: 'rgba(255, 255, 255, 0.55)',
-    marginTop: Spacing.sm,
-    letterSpacing: 0.3,
+    color: 'rgba(255, 255, 255, 0.35)',
+    letterSpacing: 1.5,
+    textTransform: 'uppercase',
   },
 });

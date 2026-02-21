@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   TextInput, Alert, ActivityIndicator, KeyboardAvoidingView, Platform,
@@ -9,17 +9,19 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { Image } from 'expo-image';
 import { kycService } from '@/services/kyc.service';
-import type { KYCIdType, SubmitKYCRequest } from '@/types';
+import type { KYCIdType } from '@/types';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
-import { Colors, Spacing, Typography, BorderRadius, Shadows } from '@/constants/theme';
+import { Spacing, Typography, BorderRadius, Shadows } from '@/constants/theme';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import type { ThemeColors } from '@/constants/colors';
 
 const ID_TYPES: { value: KYCIdType; label: string }[] = [
-  { value: 'NATIONAL_ID', label: 'National ID' },
   { value: 'NIN', label: 'NIN Slip' },
+  { value: 'BVN', label: 'BVN' },
   { value: 'DRIVERS_LICENSE', label: "Driver's License" },
   { value: 'VOTERS_CARD', label: "Voter's Card" },
-  { value: 'PASSPORT', label: 'International Passport' },
+  { value: 'INTERNATIONAL_PASSPORT', label: 'International Passport' },
 ];
 
 const STEPS = ['Personal Info', 'ID Document', 'Selfie', 'Review'];
@@ -39,6 +41,9 @@ export default function KYCSubmitScreen() {
   const [selfieUrl, setSelfieUrl] = useState('');
   const [proofUri, setProofUri] = useState('');
   const [proofUrl, setProofUrl] = useState('');
+
+  const colors = useThemeColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
 
   const pickImage = async (setter: (uri: string) => void, urlSetter: (url: string) => void, source: 'library' | 'camera' = 'library') => {
     try {
@@ -119,7 +124,7 @@ export default function KYCSubmitScreen() {
         <React.Fragment key={i}>
           <View style={[styles.stepDot, i <= step && styles.stepDotActive]}>
             {i < step ? (
-              <Ionicons name="checkmark" size={14} color={Colors.white} />
+              <Ionicons name="checkmark" size={14} color={colors.white} />
             ) : (
               <Text style={[styles.stepDotNum, i <= step && styles.stepDotNumActive]}>{i + 1}</Text>
             )}
@@ -150,7 +155,7 @@ export default function KYCSubmitScreen() {
       <TextInput
         style={styles.input}
         placeholder="Enter your ID number"
-        placeholderTextColor={Colors.textMuted}
+        placeholderTextColor={colors.textMuted}
         value={idNumber}
         onChangeText={setIdNumber}
         autoCapitalize="characters"
@@ -166,18 +171,18 @@ export default function KYCSubmitScreen() {
         <View style={styles.previewWrap}>
           <Image source={{ uri: idDocUri }} style={styles.preview} contentFit="cover" />
           <TouchableOpacity style={styles.removeBtn} onPress={() => { setIdDocUri(''); setIdDocUrl(''); }}>
-            <Ionicons name="close-circle" size={24} color={Colors.error} />
+            <Ionicons name="close-circle" size={24} color={colors.error} />
           </TouchableOpacity>
           {isUploading && (
             <View style={styles.uploadOverlay}>
-              <ActivityIndicator color={Colors.white} size="large" />
+              <ActivityIndicator color={colors.white} size="large" />
               <Text style={styles.uploadText}>Uploading...</Text>
             </View>
           )}
         </View>
       ) : (
         <TouchableOpacity style={styles.uploadBox} onPress={() => pickImage(setIdDocUri, setIdDocUrl)} disabled={isUploading}>
-          <Ionicons name="cloud-upload-outline" size={32} color={Colors.primary} />
+          <Ionicons name="cloud-upload-outline" size={32} color={colors.primary} />
           <Text style={styles.uploadLabel}>Tap to upload</Text>
           <Text style={styles.uploadHint}>JPEG, PNG (max 5MB)</Text>
         </TouchableOpacity>
@@ -189,13 +194,13 @@ export default function KYCSubmitScreen() {
         <View style={styles.previewWrap}>
           <Image source={{ uri: proofUri }} style={styles.preview} contentFit="cover" />
           <TouchableOpacity style={styles.removeBtn} onPress={() => { setProofUri(''); setProofUrl(''); }}>
-            <Ionicons name="close-circle" size={24} color={Colors.error} />
+            <Ionicons name="close-circle" size={24} color={colors.error} />
           </TouchableOpacity>
         </View>
       ) : (
         <TouchableOpacity style={styles.uploadBox} onPress={() => pickImage(setProofUri, setProofUrl)} disabled={isUploading}>
-          <Ionicons name="document-outline" size={28} color={Colors.textMuted} />
-          <Text style={[styles.uploadLabel, { color: Colors.textMuted }]}>Tap to upload (optional)</Text>
+          <Ionicons name="document-outline" size={28} color={colors.textMuted} />
+          <Text style={[styles.uploadLabel, { color: colors.textMuted }]}>Tap to upload (optional)</Text>
         </TouchableOpacity>
       )}
     </View>
@@ -209,11 +214,11 @@ export default function KYCSubmitScreen() {
         <View style={styles.previewWrap}>
           <Image source={{ uri: selfieUri }} style={[styles.preview, { borderRadius: BorderRadius.xl }]} contentFit="cover" />
           <TouchableOpacity style={styles.removeBtn} onPress={() => { setSelfieUri(''); setSelfieUrl(''); }}>
-            <Ionicons name="close-circle" size={24} color={Colors.error} />
+            <Ionicons name="close-circle" size={24} color={colors.error} />
           </TouchableOpacity>
           {isUploading && (
             <View style={[styles.uploadOverlay, { borderRadius: BorderRadius.xl }]}>
-              <ActivityIndicator color={Colors.white} size="large" />
+              <ActivityIndicator color={colors.white} size="large" />
               <Text style={styles.uploadText}>Uploading...</Text>
             </View>
           )}
@@ -221,7 +226,7 @@ export default function KYCSubmitScreen() {
       ) : (
         <TouchableOpacity style={[styles.uploadBox, { paddingVertical: Spacing.xxxl }]} onPress={() => pickImage(setSelfieUri, setSelfieUrl, 'camera')} disabled={isUploading}>
           <View style={styles.selfieCircle}>
-            <Ionicons name="camera" size={32} color={Colors.primary} />
+            <Ionicons name="camera" size={32} color={colors.primary} />
           </View>
           <Text style={styles.uploadLabel}>Open Camera</Text>
           <Text style={styles.uploadHint}>A clear selfie is required</Text>
@@ -247,21 +252,21 @@ export default function KYCSubmitScreen() {
         <View style={styles.reviewRow}>
           <Text style={styles.reviewLabel}>ID Document</Text>
           <View style={styles.reviewCheck}>
-            <Ionicons name={idDocUrl ? 'checkmark-circle' : 'close-circle'} size={20} color={idDocUrl ? Colors.success : Colors.error} />
+            <Ionicons name={idDocUrl ? 'checkmark-circle' : 'close-circle'} size={20} color={idDocUrl ? colors.success : colors.error} />
             <Text style={styles.reviewValue}>{idDocUrl ? 'Uploaded' : 'Missing'}</Text>
           </View>
         </View>
         <View style={styles.reviewRow}>
           <Text style={styles.reviewLabel}>Selfie</Text>
           <View style={styles.reviewCheck}>
-            <Ionicons name={selfieUrl ? 'checkmark-circle' : 'close-circle'} size={20} color={selfieUrl ? Colors.success : Colors.error} />
+            <Ionicons name={selfieUrl ? 'checkmark-circle' : 'close-circle'} size={20} color={selfieUrl ? colors.success : colors.error} />
             <Text style={styles.reviewValue}>{selfieUrl ? 'Uploaded' : 'Missing'}</Text>
           </View>
         </View>
         <View style={[styles.reviewRow, { borderBottomWidth: 0 }]}>
           <Text style={styles.reviewLabel}>Proof of Address</Text>
           <View style={styles.reviewCheck}>
-            <Ionicons name={proofUrl ? 'checkmark-circle' : 'remove-circle-outline'} size={20} color={proofUrl ? Colors.success : Colors.textMuted} />
+            <Ionicons name={proofUrl ? 'checkmark-circle' : 'remove-circle-outline'} size={20} color={proofUrl ? colors.success : colors.textMuted} />
             <Text style={styles.reviewValue}>{proofUrl ? 'Uploaded' : 'Skipped'}</Text>
           </View>
         </View>
@@ -275,7 +280,7 @@ export default function KYCSubmitScreen() {
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
         <TouchableOpacity onPress={back} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={24} color={Colors.textPrimary} />
+          <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{STEPS[step]}</Text>
         <Text style={styles.stepCount}>{step + 1}/{STEPS.length}</Text>
@@ -306,43 +311,43 @@ export default function KYCSubmitScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background },
+const makeStyles = (colors: ThemeColors) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.background },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md },
-  backBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center', borderRadius: BorderRadius.lg, backgroundColor: Colors.surface },
-  headerTitle: { ...Typography.h4, color: Colors.textPrimary },
-  stepCount: { ...Typography.caption, color: Colors.textMuted, backgroundColor: Colors.surface, paddingHorizontal: Spacing.md, paddingVertical: Spacing.xs, borderRadius: BorderRadius.full },
+  backBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center', borderRadius: BorderRadius.lg, backgroundColor: colors.surface },
+  headerTitle: { ...Typography.h4, color: colors.textPrimary },
+  stepCount: { ...Typography.caption, color: colors.textMuted, backgroundColor: colors.surface, paddingHorizontal: Spacing.md, paddingVertical: Spacing.xs, borderRadius: BorderRadius.full },
   stepRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingHorizontal: Spacing.xxl, paddingVertical: Spacing.md },
-  stepDot: { width: 28, height: 28, borderRadius: 14, borderWidth: 2, borderColor: Colors.borderLight, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.surface },
-  stepDotActive: { borderColor: Colors.primary, backgroundColor: Colors.primary },
-  stepDotNum: { ...Typography.small, color: Colors.textMuted, fontWeight: '600' },
-  stepDotNumActive: { color: Colors.white },
-  stepLine: { flex: 1, height: 2, backgroundColor: Colors.borderLight, marginHorizontal: Spacing.xs },
-  stepLineActive: { backgroundColor: Colors.primary },
+  stepDot: { width: 28, height: 28, borderRadius: 14, borderWidth: 2, borderColor: colors.borderLight, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface },
+  stepDotActive: { borderColor: colors.primary, backgroundColor: colors.primary },
+  stepDotNum: { ...Typography.small, color: colors.textMuted, fontWeight: '600' },
+  stepDotNumActive: { color: colors.white },
+  stepLine: { flex: 1, height: 2, backgroundColor: colors.borderLight, marginHorizontal: Spacing.xs },
+  stepLineActive: { backgroundColor: colors.primary },
   content: { paddingHorizontal: Spacing.xl, paddingBottom: Spacing.xxl, paddingTop: Spacing.lg },
-  sectionTitle: { ...Typography.h4, color: Colors.textPrimary, marginBottom: Spacing.md },
-  hint: { ...Typography.body, color: Colors.textMuted, marginBottom: Spacing.lg, lineHeight: 20 },
-  radioCard: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, padding: Spacing.md, borderRadius: BorderRadius.lg, borderWidth: 1, borderColor: Colors.borderLight, marginBottom: Spacing.sm, backgroundColor: Colors.white },
-  radioCardActive: { borderColor: Colors.primary, backgroundColor: Colors.primaryLight },
-  radio: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: Colors.borderLight, alignItems: 'center', justifyContent: 'center' },
-  radioActive: { borderColor: Colors.primary },
-  radioDot: { width: 12, height: 12, borderRadius: 6, backgroundColor: Colors.primary },
-  radioLabel: { ...Typography.body, color: Colors.textPrimary },
-  radioLabelActive: { ...Typography.bodySemiBold, color: Colors.primary },
-  input: { ...Typography.body, borderWidth: 1, borderColor: Colors.borderLight, borderRadius: BorderRadius.lg, padding: Spacing.md, color: Colors.textPrimary, backgroundColor: Colors.white },
-  uploadBox: { borderWidth: 2, borderColor: Colors.borderLight, borderStyle: 'dashed', borderRadius: BorderRadius.xl, paddingVertical: Spacing.xxl, alignItems: 'center', gap: Spacing.sm, backgroundColor: Colors.white },
-  uploadLabel: { ...Typography.bodySemiBold, color: Colors.primary },
-  uploadHint: { ...Typography.caption, color: Colors.textMuted },
+  sectionTitle: { ...Typography.h4, color: colors.textPrimary, marginBottom: Spacing.md },
+  hint: { ...Typography.body, color: colors.textMuted, marginBottom: Spacing.lg, lineHeight: 20 },
+  radioCard: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, padding: Spacing.md, borderRadius: BorderRadius.lg, borderWidth: 1, borderColor: colors.borderLight, marginBottom: Spacing.sm, backgroundColor: colors.cardBackground },
+  radioCardActive: { borderColor: colors.primary, backgroundColor: colors.primaryLight },
+  radio: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: colors.borderLight, alignItems: 'center', justifyContent: 'center' },
+  radioActive: { borderColor: colors.primary },
+  radioDot: { width: 12, height: 12, borderRadius: 6, backgroundColor: colors.primary },
+  radioLabel: { ...Typography.body, color: colors.textPrimary },
+  radioLabelActive: { ...Typography.bodySemiBold, color: colors.primary },
+  input: { ...Typography.body, borderWidth: 1, borderColor: colors.borderLight, borderRadius: BorderRadius.lg, padding: Spacing.md, color: colors.textPrimary, backgroundColor: colors.inputBackground },
+  uploadBox: { borderWidth: 2, borderColor: colors.borderLight, borderStyle: 'dashed', borderRadius: BorderRadius.xl, paddingVertical: Spacing.xxl, alignItems: 'center', gap: Spacing.sm, backgroundColor: colors.cardBackground },
+  uploadLabel: { ...Typography.bodySemiBold, color: colors.primary },
+  uploadHint: { ...Typography.caption, color: colors.textMuted },
   previewWrap: { borderRadius: BorderRadius.xl, overflow: 'hidden', position: 'relative' },
   preview: { width: '100%', height: 190, borderRadius: BorderRadius.xl },
   removeBtn: { position: 'absolute', top: Spacing.sm, right: Spacing.sm },
   uploadOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center', gap: Spacing.sm },
-  uploadText: { ...Typography.bodySemiBold, color: Colors.white },
-  selfieCircle: { width: 64, height: 64, borderRadius: 32, backgroundColor: Colors.primaryLight, alignItems: 'center', justifyContent: 'center' },
+  uploadText: { ...Typography.bodySemiBold, color: colors.white },
+  selfieCircle: { width: 64, height: 64, borderRadius: 32, backgroundColor: colors.primaryLight, alignItems: 'center', justifyContent: 'center' },
   reviewCard: { marginTop: Spacing.sm },
-  reviewRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: Spacing.md, borderBottomWidth: 1, borderBottomColor: Colors.borderLight },
-  reviewLabel: { ...Typography.caption, color: Colors.textMuted },
-  reviewValue: { ...Typography.bodyMedium, color: Colors.textPrimary },
+  reviewRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: Spacing.md, borderBottomWidth: 1, borderBottomColor: colors.borderLight },
+  reviewLabel: { ...Typography.caption, color: colors.textMuted },
+  reviewValue: { ...Typography.bodyMedium, color: colors.textPrimary },
   reviewCheck: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs },
-  footer: { paddingHorizontal: Spacing.xl, paddingVertical: Spacing.lg, borderTopWidth: 1, borderTopColor: Colors.borderLight, backgroundColor: Colors.white },
+  footer: { paddingHorizontal: Spacing.xl, paddingVertical: Spacing.lg, borderTopWidth: 1, borderTopColor: colors.borderLight, backgroundColor: colors.cardBackground },
 });

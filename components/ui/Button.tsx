@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   TouchableOpacity,
   Text,
@@ -8,7 +8,9 @@ import {
   TextStyle,
   TouchableOpacityProps,
 } from 'react-native';
-import { Colors, Spacing, BorderRadius, Typography } from '@/constants/theme';
+import { Spacing, BorderRadius, Typography } from '@/constants/theme';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import type { ThemeColors } from '@/constants/colors';
 
 type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
 type ButtonSize = 'sm' | 'md' | 'lg';
@@ -35,6 +37,9 @@ export function Button({
   style,
   ...rest
 }: ButtonProps) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+
   const isDisabled = disabled || loading;
 
   const containerStyle: ViewStyle[] = [
@@ -62,7 +67,7 @@ export function Button({
       {loading ? (
         <ActivityIndicator
           size="small"
-          color={variant === 'primary' || variant === 'danger' ? Colors.white : Colors.primary}
+          color={variant === 'primary' || variant === 'danger' ? colors.white : colors.primary}
         />
       ) : (
         <>
@@ -75,7 +80,7 @@ export function Button({
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   base: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -91,24 +96,24 @@ const styles = StyleSheet.create({
 
   // Variants
   variant_primary: {
-    backgroundColor: Colors.primary,
+    backgroundColor: colors.primary,
     borderRadius: BorderRadius.md,
   },
   variant_secondary: {
-    backgroundColor: Colors.primaryLight,
+    backgroundColor: colors.primaryLight,
     borderRadius: BorderRadius.md,
   },
   variant_outline: {
     backgroundColor: 'transparent',
     borderWidth: 1.5,
-    borderColor: Colors.primary,
+    borderColor: colors.primary,
     borderRadius: BorderRadius.md,
   },
   variant_ghost: {
     backgroundColor: 'transparent',
   },
   variant_danger: {
-    backgroundColor: Colors.error,
+    backgroundColor: colors.error,
     borderRadius: BorderRadius.md,
   },
 
@@ -134,19 +139,19 @@ const styles = StyleSheet.create({
     ...Typography.button,
   },
   text_primary: {
-    color: Colors.white,
+    color: colors.white,
   },
   text_secondary: {
-    color: Colors.primary,
+    color: colors.primary,
   },
   text_outline: {
-    color: Colors.primary,
+    color: colors.primary,
   },
   text_ghost: {
-    color: Colors.primary,
+    color: colors.primary,
   },
   text_danger: {
-    color: Colors.white,
+    color: colors.white,
   },
   textSize_sm: {
     ...Typography.buttonSmall,

@@ -1,5 +1,6 @@
 // ============================================================
 // Theme Store — persists dark/light preference to AsyncStorage
+// Defaults to 'system' so the app follows the device theme.
 // ============================================================
 
 import { create } from 'zustand';
@@ -16,16 +17,24 @@ interface ThemeState {
   isDark: boolean;
   setMode: (mode: ThemeMode) => void;
   loadSavedTheme: () => Promise<void>;
+  /** Called when the OS appearance changes — only matters when mode === 'system' */
+  onSystemAppearanceChange: () => void;
 }
 
 const resolveIsDark = (mode: ThemeMode): boolean => {
-  if (mode === 'system') return Appearance.getColorScheme() === 'dark';
+  if (mode === 'system') {
+    const scheme = Appearance.getColorScheme();
+    // getColorScheme() can return 'dark', 'light', or null
+    // Default to light when null (no preference detected)
+    return scheme === 'dark';
+  }
   return mode === 'dark';
 };
 
 export const useThemeStore = create<ThemeState>((set, get) => ({
-  mode: 'light',
-  isDark: false,
+  // Default to 'system' so the app automatically follows the device theme
+  mode: 'system',
+  isDark: Appearance.getColorScheme() === 'dark',
 
   setMode: (mode: ThemeMode) => {
     const isDark = resolveIsDark(mode);
@@ -36,10 +45,18 @@ export const useThemeStore = create<ThemeState>((set, get) => ({
   loadSavedTheme: async () => {
     try {
       const saved = (await AsyncStorage.getItem(THEME_KEY)) as ThemeMode | null;
-      const mode = saved || 'light';
+      const mode = saved || 'system';
       set({ mode, isDark: resolveIsDark(mode) });
     } catch {
-      set({ mode: 'light', isDark: false });
+      set({ mode: 'system', isDark: resolveIsDark('system') });
+    }
+  },
+
+  onSystemAppearanceChange: () => {
+    const { mode } = get();
+    // Only re-resolve when following the system
+    if (mode === 'system') {
+      set({ isDark: resolveIsDark('system') });
     }
   },
 }));

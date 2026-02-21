@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View,
   TextInput,
@@ -9,7 +9,9 @@ import {
   ViewStyle,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors, Spacing, BorderRadius, Typography } from '@/constants/theme';
+import { Spacing, BorderRadius, Typography } from '@/constants/theme';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import type { ThemeColors } from '@/constants/colors';
 
 interface InputProps extends TextInputProps {
   label?: string;
@@ -35,6 +37,9 @@ export function Input({
   style,
   ...rest
 }: InputProps) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+
   const [isFocused, setIsFocused] = useState(false);
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
 
@@ -60,12 +65,12 @@ export function Input({
           <Ionicons
             name={leftIcon}
             size={20}
-            color={isFocused ? Colors.primary : Colors.textMuted}
+            color={isFocused ? colors.primary : colors.textMuted}
             style={styles.leftIcon}
           />
         )}
         <TextInput
-          placeholderTextColor={Colors.textMuted}
+          placeholderTextColor={colors.textMuted}
           style={[styles.input, leftIcon && styles.inputWithLeftIcon, style]}
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
@@ -81,7 +86,7 @@ export function Input({
             <Ionicons
               name={showPassword ? 'eye-off-outline' : 'eye-outline'}
               size={20}
-              color={Colors.textMuted}
+              color={colors.textMuted}
             />
           </TouchableOpacity>
         )}
@@ -91,7 +96,7 @@ export function Input({
             style={styles.rightIcon}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
-            <Ionicons name={rightIcon} size={20} color={Colors.textMuted} />
+            <Ionicons name={rightIcon} size={20} color={colors.textMuted} />
           </TouchableOpacity>
         )}
       </View>
@@ -101,38 +106,38 @@ export function Input({
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   container: {
     marginBottom: Spacing.lg,
   },
   label: {
     ...Typography.captionMedium,
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
     marginBottom: Spacing.xs,
   },
   required: {
-    color: Colors.error,
+    color: colors.error,
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1.5,
-    borderColor: Colors.border,
+    borderColor: colors.border,
     borderRadius: BorderRadius.md,
-    backgroundColor: Colors.inputBackground,
+    backgroundColor: colors.inputBackground,
     minHeight: 48,
   },
   inputFocused: {
-    borderColor: Colors.primary,
-    backgroundColor: Colors.white,
+    borderColor: colors.primary,
+    backgroundColor: colors.cardBackground,
   },
   inputError: {
-    borderColor: Colors.error,
+    borderColor: colors.error,
   },
   input: {
     flex: 1,
     ...Typography.body,
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
   },
@@ -147,12 +152,12 @@ const styles = StyleSheet.create({
   },
   error: {
     ...Typography.caption,
-    color: Colors.error,
+    color: colors.error,
     marginTop: Spacing.xs,
   },
   hint: {
     ...Typography.caption,
-    color: Colors.textMuted,
+    color: colors.textMuted,
     marginTop: Spacing.xs,
   },
 });

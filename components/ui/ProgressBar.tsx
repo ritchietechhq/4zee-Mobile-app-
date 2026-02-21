@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, ViewStyle } from 'react-native';
-import { Colors, Spacing, BorderRadius, Typography } from '@/constants/theme';
+import { Spacing, BorderRadius, Typography } from '@/constants/theme';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import type { ThemeColors } from '@/constants/colors';
 import { formatPercentage } from '@/utils/formatCurrency';
 
 interface ProgressBarProps {
@@ -18,10 +20,14 @@ export function ProgressBar({
   label,
   showPercentage = true,
   height = 8,
-  color = Colors.primary,
-  trackColor = Colors.borderLight,
+  color,
+  trackColor,
   style,
 }: ProgressBarProps) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  const resolvedColor = color ?? colors.primary;
+  const resolvedTrackColor = trackColor ?? colors.borderLight;
   const clampedProgress = Math.min(100, Math.max(0, progress));
 
   return (
@@ -34,14 +40,14 @@ export function ProgressBar({
           )}
         </View>
       )}
-      <View style={[styles.track, { height, backgroundColor: trackColor }]}>
+      <View style={[styles.track, { height, backgroundColor: resolvedTrackColor }]}>
         <View
           style={[
             styles.fill,
             {
               width: `${clampedProgress}%`,
               height,
-              backgroundColor: color,
+              backgroundColor: resolvedColor,
             },
           ]}
         />
@@ -50,7 +56,7 @@ export function ProgressBar({
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -59,11 +65,11 @@ const styles = StyleSheet.create({
   },
   label: {
     ...Typography.caption,
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
   },
   percentage: {
     ...Typography.captionMedium,
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
   },
   track: {
     borderRadius: BorderRadius.full,

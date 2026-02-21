@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, RefreshControl,
   TouchableOpacity, ActivityIndicator,
@@ -11,7 +11,9 @@ import type { KYC, KYCStatus } from '@/types';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Skeleton } from '@/components/ui/Skeleton';
-import { Colors, Spacing, Typography, BorderRadius, Shadows } from '@/constants/theme';
+import { Spacing, Typography, BorderRadius, Shadows } from '@/constants/theme';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import type { ThemeColors } from '@/constants/colors';
 
 type StepInfo = { icon: string; title: string; desc: string };
 
@@ -22,34 +24,36 @@ const STEPS: StepInfo[] = [
   { icon: 'home-outline', title: 'Proof of Address', desc: 'Utility bill or bank statement' },
 ];
 
-const statusConfig: Record<KYCStatus, { icon: string; color: string; bg: string; title: string; desc: string }> = {
+const getStatusConfig = (colors: ThemeColors): Record<KYCStatus, { icon: string; color: string; bg: string; title: string; desc: string }> => ({
   NOT_SUBMITTED: {
-    icon: 'shield-outline', color: Colors.warning, bg: Colors.warningLight,
+    icon: 'shield-outline', color: colors.warning, bg: colors.warningLight,
     title: 'Verification Required',
     desc: 'Complete your KYC verification to start earning commissions and manage property listings.',
   },
   PENDING: {
-    icon: 'hourglass-outline', color: Colors.primary, bg: Colors.primaryLight,
+    icon: 'hourglass-outline', color: colors.primary, bg: colors.primaryLight,
     title: 'Under Review',
     desc: 'Your documents have been submitted and are being reviewed. This usually takes 1-2 business days.',
   },
   APPROVED: {
-    icon: 'checkmark-circle', color: Colors.success, bg: Colors.successLight,
+    icon: 'checkmark-circle', color: colors.success, bg: colors.successLight,
     title: 'Approved',
     desc: 'Your identity has been verified. You have full access to all realtor features.',
   },
   REJECTED: {
-    icon: 'close-circle', color: Colors.error, bg: Colors.errorLight,
+    icon: 'close-circle', color: colors.error, bg: colors.errorLight,
     title: 'Verification Rejected',
     desc: 'Your submission was rejected. Please review the feedback and resubmit your documents.',
   },
-};
+});
 
 export default function KYCStatusScreen() {
   const router = useRouter();
   const [kyc, setKyc] = useState<KYC | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const colors = useThemeColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
 
   const fetchKYC = useCallback(async () => {
     try {
@@ -75,14 +79,14 @@ export default function KYCStatusScreen() {
   };
 
   const status: KYCStatus = kyc?.kycStatus || 'NOT_SUBMITTED';
-  const cfg = statusConfig[status];
+  const cfg = getStatusConfig(colors)[status];
 
   if (isLoading) {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.header}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-            <Ionicons name="arrow-back" size={24} color={Colors.textPrimary} />
+            <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>KYC Verification</Text>
           <View style={{ width: 40 }} />
@@ -100,7 +104,7 @@ export default function KYCStatusScreen() {
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={24} color={Colors.textPrimary} />
+          <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>KYC Verification</Text>
         <View style={{ width: 40 }} />
@@ -109,7 +113,7 @@ export default function KYCStatusScreen() {
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} tintColor={Colors.primary} />}
+        refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
       >
         {/* Status Hero */}
         <View style={[styles.statusHero, { backgroundColor: cfg.bg }]}>
@@ -124,10 +128,10 @@ export default function KYCStatusScreen() {
         {status === 'REJECTED' && (
           <Card variant="outlined" padding="md" style={styles.rejectionCard}>
             <View style={styles.rejectionRow}>
-              <Ionicons name="information-circle" size={20} color={Colors.error} />
+              <Ionicons name="information-circle" size={20} color={colors.error} />
               <Text style={styles.rejectionTitle}>Reason for Rejection</Text>
             </View>
-            <Text style={styles.rejectionText}>Your documents did not meet the verification requirements. Please review and resubmit.</Text>
+            <Text style={styles.rejectionText}>{kyc?.rejectionReason || 'Your documents did not meet the verification requirements. Please review and resubmit.'}</Text>
           </Card>
         )}
 
@@ -139,7 +143,7 @@ export default function KYCStatusScreen() {
               <Card key={i} variant="outlined" padding="md" style={styles.stepCard}>
                 <View style={styles.stepRow}>
                   <View style={styles.stepIcon}>
-                    <Ionicons name={step.icon as any} size={20} color={Colors.primary} />
+                    <Ionicons name={step.icon as any} size={20} color={colors.primary} />
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.stepTitle}>{step.title}</Text>
@@ -164,16 +168,22 @@ export default function KYCStatusScreen() {
         {status === 'APPROVED' && (
           <Card variant="elevated" padding="lg" style={styles.verifiedCard}>
             <View style={styles.verifiedRow}>
-              <Ionicons name="shield-checkmark" size={24} color={Colors.success} />
+              <Ionicons name="shield-checkmark" size={24} color={colors.success} />
               <View style={{ flex: 1, marginLeft: Spacing.md }}>
                 <Text style={styles.verifiedTitle}>Identity Verified</Text>
                 <Text style={styles.verifiedSub}>Your identity is confirmed</Text>
               </View>
             </View>
-            {kyc?.documents && kyc.documents.length > 0 && (
+            {kyc?.idType && (
               <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Documents</Text>
-                <Text style={styles.detailValue}>{kyc.documents.length} submitted</Text>
+                <Text style={styles.detailLabel}>ID Type</Text>
+                <Text style={styles.detailValue}>{kyc.idType.replace(/_/g, ' ')}</Text>
+              </View>
+            )}
+            {kyc?.verifiedAt && (
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Verified On</Text>
+                <Text style={styles.detailValue}>{new Date(kyc.verifiedAt).toLocaleDateString()}</Text>
               </View>
             )}
           </Card>
@@ -192,9 +202,9 @@ export default function KYCStatusScreen() {
                 <Ionicons
                   name={step.done ? (step.icon as any) : (step.icon as any)}
                   size={20}
-                  color={step.done ? Colors.success : Colors.textMuted}
+                  color={step.done ? colors.success : colors.textMuted}
                 />
-                <Text style={[styles.timelineText, step.done && { color: Colors.success, fontWeight: '600' }]}>{step.label}</Text>
+                <Text style={[styles.timelineText, step.done && { color: colors.success, fontWeight: '600' }]}>{step.label}</Text>
               </View>
             ))}
             <Text style={styles.pendingSub}>Processing your documents...</Text>
@@ -205,39 +215,39 @@ export default function KYCStatusScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background },
+const makeStyles = (colors: ThemeColors) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.background },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md },
-  backBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center', borderRadius: BorderRadius.lg, backgroundColor: Colors.surface },
-  headerTitle: { ...Typography.h4, color: Colors.textPrimary },
+  backBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center', borderRadius: BorderRadius.lg, backgroundColor: colors.surface },
+  headerTitle: { ...Typography.h4, color: colors.textPrimary },
   content: { paddingHorizontal: Spacing.xl, paddingBottom: Spacing.xxxl },
   statusHero: { borderRadius: BorderRadius.xl, padding: Spacing.xxl, alignItems: 'center', marginBottom: Spacing.xl },
   statusIcon: { width: 80, height: 80, borderRadius: 40, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.lg },
   statusTitle: { ...Typography.h3, marginBottom: Spacing.sm, textAlign: 'center' },
-  statusDesc: { ...Typography.body, color: Colors.textSecondary, textAlign: 'center', lineHeight: 22 },
-  rejectionCard: { marginBottom: Spacing.lg, borderColor: Colors.errorLight },
+  statusDesc: { ...Typography.body, color: colors.textSecondary, textAlign: 'center', lineHeight: 22 },
+  rejectionCard: { marginBottom: Spacing.lg, borderColor: colors.errorLight },
   rejectionRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.sm },
-  rejectionTitle: { ...Typography.bodySemiBold, color: Colors.error },
-  rejectionText: { ...Typography.body, color: Colors.textSecondary, lineHeight: 20 },
-  sectionTitle: { ...Typography.h4, color: Colors.textPrimary, marginBottom: Spacing.md, marginTop: Spacing.sm },
+  rejectionTitle: { ...Typography.bodySemiBold, color: colors.error },
+  rejectionText: { ...Typography.body, color: colors.textSecondary, lineHeight: 20 },
+  sectionTitle: { ...Typography.h4, color: colors.textPrimary, marginBottom: Spacing.md, marginTop: Spacing.sm },
   stepCard: { marginBottom: Spacing.sm },
   stepRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
-  stepIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: Colors.primaryLight, alignItems: 'center', justifyContent: 'center' },
-  stepTitle: { ...Typography.bodyMedium, color: Colors.textPrimary },
-  stepDesc: { ...Typography.caption, color: Colors.textMuted, marginTop: 2 },
-  stepNumber: { width: 24, height: 24, borderRadius: 12, backgroundColor: Colors.surface, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: Colors.borderLight },
-  stepNumberText: { ...Typography.small, color: Colors.textMuted, fontWeight: '600' },
+  stepIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.primaryLight, alignItems: 'center', justifyContent: 'center' },
+  stepTitle: { ...Typography.bodyMedium, color: colors.textPrimary },
+  stepDesc: { ...Typography.caption, color: colors.textMuted, marginTop: 2 },
+  stepNumber: { width: 24, height: 24, borderRadius: 12, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.borderLight },
+  stepNumberText: { ...Typography.small, color: colors.textMuted, fontWeight: '600' },
   verifiedCard: { marginTop: Spacing.sm },
   verifiedRow: { flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.lg },
-  verifiedTitle: { ...Typography.bodySemiBold, color: Colors.textPrimary },
-  verifiedSub: { ...Typography.caption, color: Colors.textMuted, marginTop: 2 },
-  detailRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: Spacing.sm, borderTopWidth: 1, borderTopColor: Colors.borderLight },
-  detailLabel: { ...Typography.caption, color: Colors.textMuted },
-  detailValue: { ...Typography.bodyMedium, color: Colors.textPrimary },
+  verifiedTitle: { ...Typography.bodySemiBold, color: colors.textPrimary },
+  verifiedSub: { ...Typography.caption, color: colors.textMuted, marginTop: 2 },
+  detailRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: Spacing.sm, borderTopWidth: 1, borderTopColor: colors.borderLight },
+  detailLabel: { ...Typography.caption, color: colors.textMuted },
+  detailValue: { ...Typography.bodyMedium, color: colors.textPrimary },
   pendingCard: { marginTop: Spacing.sm },
-  pendingTitle: { ...Typography.bodySemiBold, color: Colors.textPrimary, marginBottom: Spacing.lg },
+  pendingTitle: { ...Typography.bodySemiBold, color: colors.textPrimary, marginBottom: Spacing.lg },
   timelineRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, paddingVertical: Spacing.sm },
-  timelineText: { ...Typography.body, color: Colors.textMuted },
-  pendingSub: { ...Typography.caption, color: Colors.textMuted, marginTop: Spacing.lg, textAlign: 'center' },
+  timelineText: { ...Typography.body, color: colors.textMuted },
+  pendingSub: { ...Typography.caption, color: colors.textMuted, marginTop: Spacing.lg, textAlign: 'center' },
   skeletonWrap: { paddingHorizontal: Spacing.xl },
 });

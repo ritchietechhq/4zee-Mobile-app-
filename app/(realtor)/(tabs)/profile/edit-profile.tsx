@@ -415,7 +415,7 @@ const makeStyles = (colors: ThemeColors) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 3,
-    borderColor: colors.white,
+    borderColor: colors.cardBackground,
     overflow: 'hidden' as const,
     ...Shadows.lg,
   },
@@ -432,7 +432,7 @@ const makeStyles = (colors: ThemeColors) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
-    borderColor: colors.white,
+    borderColor: colors.cardBackground,
   },
   photoHint: {
     ...Typography.caption,

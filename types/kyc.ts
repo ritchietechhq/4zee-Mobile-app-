@@ -1,21 +1,29 @@
 // ============================================================
 // KYC Types
-// Matches: GET /kyc/status, PUT /kyc/info, POST /kyc/documents
+// Matches: GET /kyc, PUT /kyc
 // ============================================================
 
+/**
+ * Backend KYC status values.
+ * NOTE: The backend returns "VERIFIED" – we normalise to "APPROVED"
+ * inside the service layer so the rest of the UI can use a single
+ * canonical set of values.
+ */
 export type KYCStatus = 'NOT_SUBMITTED' | 'PENDING' | 'APPROVED' | 'REJECTED';
 
-export type KYCDocumentType =
-  | 'NATIONAL_ID'
-  | 'DRIVERS_LICENSE'
-  | 'PASSPORT'
-  | 'VOTERS_CARD'
+/** ID types accepted by the backend */
+export type KYCIdType =
   | 'NIN'
+  | 'BVN'
+  | 'DRIVERS_LICENSE'
+  | 'INTERNATIONAL_PASSPORT'
+  | 'VOTERS_CARD';
+
+/** Document types for utility bill uploads etc. */
+export type KYCDocumentType =
+  | KYCIdType
   | 'UTILITY_BILL'
   | 'BANK_STATEMENT';
-
-/** Legacy alias for backwards compatibility */
-export type KYCIdType = KYCDocumentType;
 
 export interface KYCDocument {
   id: string;
@@ -26,16 +34,36 @@ export interface KYCDocument {
   status: string;
 }
 
+/**
+ * KYC record returned by `GET /kyc`.
+ *
+ * The backend response has a flat shape:
+ *   { id, status, idType, idNumber, idDocumentUrl, selfieUrl, ... }
+ *
+ * We keep the original fields **and** expose a `kycStatus` getter so
+ * existing screens that read `kyc.kycStatus` keep working.
+ */
 export interface KYC {
+  id?: string;
+  /** Normalised status (VERIFIED → APPROVED) set by the service layer */
   kycStatus: KYCStatus;
+  idType?: KYCIdType;
+  idNumber?: string;
+  idDocumentUrl?: string;
+  selfieUrl?: string;
+  proofOfAddressUrl?: string;
+  rejectionReason?: string;
+  submittedAt?: string;
+  verifiedAt?: string;
+  /** Legacy — kept for backward compat with KYC index screen */
   documents: KYCDocument[];
 }
 
-/** POST /kyc/documents request body */
+/** PUT /kyc request body */
 export interface SubmitKYCRequest {
-  type: KYCDocumentType;
-  idNumber?: string;
-  fileUrl: string;
-  fileName: string;
-  expiryDate?: string; // ISO date string
+  idType: KYCIdType;
+  idNumber: string;
+  idDocumentUrl: string;
+  selfieUrl: string;
+  proofOfAddressUrl?: string;
 }

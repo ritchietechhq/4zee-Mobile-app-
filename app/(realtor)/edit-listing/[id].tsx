@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   KeyboardAvoidingView, Platform, Alert, ActivityIndicator,
@@ -15,7 +15,9 @@ import { Skeleton } from '@/components/ui/Skeleton';
 import realtorService from '@/services/realtor.service';
 import { propertyService } from '@/services/property.service';
 import type { PropertyType, UpdateListingRequest } from '@/types';
-import { Colors, Spacing, Typography, BorderRadius, Shadows } from '@/constants/theme';
+import { Spacing, Typography, BorderRadius, Shadows } from '@/constants/theme';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import type { ThemeColors } from '@/constants/colors';
 
 const PROPERTY_TYPES: { value: PropertyType; label: string; icon: string }[] = [
   { value: 'LAND', label: 'Land', icon: 'earth-outline' },
@@ -50,6 +52,8 @@ export default function EditListingScreen() {
   const [newImages, setNewImages] = useState<{ uri: string; uploading?: boolean; url?: string }[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const colors = useThemeColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
 
   useEffect(() => {
     if (!id) return;
@@ -194,7 +198,7 @@ export default function EditListingScreen() {
       <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.header}>
           <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-            <Ionicons name="arrow-back" size={22} color={Colors.textPrimary} />
+            <Ionicons name="arrow-back" size={22} color={colors.textPrimary} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Edit Listing</Text>
           <View style={{ width: 36 }} />
@@ -219,7 +223,7 @@ export default function EditListingScreen() {
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-            <Ionicons name="arrow-back" size={22} color={Colors.textPrimary} />
+            <Ionicons name="arrow-back" size={22} color={colors.textPrimary} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Edit Listing</Text>
           <View style={{ width: 36 }} />
@@ -239,7 +243,7 @@ export default function EditListingScreen() {
                 <View key={`existing-${i}`} style={styles.imageThumb}>
                   <Image source={{ uri: url }} style={styles.thumbImg} contentFit="cover" />
                   <TouchableOpacity style={styles.removeImg} onPress={() => removeExistingImage(i)}>
-                    <Ionicons name="close-circle" size={20} color={Colors.error} />
+                    <Ionicons name="close-circle" size={20} color={colors.error} />
                   </TouchableOpacity>
                 </View>
               ))}
@@ -248,22 +252,22 @@ export default function EditListingScreen() {
                   <Image source={{ uri: img.uri }} style={styles.thumbImg} contentFit="cover" />
                   {img.uploading && (
                     <View style={styles.uploadOverlay}>
-                      <ActivityIndicator size="small" color={Colors.white} />
+                      <ActivityIndicator size="small" color={colors.white} />
                     </View>
                   )}
                   {img.url && (
                     <View style={styles.uploadedBadge}>
-                      <Ionicons name="checkmark-circle" size={16} color={Colors.success} />
+                      <Ionicons name="checkmark-circle" size={16} color={colors.success} />
                     </View>
                   )}
                   <TouchableOpacity style={styles.removeImg} onPress={() => removeNewImage(i)}>
-                    <Ionicons name="close-circle" size={20} color={Colors.error} />
+                    <Ionicons name="close-circle" size={20} color={colors.error} />
                   </TouchableOpacity>
                 </View>
               ))}
               {totalImages < 10 && (
                 <TouchableOpacity style={styles.addImageBtn} onPress={pickImages}>
-                  <Ionicons name="camera-outline" size={24} color={Colors.primary} />
+                  <Ionicons name="camera-outline" size={24} color={colors.primary} />
                   <Text style={styles.addImageText}>Add</Text>
                 </TouchableOpacity>
               )}
@@ -325,7 +329,7 @@ export default function EditListingScreen() {
                   <Ionicons
                     name={pt.icon as any}
                     size={18}
-                    color={form.type === pt.value ? Colors.white : Colors.textSecondary}
+                    color={form.type === pt.value ? colors.white : colors.textSecondary}
                   />
                   <Text style={[styles.typeLabel, form.type === pt.value && styles.typeLabelActive]}>
                     {pt.label}
@@ -380,7 +384,7 @@ export default function EditListingScreen() {
                   <Ionicons
                     name={amenities.includes(a) ? 'checkmark-circle' : 'add-circle-outline'}
                     size={16}
-                    color={amenities.includes(a) ? Colors.white : Colors.textSecondary}
+                    color={amenities.includes(a) ? colors.white : colors.textSecondary}
                   />
                   <Text style={[styles.amenityLabel, amenities.includes(a) && styles.amenityLabelActive]}>
                     {a}
@@ -405,25 +409,25 @@ export default function EditListingScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background },
+const makeStyles = (colors: ThemeColors) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.background },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: Spacing.xl, paddingVertical: Spacing.md,
-    borderBottomWidth: 1, borderBottomColor: Colors.borderLight,
-    backgroundColor: Colors.white,
+    borderBottomWidth: 1, borderBottomColor: colors.borderLight,
+    backgroundColor: colors.cardBackground,
   },
   backBtn: {
     width: 36, height: 36, borderRadius: 18,
-    backgroundColor: Colors.surface, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center',
   },
-  headerTitle: { ...Typography.h4, color: Colors.textPrimary },
+  headerTitle: { ...Typography.h4, color: colors.textPrimary },
   scroll: { padding: Spacing.xl, paddingTop: Spacing.lg },
   section: { marginBottom: Spacing.xl },
-  sectionTitle: { ...Typography.h4, color: Colors.textPrimary, marginBottom: Spacing.xs },
-  sectionSub: { ...Typography.caption, color: Colors.textMuted, marginBottom: Spacing.md },
+  sectionTitle: { ...Typography.h4, color: colors.textPrimary, marginBottom: Spacing.xs },
+  sectionSub: { ...Typography.caption, color: colors.textMuted, marginBottom: Spacing.md },
   formCard: { marginBottom: Spacing.xl },
-  cardTitle: { ...Typography.h4, color: Colors.textPrimary, marginBottom: Spacing.md },
+  cardTitle: { ...Typography.h4, color: colors.textPrimary, marginBottom: Spacing.md },
   row: { flexDirection: 'row', gap: Spacing.sm },
   thirdInput: { flex: 1 },
   imageRow: { gap: Spacing.sm, paddingVertical: Spacing.xs },
@@ -437,29 +441,29 @@ const styles = StyleSheet.create({
   removeImg: { position: 'absolute', top: -4, right: -4 },
   addImageBtn: {
     width: 80, height: 80, borderRadius: BorderRadius.md,
-    borderWidth: 2, borderColor: Colors.primary, borderStyle: 'dashed',
+    borderWidth: 2, borderColor: colors.primary, borderStyle: 'dashed',
     alignItems: 'center', justifyContent: 'center', gap: 2,
   },
-  addImageText: { ...Typography.small, color: Colors.primary, fontWeight: '600' },
+  addImageText: { ...Typography.small, color: colors.primary, fontWeight: '600' },
   typeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
   typeChip: {
     flexDirection: 'row', alignItems: 'center', gap: Spacing.xs,
     paddingHorizontal: Spacing.lg, paddingVertical: Spacing.sm,
-    borderRadius: BorderRadius.full, backgroundColor: Colors.surface,
-    borderWidth: 1, borderColor: Colors.borderLight,
+    borderRadius: BorderRadius.full, backgroundColor: colors.surface,
+    borderWidth: 1, borderColor: colors.borderLight,
   },
-  typeChipActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
-  typeLabel: { ...Typography.captionMedium, color: Colors.textSecondary },
-  typeLabelActive: { color: Colors.white },
-  errorText: { ...Typography.caption, color: Colors.error, marginBottom: Spacing.sm },
+  typeChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  typeLabel: { ...Typography.captionMedium, color: colors.textSecondary },
+  typeLabelActive: { color: colors.white },
+  errorText: { ...Typography.caption, color: colors.error, marginBottom: Spacing.sm },
   amenitiesGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
   amenityChip: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
     paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm,
-    borderRadius: BorderRadius.full, backgroundColor: Colors.surface,
-    borderWidth: 1, borderColor: Colors.borderLight,
+    borderRadius: BorderRadius.full, backgroundColor: colors.surface,
+    borderWidth: 1, borderColor: colors.borderLight,
   },
-  amenityChipActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
-  amenityLabel: { ...Typography.caption, color: Colors.textSecondary },
-  amenityLabelActive: { color: Colors.white },
+  amenityChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  amenityLabel: { ...Typography.caption, color: colors.textSecondary },
+  amenityLabelActive: { color: colors.white },
 });

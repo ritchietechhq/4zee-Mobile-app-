@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   Modal as RNModal,
   View,
@@ -11,7 +11,9 @@ import {
   Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors, Spacing, BorderRadius, Typography, Shadows } from '@/constants/theme';
+import { Spacing, BorderRadius, Typography, Shadows } from '@/constants/theme';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import type { ThemeColors } from '@/constants/colors';
 
 interface ModalProps extends Omit<RNModalProps, 'children'> {
   title?: string;
@@ -30,6 +32,9 @@ export function Modal({
   visible,
   ...rest
 }: ModalProps) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+
   return (
     <RNModal
       visible={visible}
@@ -54,7 +59,7 @@ export function Modal({
                         onPress={onClose}
                         hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                       >
-                        <Ionicons name="close" size={24} color={Colors.textSecondary} />
+                        <Ionicons name="close" size={24} color={colors.textSecondary} />
                       </TouchableOpacity>
                     )}
                   </View>
@@ -69,16 +74,16 @@ export function Modal({
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: Colors.overlay,
+    backgroundColor: colors.overlay,
     justifyContent: 'center',
     alignItems: 'center',
     padding: Spacing.xl,
   },
   content: {
-    backgroundColor: Colors.white,
+    backgroundColor: colors.cardBackground,
     borderRadius: BorderRadius.xl,
     padding: Spacing.xxl,
     ...Shadows.xl,
@@ -91,7 +96,7 @@ const styles = StyleSheet.create({
   },
   title: {
     ...Typography.h4,
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
     flex: 1,
   },
   size_sm: {

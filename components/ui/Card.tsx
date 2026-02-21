@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, StyleSheet, ViewStyle, ViewProps } from 'react-native';
-import { Colors, Spacing, BorderRadius, Shadows } from '@/constants/theme';
+import { Spacing, BorderRadius, Shadows } from '@/constants/theme';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import type { ThemeColors } from '@/constants/colors';
 
 interface CardProps extends ViewProps {
   variant?: 'elevated' | 'outlined' | 'filled';
@@ -15,6 +17,9 @@ export function Card({
   style,
   ...rest
 }: CardProps) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+
   const cardStyle: ViewStyle[] = [
     styles.base,
     { padding: Spacing[padding] },
@@ -30,20 +35,20 @@ export function Card({
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   base: {
     borderRadius: BorderRadius.lg,
-    backgroundColor: Colors.cardBackground,
+    backgroundColor: colors.cardBackground,
   },
   elevated: {
     ...Shadows.md,
   },
   outlined: {
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: colors.border,
   },
   filled: {
-    backgroundColor: Colors.surface,
+    backgroundColor: colors.surface,
   },
 });
 

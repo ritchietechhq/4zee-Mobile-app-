@@ -60,7 +60,10 @@ export const LightColors = {
   slateLight: '#F1F5F9',
 } as const;
 
-export const DarkColors: Record<keyof typeof LightColors, string> = {
+// ThemeColors type uses string for all values so dark palette can differ
+export type ThemeColors = { [K in keyof typeof LightColors]: string };
+
+export const DarkColors: ThemeColors = {
   // Brand — slightly brighter for dark bg
   primary: '#60A5FA',
   primaryLight: '#1E3A5F',
@@ -120,7 +123,5 @@ export const DarkColors: Record<keyof typeof LightColors, string> = {
 
 /** Backwards-compatible static export (light palette) */
 export const Colors = LightColors;
-
-export type ThemeColors = Record<keyof typeof LightColors, string>;
 export type ColorKey = keyof ThemeColors;
 

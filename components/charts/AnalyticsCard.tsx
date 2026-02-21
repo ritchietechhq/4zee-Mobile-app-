@@ -1,8 +1,10 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, ViewStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Card } from '@/components/ui/Card';
-import { Colors, Spacing, Typography, BorderRadius } from '@/constants/theme';
+import { Spacing, Typography, BorderRadius } from '@/constants/theme';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import type { ThemeColors } from '@/constants/colors';
 
 interface AnalyticsCardProps {
   title: string;
@@ -24,33 +26,39 @@ export function AnalyticsCard({
   value,
   subtitle,
   icon,
-  iconColor = Colors.primary,
-  iconBackground = Colors.primaryLight,
+  iconColor,
+  iconBackground,
   trend,
   style,
 }: AnalyticsCardProps) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+
+  const resolvedIconColor = iconColor ?? colors.primary;
+  const resolvedIconBackground = iconBackground ?? colors.primaryLight;
+
   return (
     <Card variant="elevated" padding="lg" style={[styles.container, style]}>
       <View style={styles.header}>
-        <View style={[styles.iconContainer, { backgroundColor: iconBackground }]}>
-          <Ionicons name={icon} size={18} color={iconColor} />
+        <View style={[styles.iconContainer, { backgroundColor: resolvedIconBackground }]}>
+          <Ionicons name={icon} size={18} color={resolvedIconColor} />
         </View>
         {trend && (
           <View
             style={[
               styles.trendBadge,
-              { backgroundColor: trend.isPositive ? Colors.successLight : Colors.errorLight },
+              { backgroundColor: trend.isPositive ? colors.successLight : colors.errorLight },
             ]}
           >
             <Ionicons
               name={trend.isPositive ? 'trending-up' : 'trending-down'}
               size={12}
-              color={trend.isPositive ? Colors.success : Colors.error}
+              color={trend.isPositive ? colors.success : colors.error}
             />
             <Text
               style={[
                 styles.trendText,
-                { color: trend.isPositive ? Colors.success : Colors.error },
+                { color: trend.isPositive ? colors.success : colors.error },
               ]}
             >
               {trend.value}%
@@ -66,7 +74,7 @@ export function AnalyticsCard({
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   container: {
     minWidth: 140,
   },
@@ -97,16 +105,16 @@ const styles = StyleSheet.create({
   },
   value: {
     ...Typography.h3,
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
   },
   title: {
     ...Typography.caption,
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     marginTop: Spacing.xs,
   },
   subtitle: {
     ...Typography.small,
-    color: Colors.textMuted,
+    color: colors.textMuted,
     marginTop: 2,
   },
 });

@@ -1,6 +1,8 @@
-import React from 'react';
-import { View, Text, StyleSheet, ViewStyle, TextStyle } from 'react-native';
-import { Colors, Spacing, BorderRadius, Typography } from '@/constants/theme';
+import React, { useMemo } from 'react';
+import { View, Text, ViewStyle, TextStyle } from 'react-native';
+import { Spacing, BorderRadius, Typography } from '@/constants/theme';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import type { ThemeColors } from '@/constants/colors';
 
 type BadgeVariant = 'default' | 'success' | 'warning' | 'error' | 'info';
 type BadgeSize = 'sm' | 'md';
@@ -12,19 +14,21 @@ interface BadgeProps {
   style?: ViewStyle;
 }
 
-const VARIANT_COLORS: Record<BadgeVariant, { bg: string; text: string }> = {
-  default: { bg: Colors.borderLight, text: Colors.textSecondary },
-  success: { bg: Colors.successLight, text: Colors.success },
-  warning: { bg: Colors.warningLight, text: Colors.warning },
-  error: { bg: Colors.errorLight, text: Colors.error },
-  info: { bg: Colors.primaryLight, text: Colors.primary },
-};
-
 export function Badge({ label, variant = 'default', size = 'sm', style }: BadgeProps) {
-  const colors = VARIANT_COLORS[variant];
+  const colors = useThemeColors();
+
+  const VARIANT_COLORS: Record<BadgeVariant, { bg: string; text: string }> = {
+    default: { bg: colors.borderLight, text: colors.textSecondary },
+    success: { bg: colors.successLight, text: colors.success },
+    warning: { bg: colors.warningLight, text: colors.warning },
+    error: { bg: colors.errorLight, text: colors.error },
+    info: { bg: colors.primaryLight, text: colors.primary },
+  };
+
+  const variantColors = VARIANT_COLORS[variant];
 
   const containerStyle: ViewStyle = {
-    backgroundColor: colors.bg,
+    backgroundColor: variantColors.bg,
     paddingHorizontal: size === 'sm' ? Spacing.sm : Spacing.md,
     paddingVertical: size === 'sm' ? 2 : Spacing.xs,
     borderRadius: BorderRadius.full,
@@ -32,7 +36,7 @@ export function Badge({ label, variant = 'default', size = 'sm', style }: BadgeP
 
   const textStyle: TextStyle = {
     ...(size === 'sm' ? Typography.small : Typography.captionMedium),
-    color: colors.text,
+    color: variantColors.text,
   };
 
   return (
