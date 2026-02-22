@@ -20,11 +20,28 @@ import type {
   ScheduleResponse,
 } from '@/types';
 
+/** Normalise backend response: handles both plain array and { items, pagination } */
+function normalizePaginated<T>(raw: any): PaginatedResponse<T> {
+  if (Array.isArray(raw)) {
+    return {
+      items: raw,
+      pagination: { limit: raw.length, hasNext: false, hasPrev: false },
+    };
+  }
+  if (raw?.items && Array.isArray(raw.items)) {
+    return {
+      items: raw.items,
+      pagination: raw.pagination ?? { limit: raw.items.length, hasNext: false, hasPrev: false },
+    };
+  }
+  return { items: [], pagination: { limit: 0, hasNext: false, hasPrev: false } };
+}
+
 class RealtorService {
   /** GET /realtor/listings — get realtor's own listings */
   async getMyListings(params?: Record<string, unknown>): Promise<PaginatedResponse<Property>> {
-    const res = await api.get<PaginatedResponse<Property>>('/realtor/listings', params);
-    return res.data!;
+    const res = await api.get<any>('/realtor/listings', params);
+    return normalizePaginated<Property>(res.data);
   }
 
   /** GET /realtor/listings/stats — listing counts + views */

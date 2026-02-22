@@ -11,6 +11,25 @@ import type {
   PaginatedResponse,
 } from '@/types';
 
+/** Normalise backend response: handles both plain array and { items, pagination } */
+function normalizePaginated<T>(raw: any): PaginatedResponse<T> {
+  if (Array.isArray(raw)) {
+    return {
+      items: raw,
+      pagination: { limit: raw.length, hasNext: false, hasPrev: false },
+    };
+  }
+  // Already paginated shape
+  if (raw?.items && Array.isArray(raw.items)) {
+    return {
+      items: raw.items,
+      pagination: raw.pagination ?? { limit: raw.items.length, hasNext: false, hasPrev: false },
+    };
+  }
+  // Fallback: unexpected shape
+  return { items: [], pagination: { limit: 0, hasNext: false, hasPrev: false } };
+}
+
 class PropertyService {
   /** GET /properties/search — cursor-paginated, public endpoint */
   async search(
@@ -24,11 +43,8 @@ class PropertyService {
         }
       });
     }
-    const res = await api.get<PaginatedResponse<Property>>(
-      '/properties/search',
-      params,
-    );
-    return res.data!;
+    const res = await api.get<any>('/properties/search', params);
+    return normalizePaginated<Property>(res.data);
   }
 
   /** GET /properties/:id */
@@ -39,8 +55,12 @@ class PropertyService {
 
   /** GET /properties/featured */
   async getFeatured(limit = 10): Promise<Property[]> {
-    const res = await api.get<Property[]>('/properties/featured', { limit });
-    return res.data!;
+    const res = await api.get<any>('/properties/featured', { limit });
+    const raw = res.data;
+    // Could be a plain array or { items: [...] }
+    if (Array.isArray(raw)) return raw;
+    if (raw?.items && Array.isArray(raw.items)) return raw.items;
+    return [];
   }
 
   /** GET /properties — list all (same filters as search) */
@@ -53,11 +73,8 @@ class PropertyService {
         }
       });
     }
-    const res = await api.get<PaginatedResponse<Property>>(
-      '/properties',
-      params,
-    );
-    return res.data!;
+    const res = await api.get<any>('/properties', params);
+    return normalizePaginated<Property>(res.data);
   }
 }
 

@@ -11,6 +11,23 @@ import type {
   PaginatedResponse,
 } from '@/types';
 
+/** Normalise backend response: handles both plain array and { items, pagination } */
+function normalizePaginated<T>(raw: any): PaginatedResponse<T> {
+  if (Array.isArray(raw)) {
+    return {
+      items: raw,
+      pagination: { limit: raw.length, hasNext: false, hasPrev: false },
+    };
+  }
+  if (raw?.items && Array.isArray(raw.items)) {
+    return {
+      items: raw.items,
+      pagination: raw.pagination ?? { limit: raw.items.length, hasNext: false, hasPrev: false },
+    };
+  }
+  return { items: [], pagination: { limit: 0, hasNext: false, hasPrev: false } };
+}
+
 class ApplicationService {
   /** POST /applications — idempotent, requires CLIENT role */
   async create(payload: CreateApplicationRequest): Promise<Application> {
@@ -25,11 +42,8 @@ class ApplicationService {
   ): Promise<PaginatedResponse<Application>> {
     const params: Record<string, unknown> = { limit };
     if (cursor) params.cursor = cursor;
-    const res = await api.get<PaginatedResponse<Application>>(
-      '/applications/me',
-      params,
-    );
-    return res.data!;
+    const res = await api.get<any>('/applications/me', params);
+    return normalizePaginated<Application>(res.data);
   }
 
   /** GET /applications/:id */
