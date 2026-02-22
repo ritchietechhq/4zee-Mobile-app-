@@ -1,35 +1,34 @@
 /**
  * Convert kobo amount to Naira.
- * The API returns all monetary values in kobo (1 Naira = 100 kobo).
+ * @deprecated The API returns monetary values in Naira, not kobo.
  */
 export function fromKobo(amountInKobo: number): number {
   return amountInKobo / 100;
 }
 
 /**
- * Format a kobo amount as Nigerian Naira currency string.
- * Automatically converts from kobo to Naira.
+ * Format a Naira amount as a Nigerian Naira currency string.
+ * The API returns all monetary values in Naira (NOT kobo).
  *
- * @param amountInKobo - The amount in kobo (smallest currency unit)
+ * @param amount - The amount in Naira
  * @param currency - Currency code (default: 'NGN')
  * @param locale - Locale string (default: 'en-NG')
  */
 export function formatCurrency(
-  amountInKobo: number,
+  amount: number,
   currency: string = 'NGN',
   locale: string = 'en-NG',
 ): string {
-  const nairaAmount = fromKobo(amountInKobo);
   try {
     return new Intl.NumberFormat(locale, {
       style: 'currency',
       currency,
       minimumFractionDigits: 0,
-      maximumFractionDigits: 2,
-    }).format(nairaAmount);
+      maximumFractionDigits: 0,
+    }).format(amount);
   } catch {
     // Fallback for environments without Intl support
-    return `₦${nairaAmount.toLocaleString()}`;
+    return `₦${amount.toLocaleString()}`;
   }
 }
 
@@ -56,14 +55,13 @@ export function formatNaira(
 
 /**
  * Format a compact number (e.g., 1.2M, 500K).
- * Works on kobo values — converts to Naira first.
+ * Amount is already in Naira.
  */
-export function formatCompactNumber(numInKobo: number): string {
-  const num = fromKobo(numInKobo);
-  if (num >= 1_000_000_000) return `₦${(num / 1_000_000_000).toFixed(1)}B`;
-  if (num >= 1_000_000) return `₦${(num / 1_000_000).toFixed(1)}M`;
-  if (num >= 1_000) return `₦${(num / 1_000).toFixed(1)}K`;
-  return `₦${num.toString()}`;
+export function formatCompactNumber(amount: number): string {
+  if (amount >= 1_000_000_000) return `₦${(amount / 1_000_000_000).toFixed(1)}B`;
+  if (amount >= 1_000_000) return `₦${(amount / 1_000_000).toFixed(1)}M`;
+  if (amount >= 1_000) return `₦${(amount / 1_000).toFixed(1)}K`;
+  return `₦${amount.toString()}`;
 }
 
 /**

@@ -20,28 +20,43 @@ import type {
   ScheduleResponse,
 } from '@/types';
 
+/**
+ * Normalise a single property from the backend.
+ * Maps `mediaUrls` → `images` so all UI components can use `property.images`.
+ */
+function normalizeProperty(raw: any): Property {
+  if (!raw) return raw;
+  return {
+    ...raw,
+    images: raw.images?.length ? raw.images : (raw.mediaUrls ?? []),
+    amenities: raw.amenities ?? [],
+  };
+}
+
 /** Normalise backend response: handles both plain array and { items, pagination } */
-function normalizePaginated<T>(raw: any): PaginatedResponse<T> {
+function normalizePaginated(raw: any): PaginatedResponse<Property> {
+  let items: any[] = [];
+  let pagination = { limit: 0, hasNext: false, hasPrev: false } as any;
+
   if (Array.isArray(raw)) {
-    return {
-      items: raw,
-      pagination: { limit: raw.length, hasNext: false, hasPrev: false },
-    };
+    items = raw;
+    pagination = { limit: raw.length, hasNext: false, hasPrev: false };
+  } else if (raw?.items && Array.isArray(raw.items)) {
+    items = raw.items;
+    pagination = raw.pagination ?? { limit: raw.items.length, hasNext: false, hasPrev: false };
   }
-  if (raw?.items && Array.isArray(raw.items)) {
-    return {
-      items: raw.items,
-      pagination: raw.pagination ?? { limit: raw.items.length, hasNext: false, hasPrev: false },
-    };
-  }
-  return { items: [], pagination: { limit: 0, hasNext: false, hasPrev: false } };
+
+  return {
+    items: items.map(normalizeProperty),
+    pagination,
+  };
 }
 
 class RealtorService {
   /** GET /realtor/listings — get realtor's own listings */
   async getMyListings(params?: Record<string, unknown>): Promise<PaginatedResponse<Property>> {
     const res = await api.get<any>('/realtor/listings', params);
-    return normalizePaginated<Property>(res.data);
+    return normalizePaginated(res.data);
   }
 
   /** GET /realtor/listings/stats — listing counts + views */
@@ -52,14 +67,14 @@ class RealtorService {
 
   /** POST /realtor/listings — create new listing */
   async createListing(payload: CreateListingRequest): Promise<Property> {
-    const res = await api.post<Property>('/realtor/listings', payload);
-    return res.data!;
+    const res = await api.post<any>('/realtor/listings', payload);
+    return normalizeProperty(res.data);
   }
 
   /** PATCH /realtor/listings/:id — update listing */
   async updateListing(id: string, payload: UpdateListingRequest): Promise<Property> {
-    const res = await api.patch<Property>(`/realtor/listings/${id}`, payload);
-    return res.data!;
+    const res = await api.patch<any>(`/realtor/listings/${id}`, payload);
+    return normalizeProperty(res.data);
   }
 
   /** DELETE /realtor/listings/:id — delete listing */

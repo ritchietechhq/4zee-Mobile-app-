@@ -12,7 +12,7 @@ export interface Property {
   title: string;
   description: string;
   type: PropertyType;
-  price: number; // in kobo
+  price: number; // in Naira
   location: string;
   city: string;
   state: string;
@@ -26,7 +26,8 @@ export interface Property {
   toilets?: number;
   area?: number;
   amenities: string[];
-  images: string[];
+  images: string[];      // Normalised from mediaUrls by the service layer
+  mediaUrls?: string[];  // Raw field from the backend
   videoUrl?: string;
   virtualTourUrl?: string;
   availability: PropertyAvailability;
