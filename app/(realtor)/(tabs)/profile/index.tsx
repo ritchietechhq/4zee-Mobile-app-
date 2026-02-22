@@ -103,6 +103,7 @@ export default function RealtorProfile() {
   const kycInfo = kycBadge[kycStatus];
 
   const menuItems: MenuItem[] = [
+    { icon: 'people-outline', label: 'Referral Hub', onPress: () => router.push('/(realtor)/profile/referrals' as any) },
     { icon: 'shield-checkmark-outline', label: 'KYC Verification', onPress: () => router.push('/(realtor)/profile/kyc' as any), badge: kycInfo.label },
     { icon: 'card-outline', label: 'Bank Accounts', onPress: () => router.push('/(realtor)/profile/bank-accounts' as any) },
     { icon: 'person-outline', label: 'Edit Profile', onPress: () => router.push('/(realtor)/profile/edit-profile' as any) },
@@ -156,7 +157,13 @@ export default function RealtorProfile() {
           </View>
         ) : referralInfo ? (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Referral Hub</Text>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Referral Hub</Text>
+              <TouchableOpacity onPress={() => router.push('/(realtor)/profile/referrals' as any)} activeOpacity={0.7}>
+                <Text style={styles.viewAllText}>View All</Text>
+              </TouchableOpacity>
+            </View>
+            <TouchableOpacity activeOpacity={0.8} onPress={() => router.push('/(realtor)/profile/referrals' as any)}>
             <Card variant="outlined" padding="md" style={styles.referralHubCard}>
               <View style={styles.referralCodeRow}>
                 <View style={styles.referralCodeBox}>
@@ -195,6 +202,7 @@ export default function RealtorProfile() {
                 </View>
               ) : null}
             </Card>
+            </TouchableOpacity>
           </View>
         ) : null}
 
@@ -316,7 +324,9 @@ const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   referralLinkRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs, marginTop: Spacing.md, paddingTop: Spacing.md, borderTopWidth: 1, borderTopColor: colors.borderLight },
   referralLinkText: { ...Typography.small, color: colors.textMuted, flex: 1 },
   section: { paddingHorizontal: Spacing.xl, marginBottom: Spacing.xl },
-  sectionTitle: { ...Typography.captionMedium, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: Spacing.md },
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: Spacing.md },
+  sectionTitle: { ...Typography.captionMedium, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 1 },
+  viewAllText: { ...Typography.captionMedium, color: colors.primary },
   menuCard: { overflow: 'hidden', backgroundColor: colors.cardBackground },
   menuItem: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',

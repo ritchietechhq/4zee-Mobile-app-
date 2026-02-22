@@ -18,6 +18,7 @@ export default function ProfileLayout() {
       <Stack.Screen name="notifications" />
       <Stack.Screen name="help" />
       <Stack.Screen name="kyc" />
+      <Stack.Screen name="referrals" />
     </Stack>
   );
 }
