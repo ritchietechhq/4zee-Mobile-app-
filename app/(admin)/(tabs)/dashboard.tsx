@@ -1,10 +1,10 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, RefreshControl,
   TouchableOpacity, Animated, ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuthStore } from '@/store/auth.store';
@@ -15,7 +15,7 @@ import { formatCurrency, formatCompactNumber } from '@/utils/formatCurrency';
 import { Spacing, Typography, BorderRadius, Shadows } from '@/constants/theme';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import type { ThemeColors } from '@/constants/colors';
-import type { AdminDashboard as AdminDashboardData, AdminQuickStats } from '@/types/admin';
+import type { AdminDashboard as AdminDashboardData, AdminQuickStats, AdminKYCStatistics } from '@/types/admin';
 
 const formatTimeAgo = (dateStr: string): string => {
   const diff = Date.now() - new Date(dateStr).getTime();
@@ -46,34 +46,68 @@ export default function AdminDashboard() {
 
   const [dashboard, setDashboard] = useState<AdminDashboardData | null>(null);
   const [quickStats, setQuickStats] = useState<AdminQuickStats | null>(null);
+  const [kycStats, setKycStats] = useState<AdminKYCStatistics | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [fadeAnim] = useState(() => new Animated.Value(0));
 
   const fetchData = useCallback(async () => {
     try {
-      const [dash, stats] = await Promise.all([
-        adminService.getDashboard(),
-        adminService.getQuickStats(),
+      // Fetch dashboard + quick-stats + live KYC statistics in parallel
+      const [dash, stats, kyc] = await Promise.all([
+        adminService.getDashboard().catch(() => null),
+        adminService.getQuickStats().catch(() => null),
+        adminService.getKYCStatistics().catch(() => null),
       ]);
+
+      // Merge live KYC counts into the dashboard pending actions
+      // so they always reflect the real DB state, not cached aggregates
+      if (dash && kyc) {
+        const livePending = (kyc.byStatus?.PENDING ?? 0);
+        const docPending  = kyc.documents?.pending ?? livePending;
+        dash.pendingActions = {
+          ...dash.pendingActions,
+          kycPending: docPending || livePending,
+        };
+      }
+
+      // Merge live KYC count into quick-stats too
+      if (stats && kyc) {
+        const livePending = kyc.documents?.pending ?? (kyc.byStatus?.PENDING ?? 0);
+        stats.pendingKyc = livePending;
+      }
+
       setDashboard(dash);
       setQuickStats(stats);
+      setKycStats(kyc);
     } catch (e) {
       console.error('Admin dashboard fetch error:', e);
     }
   }, []);
 
-  useEffect(() => {
-    (async () => {
-      await fetchData();
-      setIsLoading(false);
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 500,
-        useNativeDriver: true,
-      }).start();
-    })();
-  }, []);
+  const hasFetchedRef = useRef(false);
+
+  // Refresh data every time dashboard gains focus (not just on mount)
+  useFocusEffect(
+    useCallback(() => {
+      if (!hasFetchedRef.current) {
+        // First visit — show full skeleton + fade-in
+        hasFetchedRef.current = true;
+        (async () => {
+          await fetchData();
+          setIsLoading(false);
+          Animated.timing(fadeAnim, {
+            toValue: 1,
+            duration: 500,
+            useNativeDriver: true,
+          }).start();
+        })();
+      } else {
+        // Subsequent focuses — silent refresh (no skeleton flash)
+        fetchData();
+      }
+    }, [fetchData]),
+  );
 
   const onRefresh = useCallback(async () => {
     setIsRefreshing(true);
@@ -262,6 +296,54 @@ export default function AdminDashboard() {
               <Text style={styles.pendingLabel}>Open Tickets</Text>
             </TouchableOpacity>
           </View>
+
+          {/* ─── KYC Documents Breakdown (live stats) ─── */}
+          {kycStats && (
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() => router.push('/(admin)/kyc-review' as any)}
+            >
+              <Card variant="elevated" padding="md" style={styles.kycBreakdownCard}>
+                <View style={styles.kycBreakdownHeader}>
+                  <Ionicons name="shield-checkmark-outline" size={18} color={colors.primary} />
+                  <Text style={styles.kycBreakdownTitle}>KYC Documents</Text>
+                  <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+                </View>
+                <View style={styles.kycBreakdownRow}>
+                  <View style={styles.kycBreakdownItem}>
+                    <View style={[styles.kycDot, { backgroundColor: colors.warning }]} />
+                    <Text style={styles.kycBreakdownLabel}>Pending</Text>
+                    <Text style={[styles.kycBreakdownCount, { color: colors.warning }]}>
+                      {kycStats.documents?.pending ?? kycStats.byStatus?.PENDING ?? 0}
+                    </Text>
+                  </View>
+                  <View style={styles.kycBreakdownItem}>
+                    <View style={[styles.kycDot, { backgroundColor: colors.success }]} />
+                    <Text style={styles.kycBreakdownLabel}>Approved</Text>
+                    <Text style={[styles.kycBreakdownCount, { color: colors.success }]}>
+                      {kycStats.documents?.approved ?? kycStats.byStatus?.APPROVED ?? 0}
+                    </Text>
+                  </View>
+                  <View style={styles.kycBreakdownItem}>
+                    <View style={[styles.kycDot, { backgroundColor: colors.error }]} />
+                    <Text style={styles.kycBreakdownLabel}>Rejected</Text>
+                    <Text style={[styles.kycBreakdownCount, { color: colors.error }]}>
+                      {kycStats.documents?.rejected ?? kycStats.byStatus?.REJECTED ?? 0}
+                    </Text>
+                  </View>
+                  {(kycStats.submissionsLast24h ?? 0) > 0 && (
+                    <View style={styles.kycBreakdownItem}>
+                      <View style={[styles.kycDot, { backgroundColor: colors.primary }]} />
+                      <Text style={styles.kycBreakdownLabel}>Last 24h</Text>
+                      <Text style={[styles.kycBreakdownCount, { color: colors.primary }]}>
+                        {kycStats.submissionsLast24h}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              </Card>
+            </TouchableOpacity>
+          )}
 
           {/* ─── User Breakdown ─── */}
           <Text style={styles.sectionTitle}>User Breakdown</Text>
@@ -494,6 +576,32 @@ const makeStyles = (colors: ThemeColors) =>
     pendingValue: { ...Typography.h3, color: colors.textPrimary },
     pendingLabel: { ...Typography.small, color: colors.textSecondary, marginTop: 2 },
     pendingSub: { ...Typography.small, color: colors.textMuted, marginTop: 2 },
+
+    // KYC Breakdown Card
+    kycBreakdownCard: { marginHorizontal: Spacing.xl, marginTop: Spacing.md },
+    kycBreakdownHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: Spacing.sm,
+      marginBottom: Spacing.md,
+    },
+    kycBreakdownTitle: { ...Typography.bodyMedium, color: colors.textPrimary, flex: 1 },
+    kycBreakdownRow: {
+      flexDirection: 'row',
+      gap: Spacing.lg,
+    },
+    kycBreakdownItem: {
+      flex: 1,
+      alignItems: 'center',
+      gap: 3,
+    },
+    kycDot: {
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+    },
+    kycBreakdownLabel: { ...Typography.small, color: colors.textSecondary },
+    kycBreakdownCount: { ...Typography.h4, fontWeight: '700' },
 
     // Breakdown
     breakdownRow: {
