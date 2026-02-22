@@ -171,7 +171,7 @@ export default function EditListingScreen() {
         title: form.title.trim(),
         description: form.description.trim() || '',
         location: form.location.trim(),
-        price: Number(form.price),
+        price: Math.round(Number(form.price)),
         type: form.type as PropertyType,
         mediaUrls: allMediaUrls.length > 0 ? allMediaUrls : [],
         bedrooms: form.bedrooms ? Number(form.bedrooms) : undefined,

@@ -140,7 +140,7 @@ export default function AddListingScreen() {
         title: form.title.trim(),
         description: form.description.trim() || '',
         location: form.location.trim(),
-        price: Number(form.price),
+        price: Math.round(Number(form.price)),
         type: form.type as PropertyType,
         mediaUrls: mediaUrls.length > 0 ? mediaUrls : [],
         bedrooms: form.bedrooms ? Number(form.bedrooms) : undefined,
