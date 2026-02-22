@@ -16,6 +16,7 @@ import { Modal } from '@/components/ui/Modal';
 import { Spacing, Typography, BorderRadius, Shadows } from '@/constants/theme';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import type { ThemeColors } from '@/constants/colors';
+import { normaliseKYCStatus } from '@/utils/kycStatus';
 import type { AdminKYCRequest, AdminKYCDocument, AdminKYCSummary, AdminKYCStatistics } from '@/types/admin';
 
 const STATUS_TABS = ['ALL', 'PENDING', 'APPROVED', 'REJECTED'] as const;
@@ -65,58 +66,38 @@ export default function KYCReviewScreen() {
         // Legacy shape fallback: { clients: [...], realtors: [...] }
         const legacy = data as any;
         const mapped: AdminKYCRequest[] = [];
-        for (const c of (legacy.clients ?? [])) {
-          mapped.push({
-            entityId: c.id,
-            entityType: 'client',
-            email: c.user?.email ?? '',
-            firstName: c.firstName ?? '',
-            lastName: c.lastName ?? '',
-            kycStatus: c.kycStatus ?? 'PENDING',
-            documents: (c.kycDocuments ?? []).map((d: any) => ({
+        const mapLegacyEntity = (entity: any, type: 'client' | 'realtor'): AdminKYCRequest => {
+          const docs = (entity.kycDocuments ?? []).map((d: any) => {
+            const normStatus = normaliseKYCStatus(d.status);
+            return {
               id: d.id,
               type: d.type,
               fileUrl: d.fileUrl ?? '',
-              status: d.status ?? 'PENDING',
-              canApprove: d.status === 'PENDING',
-              canReject: d.status === 'PENDING',
+              status: normStatus,
+              canApprove: normStatus === 'PENDING',
+              canReject: normStatus === 'PENDING',
               verifyEndpoint: `POST /admin/kyc/documents/${d.id}/verify`,
               idNumber: d.idNumber,
               fileName: d.fileName,
               createdAt: d.createdAt,
-            })),
-            totalDocuments: (c.kycDocuments ?? []).length,
-            pendingDocuments: (c.kycDocuments ?? []).filter((d: any) => d.status === 'PENDING').length,
-            approvedDocuments: (c.kycDocuments ?? []).filter((d: any) => d.status === 'APPROVED').length,
-            rejectedDocuments: (c.kycDocuments ?? []).filter((d: any) => d.status === 'REJECTED').length,
+            };
           });
-        }
-        for (const r of (legacy.realtors ?? [])) {
-          mapped.push({
-            entityId: r.id,
-            entityType: 'realtor',
-            email: r.user?.email ?? '',
-            firstName: r.firstName ?? '',
-            lastName: r.lastName ?? '',
-            kycStatus: r.kycStatus ?? 'PENDING',
-            documents: (r.kycDocuments ?? []).map((d: any) => ({
-              id: d.id,
-              type: d.type,
-              fileUrl: d.fileUrl ?? '',
-              status: d.status ?? 'PENDING',
-              canApprove: d.status === 'PENDING',
-              canReject: d.status === 'PENDING',
-              verifyEndpoint: `POST /admin/kyc/documents/${d.id}/verify`,
-              idNumber: d.idNumber,
-              fileName: d.fileName,
-              createdAt: d.createdAt,
-            })),
-            totalDocuments: (r.kycDocuments ?? []).length,
-            pendingDocuments: (r.kycDocuments ?? []).filter((d: any) => d.status === 'PENDING').length,
-            approvedDocuments: (r.kycDocuments ?? []).filter((d: any) => d.status === 'APPROVED').length,
-            rejectedDocuments: (r.kycDocuments ?? []).filter((d: any) => d.status === 'REJECTED').length,
-          });
-        }
+          return {
+            entityId: entity.id,
+            entityType: type,
+            email: entity.user?.email ?? '',
+            firstName: entity.firstName ?? '',
+            lastName: entity.lastName ?? '',
+            kycStatus: normaliseKYCStatus(entity.kycStatus),
+            documents: docs,
+            totalDocuments: docs.length,
+            pendingDocuments: docs.filter((d: any) => d.status === 'PENDING').length,
+            approvedDocuments: docs.filter((d: any) => d.status === 'APPROVED').length,
+            rejectedDocuments: docs.filter((d: any) => d.status === 'REJECTED').length,
+          };
+        };
+        for (const c of (legacy.clients ?? [])) mapped.push(mapLegacyEntity(c, 'client'));
+        for (const r of (legacy.realtors ?? [])) mapped.push(mapLegacyEntity(r, 'realtor'));
         setRequests(mapped);
         setSummary(null);
       }
@@ -199,7 +180,7 @@ export default function KYCReviewScreen() {
 
   // ─── Badge helpers ─────────────────────────────────────────
   const badgeVariant = (status: string): 'default' | 'success' | 'warning' | 'error' | 'info' => {
-    switch (status) {
+    switch (normaliseKYCStatus(status)) {
       case 'PENDING': return 'warning';
       case 'APPROVED': return 'success';
       case 'REJECTED': return 'error';
@@ -237,7 +218,8 @@ export default function KYCReviewScreen() {
 
   const renderDocCard = (doc: AdminKYCDocument, person: AdminKYCRequest) => {
     const icon = DOC_TYPE_ICON[doc.type] ?? 'document-outline';
-    const isPending = doc.status === 'PENDING';
+    const normDocStatus = normaliseKYCStatus(doc.status);
+    const isPending = normDocStatus === 'PENDING';
     const isProcessingThis = processing === doc.id;
 
     return (

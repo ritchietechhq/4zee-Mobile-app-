@@ -6,21 +6,12 @@
 
 import api from './api';
 import type { KYC, KYCStatus, SubmitKYCRequest } from '@/types';
-
-/**
- * The backend returns "VERIFIED" while the frontend UI uses "APPROVED".
- * Normalise once so every screen can rely on KYCStatus.
- */
-const normaliseStatus = (raw?: string): KYCStatus => {
-  if (!raw) return 'NOT_SUBMITTED';
-  if (raw === 'VERIFIED') return 'APPROVED';
-  return raw as KYCStatus;
-};
+import { normaliseKYCStatus } from '@/utils/kycStatus';
 
 /** Turn the flat backend response into the KYC interface the UI expects. */
 const normaliseKYC = (data: any): KYC => ({
   id: data.id,
-  kycStatus: normaliseStatus(data.status ?? data.kycStatus),
+  kycStatus: normaliseKYCStatus(data.status ?? data.kycStatus),
   idType: data.idType,
   idNumber: data.idNumber,
   idDocumentUrl: data.idDocumentUrl,

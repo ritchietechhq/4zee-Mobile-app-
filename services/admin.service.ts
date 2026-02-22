@@ -4,6 +4,7 @@
 // ============================================================
 
 import api from './api';
+import { normaliseKYCStatus, normaliseStatusCounts } from '@/utils/kycStatus';
 import type {
   AdminDashboard,
   AdminQuickStats,
@@ -212,10 +213,40 @@ class AdminService {
 
   // ─── KYC Management ───────────────────────────────────────
   async getPendingKYC(status?: string): Promise<AdminKYCPendingResponse> {
-    const params: Record<string, unknown> = {};
-    if (status) params.status = status;
-    const res = await api.get<AdminKYCPendingResponse>('/admin/kyc/pending', params);
-    return res.data!;
+    // Always fetch all statuses from the backend — we normalise and
+    // filter client-side so that backend variants like SUBMITTED,
+    // IN_REVIEW, VERIFIED etc. are correctly bucketed.
+    const res = await api.get<AdminKYCPendingResponse>('/admin/kyc/pending');
+    const data = res.data!;
+
+    // Normalise entity + document statuses in the response
+    if (data.requests) {
+      for (const req of data.requests) {
+        req.kycStatus = normaliseKYCStatus(req.kycStatus);
+        let pending = 0, approved = 0, rejected = 0;
+        for (const doc of req.documents) {
+          doc.status = normaliseKYCStatus(doc.status);
+          doc.canApprove = doc.status === 'PENDING';
+          doc.canReject  = doc.status === 'PENDING';
+          if (doc.status === 'PENDING')  pending++;
+          if (doc.status === 'APPROVED') approved++;
+          if (doc.status === 'REJECTED') rejected++;
+        }
+        req.totalDocuments    = req.documents.length;
+        req.pendingDocuments  = pending;
+        req.approvedDocuments = approved;
+        req.rejectedDocuments = rejected;
+      }
+    }
+
+    // Client-side tab filter
+    if (status && data.requests) {
+      data.requests = data.requests.filter(
+        (r) => r.kycStatus === status || r.documents.some((d) => d.status === status),
+      );
+    }
+
+    return data;
   }
 
   async getClientKYC(clientId: string): Promise<AdminKYCClientDetail> {
@@ -241,7 +272,12 @@ class AdminService {
 
   async getKYCStatistics(): Promise<AdminKYCStatistics> {
     const res = await api.get<AdminKYCStatistics>('/admin/kyc/statistics');
-    return res.data!;
+    const data = res.data!;
+    // Normalise status keys so SUBMITTED/IN_REVIEW/etc. merge into PENDING
+    data.byStatus = normaliseStatusCounts(data.byStatus);
+    data.clients = normaliseStatusCounts(data.clients);
+    data.realtors = normaliseStatusCounts(data.realtors);
+    return data;
   }
 
   /** GET /admin/kyc/documents — raw listing of ALL KycDocument records (debug) */

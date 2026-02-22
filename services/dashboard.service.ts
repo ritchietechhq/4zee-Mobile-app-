@@ -4,6 +4,7 @@
 // ============================================================
 
 import api from './api';
+import { normaliseKYCStatus } from '@/utils/kycStatus';
 import type { ClientDashboard, RealtorDashboard } from '@/types';
 
 class DashboardService {
@@ -13,7 +14,9 @@ class DashboardService {
     const raw = res.data ?? {};
     // Normalize — provide safe defaults so UI never crashes on missing fields
     return {
-      profile: raw.profile ?? { email: '', firstName: '', lastName: '', kycStatus: 'NOT_SUBMITTED', memberSince: '' },
+      profile: raw.profile
+        ? { ...raw.profile, kycStatus: normaliseKYCStatus(raw.profile.kycStatus) }
+        : { email: '', firstName: '', lastName: '', kycStatus: 'NOT_SUBMITTED', memberSince: '' },
       applicationsSummary: raw.applicationsSummary ?? { PENDING: 0, APPROVED: 0, REJECTED: 0, total: 0 },
       financials: raw.financials ?? { totalSpent: 0, activePaymentPlans: 0 },
       upcomingInstallments: raw.upcomingInstallments ?? [],
@@ -39,7 +42,7 @@ class DashboardService {
         referralCode: raw.profile?.referralCode ?? '',
         totalSales: raw.profile?.totalSales ?? 0,
         totalRecruits: raw.profile?.totalRecruits ?? 0,
-        kycStatus: raw.profile?.kycStatus ?? 'NOT_SUBMITTED',
+        kycStatus: normaliseKYCStatus(raw.profile?.kycStatus),
         kycVerifiedAt: raw.profile?.kycVerifiedAt ?? null,
         kycRejectedReason: raw.profile?.kycRejectedReason ?? null,
         memberSince: raw.profile?.memberSince ?? '',
