@@ -138,16 +138,18 @@ export default function AddListingScreen() {
 
       const payload: CreateListingRequest = {
         title: form.title.trim(),
-        description: form.description.trim() || undefined,
+        description: form.description.trim() || '',
         location: form.location.trim(),
         price: Number(form.price),
         type: form.type as PropertyType,
-        mediaUrls: mediaUrls.length > 0 ? mediaUrls : undefined,
+        mediaUrls: mediaUrls.length > 0 ? mediaUrls : [],
         bedrooms: form.bedrooms ? Number(form.bedrooms) : undefined,
         bathrooms: form.bathrooms ? Number(form.bathrooms) : undefined,
         size: form.size ? Number(form.size) : undefined,
         amenities: amenities.length > 0 ? amenities : undefined,
       };
+
+      if (__DEV__) console.log('[CreateListing] payload:', JSON.stringify(payload, null, 2));
 
       await realtorService.createListing(payload);
 
@@ -155,7 +157,13 @@ export default function AddListingScreen() {
         { text: 'OK', onPress: () => router.back() },
       ]);
     } catch (err: any) {
-      const message = err?.error?.message || err?.message || 'Failed to create listing.';
+      if (__DEV__) console.error('[CreateListing] error:', JSON.stringify(err, null, 2));
+      // Backend may return message as string OR string[] (NestJS ValidationPipe)
+      const raw =
+        err?.error?.message   // Standard API envelope
+        ?? err?.message       // NestJS default / fallback
+        ?? 'Failed to create listing.';
+      const message = Array.isArray(raw) ? raw.join('\n') : String(raw);
       Alert.alert('Error', message);
     } finally {
       setIsSubmitting(false);

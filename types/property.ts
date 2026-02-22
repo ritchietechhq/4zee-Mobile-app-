@@ -57,11 +57,11 @@ export interface PropertySearchFilters {
 
 export interface CreateListingRequest {
   title: string;
-  description?: string;
+  description: string;
   location: string;
   price: number;
   type: PropertyType;
-  mediaUrls?: string[];
+  mediaUrls: string[];
   bedrooms?: number;
   bathrooms?: number;
   size?: number;

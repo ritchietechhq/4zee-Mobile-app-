@@ -169,16 +169,18 @@ export default function EditListingScreen() {
 
       const payload: UpdateListingRequest = {
         title: form.title.trim(),
-        description: form.description.trim() || undefined,
+        description: form.description.trim() || '',
         location: form.location.trim(),
         price: Number(form.price),
         type: form.type as PropertyType,
-        mediaUrls: allMediaUrls.length > 0 ? allMediaUrls : undefined,
+        mediaUrls: allMediaUrls.length > 0 ? allMediaUrls : [],
         bedrooms: form.bedrooms ? Number(form.bedrooms) : undefined,
         bathrooms: form.bathrooms ? Number(form.bathrooms) : undefined,
         size: form.size ? Number(form.size) : undefined,
         amenities: amenities.length > 0 ? amenities : undefined,
       };
+
+      if (__DEV__) console.log('[UpdateListing] payload:', JSON.stringify(payload, null, 2));
 
       await realtorService.updateListing(id, payload);
 
@@ -186,7 +188,13 @@ export default function EditListingScreen() {
         { text: 'OK', onPress: () => router.back() },
       ]);
     } catch (err: any) {
-      const message = err?.error?.message || err?.message || 'Failed to update listing.';
+      if (__DEV__) console.error('[UpdateListing] error:', JSON.stringify(err, null, 2));
+      // Backend may return message as string OR string[] (NestJS ValidationPipe)
+      const raw =
+        err?.error?.message
+        ?? err?.message
+        ?? 'Failed to update listing.';
+      const message = Array.isArray(raw) ? raw.join('\n') : String(raw);
       Alert.alert('Error', message);
     } finally {
       setIsSubmitting(false);

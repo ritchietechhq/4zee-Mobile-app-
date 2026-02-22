@@ -63,7 +63,10 @@ export default function CreatePropertyScreen() {
         { text: 'OK', onPress: () => router.back() },
       ]);
     } catch (e: any) {
-      Alert.alert('Error', e?.error?.message || 'Failed to create property');
+      if (__DEV__) console.error('[CreateProperty] error:', JSON.stringify(e, null, 2));
+      const raw = e?.error?.message ?? e?.message ?? 'Failed to create property';
+      const message = Array.isArray(raw) ? raw.join('\n') : String(raw);
+      Alert.alert('Error', message);
     } finally {
       setIsSubmitting(false);
     }
