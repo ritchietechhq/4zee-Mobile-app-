@@ -1,7 +1,7 @@
 // ============================================================
 // Notification Service
 // Endpoints: GET /notifications, /notifications/unread-count,
-//            PATCH /notifications/:id/read, /notifications/mark-all-read,
+//            PATCH /notifications/:id/read, /notifications/read-all,
 //            POST /notifications/device, etc.
 // ============================================================
 
@@ -49,9 +49,9 @@ class NotificationService {
     await api.patch(`/notifications/${notificationId}/read`);
   }
 
-  /** PATCH /notifications/mark-all-read */
+  /** PATCH /notifications/read-all */
   async markAllAsRead(): Promise<void> {
-    await api.patch('/notifications/mark-all-read');
+    await api.patch('/notifications/read-all');
   }
 
   /** DELETE /notifications/:id */

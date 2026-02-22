@@ -161,6 +161,13 @@ export interface AdminKYCStatistics {
   clients: Record<string, number>;
   realtors: Record<string, number>;
   submissionsLast24h: number;
+  /** Document-level statistics (new backend response) */
+  documents?: {
+    total: number;
+    pending: number;
+    approved: number;
+    rejected: number;
+  };
 }
 
 // ---------------------------------------------------------------------------

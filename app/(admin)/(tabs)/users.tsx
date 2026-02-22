@@ -54,7 +54,7 @@ export default function UsersHub() {
         <Text style={styles.headerSubtitle}>User management and identity verification</Text>
 
         {/* ─── KYC Statistics ─── */}
-        <Text style={styles.sectionTitle}>KYC Overview</Text>
+        <Text style={styles.sectionTitle}>KYC Overview (Entities)</Text>
         {isLoading ? (
           <View style={styles.statsGrid}>
             {[1, 2, 3, 4].map((i) => <Skeleton key={i} width="47%" height={80} />)}
@@ -76,6 +76,29 @@ export default function UsersHub() {
               </View>
             ))}
           </View>
+        )}
+
+        {/* ─── Document-Level KYC Stats ─── */}
+        {kycStats?.documents && (
+          <>
+            <Text style={styles.sectionTitle}>KYC Documents</Text>
+            <View style={styles.statsGrid}>
+              {[
+                { label: 'Total Docs', value: kycStats.documents.total, color: colors.primary, bg: colors.primaryLight },
+                { label: 'Pending', value: kycStats.documents.pending, color: colors.warning, bg: colors.warningLight },
+                { label: 'Approved', value: kycStats.documents.approved, color: colors.success, bg: colors.successLight },
+                { label: 'Rejected', value: kycStats.documents.rejected, color: colors.error, bg: colors.errorLight },
+              ].map((stat) => (
+                <View key={stat.label} style={[styles.statCard, { borderLeftColor: stat.color }]}>
+                  <View style={[styles.statDot, { backgroundColor: stat.bg }]}>
+                    <View style={[styles.statDotInner, { backgroundColor: stat.color }]} />
+                  </View>
+                  <Text style={styles.statValue}>{stat.value}</Text>
+                  <Text style={styles.statLabel}>{stat.label}</Text>
+                </View>
+              ))}
+            </View>
+          </>
         )}
 
         {/* ─── Navigation ─── */}

@@ -16,7 +16,7 @@ import { Modal } from '@/components/ui/Modal';
 import { Spacing, Typography, BorderRadius, Shadows } from '@/constants/theme';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import type { ThemeColors } from '@/constants/colors';
-import type { AdminKYCRequest, AdminKYCDocument, AdminKYCSummary } from '@/types/admin';
+import type { AdminKYCRequest, AdminKYCDocument, AdminKYCSummary, AdminKYCStatistics } from '@/types/admin';
 
 const STATUS_TABS = ['ALL', 'PENDING', 'APPROVED', 'REJECTED'] as const;
 
@@ -37,6 +37,7 @@ export default function KYCReviewScreen() {
   const [activeTab, setActiveTab] = useState<string>('ALL');
   const [requests, setRequests] = useState<AdminKYCRequest[]>([]);
   const [summary, setSummary] = useState<AdminKYCSummary | null>(null);
+  const [kycStats, setKycStats] = useState<AdminKYCStatistics | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [processing, setProcessing] = useState<string | null>(null);
@@ -51,7 +52,11 @@ export default function KYCReviewScreen() {
 
   const fetchData = useCallback(async () => {
     try {
-      const data = await adminService.getPendingKYC(activeTab === 'ALL' ? undefined : activeTab);
+      const [data, stats] = await Promise.all([
+        adminService.getPendingKYC(activeTab === 'ALL' ? undefined : activeTab),
+        adminService.getKYCStatistics().catch(() => null),
+      ]);
+      if (stats) setKycStats(stats);
       // Handle both new and legacy response shapes
       if (data.requests) {
         setRequests(data.requests);
@@ -207,18 +212,23 @@ export default function KYCReviewScreen() {
 
   // ─── Render ────────────────────────────────────────────────
   const renderSummaryBar = () => {
-    if (!summary) return null;
+    // Prefer the inline summary from /admin/kyc/pending; fall back to
+    // the document-level counts from /admin/kyc/statistics.
+    const s = summary ?? (kycStats?.documents
+      ? { totalDocuments: kycStats.documents.total, pending: kycStats.documents.pending, approved: kycStats.documents.approved, rejected: kycStats.documents.rejected }
+      : null);
+    if (!s) return null;
     return (
       <View style={styles.summaryRow}>
         {[
-          { label: 'Total', value: summary.totalDocuments, color: colors.primary },
-          { label: 'Pending', value: summary.pending, color: colors.warning },
-          { label: 'Approved', value: summary.approved, color: colors.success },
-          { label: 'Rejected', value: summary.rejected, color: colors.error },
-        ].map((s) => (
-          <View key={s.label} style={styles.summaryItem}>
-            <Text style={[styles.summaryValue, { color: s.color }]}>{s.value}</Text>
-            <Text style={styles.summaryLabel}>{s.label}</Text>
+          { label: 'Total', value: s.totalDocuments, color: colors.primary },
+          { label: 'Pending', value: s.pending, color: colors.warning },
+          { label: 'Approved', value: s.approved, color: colors.success },
+          { label: 'Rejected', value: s.rejected, color: colors.error },
+        ].map((item) => (
+          <View key={item.label} style={styles.summaryItem}>
+            <Text style={[styles.summaryValue, { color: item.color }]}>{item.value}</Text>
+            <Text style={styles.summaryLabel}>{item.label}</Text>
           </View>
         ))}
       </View>
