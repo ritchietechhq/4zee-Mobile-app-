@@ -1,6 +1,6 @@
 // ============================================================
 // Messaging Types
-// Matches: GET /messaging/conversations, etc.
+// Matches: GET /messaging/conversations, POST /messaging/inquiries, etc.
 // ============================================================
 
 export interface ConversationParticipant {
@@ -21,22 +21,38 @@ export interface Conversation {
   participant: ConversationParticipant;
   lastMessage: ConversationLastMessage;
   unreadCount: number;
+  propertyId?: string;
+  propertyTitle?: string;
 }
+
+export type MessageType = 'INQUIRY' | 'RESPONSE' | 'SYSTEM';
 
 export interface Message {
   id: string;
   content: string;
   senderId: string;
+  senderName?: string;
   attachments?: string[];
   createdAt: string;
+  type?: MessageType;
 }
 
 export interface SendMessageRequest {
   content: string;
+  type?: MessageType;
   attachments?: string[];
+  attachmentUrl?: string;
 }
 
 export interface StartConversationRequest {
   participantId: string;
   message: string;
+  propertyId?: string;
+  subject?: string;
+}
+
+export interface PropertyInquiryRequest {
+  propertyId: string;
+  message: string;
+  phone?: string;
 }

@@ -15,6 +15,7 @@ export default function RealtorLayout() {
       <Stack.Screen name="(tabs)" />
       <Stack.Screen name="add-listing" />
       <Stack.Screen name="edit-listing" />
+      <Stack.Screen name="messages" />
     </Stack>
   );
 }

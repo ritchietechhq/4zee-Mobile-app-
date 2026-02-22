@@ -58,6 +58,7 @@ export default function ClientLayout() {
       <Tabs.Screen name="privacy" options={{ href: null }} />
       <Tabs.Screen name="terms" options={{ href: null }} />
       <Tabs.Screen name="payments" options={{ href: null }} />
+      <Tabs.Screen name="messages" options={{ href: null }} />
     </Tabs>
   );
 }

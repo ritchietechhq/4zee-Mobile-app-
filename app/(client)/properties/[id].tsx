@@ -30,6 +30,7 @@ import { useAuthStore } from '@/store/auth.store';
 import { applicationService } from '@/services/application.service';
 import { paymentService } from '@/services/payment.service';
 import { messagingService } from '@/services/messaging.service';
+import { paymentPlanService, type PaymentPlanTemplate } from '@/services/paymentPlan.service';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -186,15 +187,27 @@ export default function PropertyDetailScreen() {
 
   /** Contact realtor via phone */
   const handleCall = () => {
-    // In a real app, this would get realtor phone from the property or application
-    const phone = myApplication?.realtor?.user?.phone || '+2348001234567';
+    // Use realtor phone from property OR from application
+    const phone =
+      property?.realtor?.user?.phone ||
+      myApplication?.realtor?.user?.phone;
+    if (!phone) {
+      Alert.alert('Phone Unavailable', 'The realtor's phone number is not available. Try sending a message instead.');
+      return;
+    }
     Linking.openURL(`tel:${phone}`);
     setContactSheetVisible(false);
   };
 
   /** Contact realtor via WhatsApp */
   const handleWhatsApp = () => {
-    const phone = myApplication?.realtor?.user?.phone || '+2348001234567';
+    const phone =
+      property?.realtor?.user?.phone ||
+      myApplication?.realtor?.user?.phone;
+    if (!phone) {
+      Alert.alert('Phone Unavailable', 'The realtor's phone number is not available. Try sending a message instead.');
+      return;
+    }
     const cleanPhone = phone.replace(/[^0-9]/g, '');
     const message = encodeURIComponent(`Hi, I'm interested in the property: ${property?.title}`);
     Linking.openURL(`https://wa.me/${cleanPhone}?text=${message}`);
@@ -207,16 +220,21 @@ export default function PropertyDetailScreen() {
     
     setIsStartingChat(true);
     try {
-      // Start or get existing conversation with the realtor
-      // In a real implementation, you'd have realtorId available
-      const realtorId = myApplication?.realtorId || property.id; // fallback
-      const conversation = await messagingService.startConversation({
-        participantId: realtorId,
+      // Use the dedicated inquiry endpoint — it auto-creates a conversation
+      // with the property's realtor
+      const conversation = await messagingService.sendInquiry({
+        propertyId: property.id,
         message: `Hi, I'm interested in "${property.title}"`,
       });
       setContactSheetVisible(false);
-      // Navigate to messages - for now just show alert as messages screen may not exist
-      Alert.alert('Conversation Started', 'Chat started with the realtor. Check your messages.');
+      // Navigate to the chat screen
+      router.push({
+        pathname: '/(client)/messages/[id]' as any,
+        params: {
+          id: conversation.id,
+          name: `${conversation.participant.firstName} ${conversation.participant.lastName}`.trim(),
+        },
+      });
     } catch (error: any) {
       Alert.alert('Error', error?.message || 'Could not start conversation. Please try again.');
     } finally {
@@ -431,32 +449,37 @@ export default function PropertyDetailScreen() {
             isApplying={isApplying}
           />
 
-          {/* ── Realtor Info (if available) ── */}
-          {myApplication?.realtor && (
-            <Card style={styles.realtorCard}>
-              <Text style={styles.sectionTitle}>Listed By</Text>
-              <View style={styles.realtorInfo}>
-                <View style={styles.realtorAvatar}>
-                  <Text style={styles.realtorInitials}>
-                    {myApplication.realtor.user.firstName?.[0] || 'R'}
-                    {myApplication.realtor.user.lastName?.[0] || ''}
-                  </Text>
+          {/* ── Realtor Info (from property or application) ── */}
+          {(property.realtor || myApplication?.realtor) && (() => {
+            const realtor = property.realtor || myApplication?.realtor;
+            const firstName = realtor?.user?.firstName || 'R';
+            const lastName = realtor?.user?.lastName || '';
+            return (
+              <Card style={styles.realtorCard}>
+                <Text style={styles.sectionTitle}>Listed By</Text>
+                <View style={styles.realtorInfo}>
+                  <View style={styles.realtorAvatar}>
+                    <Text style={styles.realtorInitials}>
+                      {firstName[0] || 'R'}
+                      {lastName[0] || ''}
+                    </Text>
+                  </View>
+                  <View style={styles.realtorDetails}>
+                    <Text style={styles.realtorName}>
+                      {firstName} {lastName}
+                    </Text>
+                    <Text style={styles.realtorLabel}>Licensed Realtor</Text>
+                  </View>
+                  <TouchableOpacity 
+                    style={styles.realtorChatBtn}
+                    onPress={() => setContactSheetVisible(true)}
+                  >
+                    <Ionicons name="chatbubble-ellipses" size={20} color={Colors.primary} />
+                  </TouchableOpacity>
                 </View>
-                <View style={styles.realtorDetails}>
-                  <Text style={styles.realtorName}>
-                    {myApplication.realtor.user.firstName} {myApplication.realtor.user.lastName}
-                  </Text>
-                  <Text style={styles.realtorLabel}>Licensed Realtor</Text>
-                </View>
-                <TouchableOpacity 
-                  style={styles.realtorChatBtn}
-                  onPress={() => setContactSheetVisible(true)}
-                >
-                  <Ionicons name="chatbubble-ellipses" size={20} color={Colors.primary} />
-                </TouchableOpacity>
-              </View>
-            </Card>
-          )}
+              </Card>
+            );
+          })()}
 
           <View style={{ height: Spacing.xxxxl + 100 }} />
         </Animated.View>
@@ -490,7 +513,7 @@ export default function PropertyDetailScreen() {
         onWhatsApp={handleWhatsApp}
         onChat={handleStartChat}
         isStartingChat={isStartingChat}
-        realtorName={myApplication?.realtor?.user?.firstName || 'Realtor'}
+        realtorName={property?.realtor?.user?.firstName || myApplication?.realtor?.user?.firstName || 'Realtor'}
       />
 
       {/* ── Payment WebView Modal ── */}
@@ -714,7 +737,7 @@ function FeatureItem({ icon, label, value }: { icon: keyof typeof Ionicons.glyph
   );
 }
 
-/** Installment Plan Card */
+/** Installment Plan Card — fetches real templates from API */
 function InstallmentPlanCard({ 
   property, 
   application,
@@ -726,11 +749,33 @@ function InstallmentPlanCard({
   onApply: () => void;
   isApplying: boolean;
 }) {
-  // Calculate installment details (example: 12-month plan)
+  const [templates, setTemplates] = useState<PaymentPlanTemplate[]>([]);
+  const [selectedIdx, setSelectedIdx] = useState(0);
+  const [loadingTemplates, setLoadingTemplates] = useState(true);
+
+  useEffect(() => {
+    let mounted = true;
+    paymentPlanService.getTemplates().then((t) => {
+      if (mounted) {
+        const active = t.filter((tp) => tp.isActive);
+        setTemplates(active.length ? active : t);
+      }
+    }).catch(() => {}).finally(() => { if (mounted) setLoadingTemplates(false); });
+    return () => { mounted = false; };
+  }, []);
+
   const totalPrice = property.price;
-  const downPayment = Math.round(totalPrice * 0.3); // 30% down
-  const monthlyPayment = Math.round((totalPrice - downPayment) / 12);
-  
+  const template = templates[selectedIdx];
+
+  // Compute breakdown from the selected template or fallback
+  const downPct = template?.downPaymentPct ?? 30;
+  const durationMonths = template?.durationMonths ?? 12;
+  const interestRate = template?.interestRate ?? 0;
+  const downPayment = Math.round(totalPrice * (downPct / 100));
+  const financed = totalPrice - downPayment;
+  const totalWithInterest = financed * (1 + interestRate / 100);
+  const monthlyPayment = Math.round(totalWithInterest / durationMonths);
+
   // Calculate payment progress if application exists and is paid
   const paidAmount = application?.paymentStatus === 'PAID' ? totalPrice : 0;
   const progress = paidAmount / totalPrice;
@@ -755,6 +800,31 @@ function InstallmentPlanCard({
         This property supports multiple payment options including full payment and installment plans.
       </Text>
 
+      {/* Plan selector chips (when multiple templates) */}
+      {templates.length > 1 && (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: Spacing.md, marginHorizontal: -Spacing.xs }}>
+          {templates.map((tp, idx) => (
+            <TouchableOpacity
+              key={tp.id}
+              onPress={() => setSelectedIdx(idx)}
+              style={{
+                paddingHorizontal: Spacing.md, paddingVertical: Spacing.xs + 2,
+                borderRadius: BorderRadius.full, marginRight: Spacing.sm,
+                backgroundColor: idx === selectedIdx ? Colors.primary : Colors.surface,
+                borderWidth: 1, borderColor: idx === selectedIdx ? Colors.primary : Colors.borderLight,
+              }}
+            >
+              <Text style={{
+                ...Typography.caption, fontWeight: '600',
+                color: idx === selectedIdx ? Colors.white : Colors.textSecondary,
+              }}>
+                {tp.name || `${tp.durationMonths}mo plan`}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      )}
+
       {/* Payment Breakdown */}
       <View style={styles.installmentBreakdown}>
         <View style={styles.installmentRow}>
@@ -763,13 +833,16 @@ function InstallmentPlanCard({
         </View>
         <View style={styles.installmentDivider} />
         <View style={styles.installmentRow}>
-          <Text style={styles.installmentLabel}>Down Payment (30%)</Text>
+          <Text style={styles.installmentLabel}>Down Payment ({downPct}%)</Text>
           <Text style={styles.installmentValue}>{formatCurrency(downPayment)}</Text>
         </View>
         <View style={styles.installmentRow}>
-          <Text style={styles.installmentLabel}>Monthly (12 months)</Text>
+          <Text style={styles.installmentLabel}>Monthly ({durationMonths} months{interestRate > 0 ? ` @ ${interestRate}%` : ''})</Text>
           <Text style={styles.installmentValue}>{formatCurrency(monthlyPayment)}</Text>
         </View>
+        {loadingTemplates && (
+          <ActivityIndicator size="small" color={Colors.primary} style={{ marginTop: Spacing.sm }} />
+        )}
       </View>
 
       {/* Progress Bar */}

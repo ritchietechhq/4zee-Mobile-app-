@@ -134,9 +134,11 @@ export type {
   ConversationParticipant,
   ConversationLastMessage,
   Conversation,
+  MessageType,
   Message,
   SendMessageRequest,
   StartConversationRequest,
+  PropertyInquiryRequest,
 } from './messaging';
 
 // Dashboard

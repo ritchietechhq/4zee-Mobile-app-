@@ -33,6 +33,18 @@ export interface Property {
   availability: PropertyAvailability;
   isFeatured: boolean;
   viewCount: number;
+  // Realtor who listed this property
+  realtorId?: string;
+  realtor?: {
+    id: string;
+    user: {
+      firstName: string;
+      lastName: string;
+      email?: string;
+      phone?: string;
+      profilePicture?: string;
+    };
+  };
   createdAt: string;
   updatedAt: string;
 }
