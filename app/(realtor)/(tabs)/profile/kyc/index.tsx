@@ -1,10 +1,10 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useRef, useState, useCallback, useMemo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, RefreshControl,
   TouchableOpacity, ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { kycService } from '@/services/kyc.service';
 import type { KYC, KYCStatus } from '@/types';
@@ -55,24 +55,34 @@ export default function KYCStatusScreen() {
   const colors = useThemeColors();
   const styles = useMemo(() => makeStyles(colors), [colors]);
 
+  const hasFetchedRef = useRef(false);
+
   const fetchKYC = useCallback(async () => {
     try {
       const res = await kycService.getStatus();
       setKyc(res);
     } catch (e: any) {
-      // If the backend returns an error (e.g. network), fall back gracefully
       const code = e?.error?.code;
       if (code === 'AUTH_FORBIDDEN') {
-        // Shouldn't happen now, but fallback just in case
         setKyc({ kycStatus: 'NOT_SUBMITTED', documents: [] } as KYC);
       }
-      // Otherwise leave kyc as null — loading skeleton will clear and show default state
     }
   }, []);
 
-  useEffect(() => {
-    (async () => { setIsLoading(true); await fetchKYC(); setIsLoading(false); })();
-  }, [fetchKYC]);
+  // Re-fetch every time the screen gains focus (e.g. returning from submit)
+  useFocusEffect(
+    useCallback(() => {
+      if (!hasFetchedRef.current) {
+        // First visit → show full skeleton
+        hasFetchedRef.current = true;
+        setIsLoading(true);
+        fetchKYC().finally(() => setIsLoading(false));
+      } else {
+        // Subsequent focuses → silent refresh (no skeleton flash)
+        fetchKYC();
+      }
+    }, [fetchKYC]),
+  );
 
   const onRefresh = async () => {
     setIsRefreshing(true); await fetchKYC(); setIsRefreshing(false);

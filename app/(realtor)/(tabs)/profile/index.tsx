@@ -1,10 +1,10 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useRef, useState, useCallback, useMemo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   Alert, Share, RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -45,6 +45,8 @@ export default function RealtorProfile() {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
+  const hasFetchedRef = useRef(false);
+
   const fetchAll = useCallback(async () => {
     try {
       const [refRes, kycRes] = await Promise.all([
@@ -56,9 +58,19 @@ export default function RealtorProfile() {
     } catch {}
   }, []);
 
-  useEffect(() => {
-    (async () => { setIsLoading(true); await fetchAll(); setIsLoading(false); })();
-  }, [fetchAll]);
+  // Re-fetch every time Profile screen gains focus so KYC badge
+  // and referral info stay up-to-date after navigating to sub-screens.
+  useFocusEffect(
+    useCallback(() => {
+      if (!hasFetchedRef.current) {
+        hasFetchedRef.current = true;
+        setIsLoading(true);
+        fetchAll().finally(() => setIsLoading(false));
+      } else {
+        fetchAll();
+      }
+    }, [fetchAll]),
+  );
 
   const onRefresh = async () => {
     setIsRefreshing(true); await fetchAll(); setIsRefreshing(false);
