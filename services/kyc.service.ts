@@ -1,26 +1,32 @@
 // ============================================================
 // KYC Service
-// Endpoints: GET /kyc, GET /kyc/status, GET /kyc/documents,
-//            PUT /kyc, POST /uploads/direct
+// Endpoints:
+//   POST /kyc/documents   — submit a single document for review
+//   PUT  /kyc             — update personal info only
+//   GET  /kyc/status      — overall KYC status + summary
+//   GET  /kyc/documents   — list submitted documents
+//   POST /uploads/direct  — upload a file
 // ============================================================
 
 import api from './api';
-import type { KYC, KYCStatus, SubmitKYCRequest } from '@/types';
+import type { KYC, KYCDocument, SubmitKYCDocumentRequest, UpdateKYCPersonalInfoRequest } from '@/types';
 import { normaliseKYCStatus } from '@/utils/kycStatus';
 
-/** Turn the flat backend response into the KYC interface the UI expects. */
+/** Turn the backend response into the KYC interface the UI expects. */
 const normaliseKYC = (data: any): KYC => ({
   id: data.id,
+  clientId: data.clientId,
+  email: data.email,
+  firstName: data.firstName,
+  lastName: data.lastName,
   kycStatus: normaliseKYCStatus(data.status ?? data.kycStatus),
-  idType: data.idType,
-  idNumber: data.idNumber,
-  idDocumentUrl: data.idDocumentUrl,
-  selfieUrl: data.selfieUrl,
-  proofOfAddressUrl: data.proofOfAddressUrl,
   rejectionReason: data.rejectionReason,
   submittedAt: data.submittedAt,
   verifiedAt: data.verifiedAt,
-  documents: data.documents ?? [],
+  documents: (data.documents ?? []).map((doc: any) => ({
+    ...doc,
+    status: normaliseKYCStatus(doc.status),
+  })),
   summary: data.summary,
   canSubmitMore: data.canSubmitMore,
 });
@@ -48,28 +54,72 @@ class KYCService {
     return normaliseKYC(res.data);
   }
 
-  /** GET /kyc/documents — alias that returns documents list */
-  async getDocuments(): Promise<KYC> {
+  /** GET /kyc/documents — returns the list of submitted documents */
+  async getDocuments(): Promise<KYCDocument[]> {
     const res = await api.get<any>('/kyc/documents');
-    return normaliseKYC(res.data);
+    const docs = Array.isArray(res.data) ? res.data : (res.data?.documents ?? []);
+    return docs.map((doc: any) => ({
+      ...doc,
+      status: normaliseKYCStatus(doc.status),
+    }));
   }
 
   /**
-   * PUT /kyc — submit (or resubmit) the full KYC application.
-   * Upload documents first via uploadDocument(), then pass URLs here.
+   * POST /kyc/documents — submit a SINGLE document for KYC review.
+   *
+   * Each document (ID, selfie, proof of address) is submitted individually.
+   * Upload the file first via uploadDocument(), then pass the URL + fileName here.
    */
-  async submitKYC(payload: SubmitKYCRequest): Promise<KYC> {
-    const res = await api.put<any>('/kyc', payload);
-    return normaliseKYC(res.data);
+  async submitDocument(payload: SubmitKYCDocumentRequest): Promise<KYCDocument> {
+    const res = await api.post<any>('/kyc/documents', payload);
+    return {
+      ...res.data,
+      status: normaliseKYCStatus(res.data?.status),
+    };
   }
 
-  /** POST /uploads/direct — upload a KYC document file */
-  async uploadDocument(formData: FormData): Promise<string> {
-    const res = await api.upload<{ url: string; publicUrl?: string }>(
-      '/uploads/direct',
-      formData,
-    );
-    return res.data!.publicUrl || res.data!.url;
+  /**
+   * Submit multiple documents in sequence.
+   * Returns an array of created KYCDocument records.
+   */
+  async submitDocuments(payloads: SubmitKYCDocumentRequest[]): Promise<KYCDocument[]> {
+    const results: KYCDocument[] = [];
+    for (const payload of payloads) {
+      const doc = await this.submitDocument(payload);
+      results.push(doc);
+    }
+    return results;
+  }
+
+  /**
+   * PUT /kyc — update personal info only (NOT document submission).
+   */
+  async updatePersonalInfo(payload: UpdateKYCPersonalInfoRequest): Promise<any> {
+    const res = await api.put<any>('/kyc', payload);
+    return res.data;
+  }
+
+  /**
+   * POST /uploads/direct — upload a KYC document file.
+   *
+   * Response shape:
+   *   { id, url, fileName, originalName, mimeType, size, category }
+   */
+  async uploadDocument(formData: FormData): Promise<{ url: string; fileName: string }> {
+    const res = await api.upload<{
+      id?: string;
+      url: string;
+      fileName: string;
+      originalName?: string;
+      mimeType?: string;
+      size?: number;
+      category?: string;
+    }>('/uploads/direct', formData);
+
+    return {
+      url: res.data!.url,
+      fileName: res.data!.fileName || res.data!.url.split('/').pop() || `kyc_${Date.now()}.jpg`,
+    };
   }
 }
 

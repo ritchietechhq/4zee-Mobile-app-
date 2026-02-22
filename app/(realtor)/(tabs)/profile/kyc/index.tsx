@@ -18,10 +18,9 @@ import type { ThemeColors } from '@/constants/colors';
 type StepInfo = { icon: string; title: string; desc: string };
 
 const STEPS: StepInfo[] = [
-  { icon: 'person-outline', title: 'Personal Info', desc: 'ID type and number' },
-  { icon: 'document-outline', title: 'ID Document', desc: 'Upload a clear photo of your ID' },
-  { icon: 'camera-outline', title: 'Selfie', desc: 'Take a selfie for verification' },
-  { icon: 'home-outline', title: 'Proof of Address', desc: 'Utility bill or bank statement' },
+  { icon: 'document-text-outline', title: 'ID Details', desc: 'Select document type and enter ID number' },
+  { icon: 'cloud-upload-outline', title: 'Upload Documents', desc: 'Upload a clear photo of your ID' },
+  { icon: 'checkmark-done-outline', title: 'Review & Submit', desc: 'Verify your information and submit' },
 ];
 
 const getStatusConfig = (colors: ThemeColors): Record<KYCStatus, { icon: string; color: string; bg: string; title: string; desc: string }> => ({
@@ -202,16 +201,16 @@ export default function KYCStatusScreen() {
                 <Text style={styles.verifiedSub}>Your identity is confirmed</Text>
               </View>
             </View>
-            {kyc?.idType && (
-              <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>ID Type</Text>
-                <Text style={styles.detailValue}>{kyc.idType.replace(/_/g, ' ')}</Text>
-              </View>
-            )}
             {kyc?.verifiedAt && (
               <View style={styles.detailRow}>
                 <Text style={styles.detailLabel}>Verified On</Text>
                 <Text style={styles.detailValue}>{new Date(kyc.verifiedAt).toLocaleDateString()}</Text>
+              </View>
+            )}
+            {kyc?.documents && kyc.documents.length > 0 && (
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Documents</Text>
+                <Text style={styles.detailValue}>{kyc.documents.length} submitted</Text>
               </View>
             )}
           </Card>

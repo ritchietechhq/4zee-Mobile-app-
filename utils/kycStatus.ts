@@ -1,16 +1,15 @@
 // ============================================================
 // Shared KYC Status Normaliser
 //
-// The backend may return various status strings depending on the
-// endpoint and version.  The frontend uses four canonical values:
+// The backend uses exactly four status values (Prisma enum KycStatus):
 //   NOT_SUBMITTED | PENDING | APPROVED | REJECTED
 //
-// This helper maps every known backend variant to the canonical
-// value so that the UI, badge colours, tab filters, and stats
-// counters all work consistently.
+// This helper is a safety net that ensures unknown/null values are
+// handled gracefully.  It also provides normaliseStatusCounts() for
+// aggregating stats.
 // ============================================================
 
-/** Canonical statuses the frontend recognises */
+/** Canonical statuses the backend and frontend both use */
 export type CanonicalKYCStatus =
   | 'NOT_SUBMITTED'
   | 'PENDING'
@@ -18,13 +17,10 @@ export type CanonicalKYCStatus =
   | 'REJECTED';
 
 /**
- * Map any backend KYC status string to a canonical frontend value.
+ * Normalise a backend KYC status string to a canonical value.
  *
- * Backend variants handled:
- *  - `SUBMITTED`, `IN_REVIEW`, `UNDER_REVIEW`, `REVIEW` → `PENDING`
- *  - `VERIFIED`  → `APPROVED`
- *  - `DENIED`    → `REJECTED`
- *  - `null/undefined/empty` → `NOT_SUBMITTED`
+ * The backend already uses canonical values, so this is mainly a
+ * null-safety wrapper.  Unknown strings default to PENDING.
  */
 export const normaliseKYCStatus = (raw?: string | null): CanonicalKYCStatus => {
   if (!raw) return 'NOT_SUBMITTED';
@@ -32,7 +28,6 @@ export const normaliseKYCStatus = (raw?: string | null): CanonicalKYCStatus => {
   const upper = raw.toUpperCase().trim();
 
   switch (upper) {
-    // ── Already canonical ────────────────────
     case 'NOT_SUBMITTED':
       return 'NOT_SUBMITTED';
     case 'PENDING':
@@ -41,24 +36,8 @@ export const normaliseKYCStatus = (raw?: string | null): CanonicalKYCStatus => {
       return 'APPROVED';
     case 'REJECTED':
       return 'REJECTED';
-
-    // ── Variants that map to PENDING ─────────
-    case 'SUBMITTED':
-    case 'IN_REVIEW':
-    case 'UNDER_REVIEW':
-    case 'REVIEW':
-      return 'PENDING';
-
-    // ── Variants that map to APPROVED ────────
-    case 'VERIFIED':
-      return 'APPROVED';
-
-    // ── Variants that map to REJECTED ────────
-    case 'DENIED':
-      return 'REJECTED';
-
-    // ── Unknown → treat as PENDING (safe default) ─
     default:
+      // Unknown value — treat as PENDING (safe default)
       return 'PENDING';
   }
 };

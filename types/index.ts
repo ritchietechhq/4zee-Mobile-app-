@@ -85,7 +85,7 @@ export type {
 export type { UpdateProfileRequest, ProfilePictureResponse } from './user';
 
 // KYC
-export type { KYCStatus, KYCIdType, KYCDocumentType, KYCDocument, KYC, SubmitKYCRequest, KYCStatusSummary } from './kyc';
+export type { KYCStatus, KYCDocumentType, KYCDocument, KYC, SubmitKYCDocumentRequest, UpdateKYCPersonalInfoRequest, KYCStatusSummary } from './kyc';
 
 // Bank Accounts
 export type {

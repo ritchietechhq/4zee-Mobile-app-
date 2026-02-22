@@ -10,22 +10,26 @@ import * as ImagePicker from 'expo-image-picker';
 import { Image } from 'expo-image';
 import { kycService } from '@/services/kyc.service';
 import { appendFile } from '@/utils/formData';
-import type { KYCIdType } from '@/types';
+import type { KYCDocumentType, SubmitKYCDocumentRequest } from '@/types';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Spacing, Typography, BorderRadius, Shadows } from '@/constants/theme';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import type { ThemeColors } from '@/constants/colors';
 
-const ID_TYPES: { value: KYCIdType; label: string }[] = [
+// ── Document type options matching backend KycDocumentType enum ──
+const DOC_TYPES: { value: KYCDocumentType; label: string }[] = [
+  { value: 'NATIONAL_ID', label: 'National ID Card' },
   { value: 'NIN', label: 'NIN Slip' },
-  { value: 'BVN', label: 'BVN' },
   { value: 'DRIVERS_LICENSE', label: "Driver's License" },
   { value: 'VOTERS_CARD', label: "Voter's Card" },
-  { value: 'INTERNATIONAL_PASSPORT', label: 'International Passport' },
+  { value: 'PASSPORT', label: 'Passport' },
 ];
 
-const STEPS = ['Personal Info', 'ID Document', 'Selfie', 'Review'];
+const STEPS = ['ID Details', 'Upload Documents', 'Review'];
+
+/** Upload result with both URL and filename (needed by POST /kyc/documents) */
+type UploadResult = { url: string; fileName: string };
 
 export default function KYCSubmitScreen() {
   const router = useRouter();
@@ -33,20 +37,27 @@ export default function KYCSubmitScreen() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
 
-  // Form state
-  const [idType, setIdType] = useState<KYCIdType | null>(null);
+  // Step 0 — ID details
+  const [docType, setDocType] = useState<KYCDocumentType | null>(null);
   const [idNumber, setIdNumber] = useState('');
+
+  // Step 1 — ID document upload
   const [idDocUri, setIdDocUri] = useState('');
-  const [idDocUrl, setIdDocUrl] = useState('');
-  const [selfieUri, setSelfieUri] = useState('');
-  const [selfieUrl, setSelfieUrl] = useState('');
+  const [idDocUpload, setIdDocUpload] = useState<UploadResult | null>(null);
+
+  // Step 1 — Proof of address upload (optional, shown on same step)
   const [proofUri, setProofUri] = useState('');
-  const [proofUrl, setProofUrl] = useState('');
+  const [proofUpload, setProofUpload] = useState<UploadResult | null>(null);
 
   const colors = useThemeColors();
   const styles = useMemo(() => makeStyles(colors), [colors]);
 
-  const pickImage = async (setter: (uri: string) => void, urlSetter: (url: string) => void, source: 'library' | 'camera' = 'library') => {
+  // ── Upload helper ──────────────────────────────────────────
+  const pickImage = async (
+    setUri: (uri: string) => void,
+    setUpload: (r: UploadResult | null) => void,
+    source: 'library' | 'camera' = 'library',
+  ) => {
     try {
       let result: ImagePicker.ImagePickerResult;
       if (source === 'camera') {
@@ -61,51 +72,74 @@ export default function KYCSubmitScreen() {
       if (result.canceled || !result.assets[0]) return;
 
       const asset = result.assets[0];
-      setter(asset.uri);
+      const originalName = asset.fileName || `kyc_${Date.now()}.jpg`;
+
+      setUri(asset.uri);
       setIsUploading(true);
 
       const formData = new FormData();
-      await appendFile(
-        formData,
-        'file',
-        asset.uri,
-        asset.fileName || `kyc_${Date.now()}.jpg`,
-        asset.mimeType || 'image/jpeg',
-      );
+      await appendFile(formData, 'file', asset.uri, originalName, asset.mimeType || 'image/jpeg');
       formData.append('category', 'KYC_DOCUMENT');
 
-      const uploadedUrl = await kycService.uploadDocument(formData);
-      urlSetter(uploadedUrl);
+      // Upload returns both url and fileName
+      const uploaded = await kycService.uploadDocument(formData);
+      setUpload(uploaded);
     } catch (e: any) {
       Alert.alert('Upload Failed', e?.error?.message || 'Failed to upload image. Please try again.');
-      setter('');
+      setUri('');
+      setUpload(null);
     } finally {
       setIsUploading(false);
     }
   };
 
+  // ── Validation ─────────────────────────────────────────────
   const canProceed = (): boolean => {
     switch (step) {
-      case 0: return !!idType && idNumber.trim().length >= 5;
-      case 1: return !!idDocUrl;
-      case 2: return !!selfieUrl;
-      case 3: return !!idType && !!idNumber && !!idDocUrl && !!selfieUrl;
+      case 0: return !!docType && idNumber.trim().length >= 5;
+      case 1: return !!idDocUpload;
+      case 2: return !!docType && !!idNumber && !!idDocUpload;
       default: return false;
     }
   };
 
+  /** Sanitise ID number — backend allows letters, numbers, hyphens only */
+  const sanitiseIdNumber = (raw: string) => raw.replace(/[^A-Za-z0-9-]/g, '');
+
+  // ── Submit — sends each document individually via POST /kyc/documents ──
   const handleSubmit = async () => {
-    if (!idType || !idDocUrl || !selfieUrl) return;
+    if (!docType || !idDocUpload) return;
+
+    const cleanId = sanitiseIdNumber(idNumber.trim());
+    if (!cleanId) {
+      Alert.alert('Invalid ID', 'ID number must contain only letters, numbers, or hyphens.');
+      return;
+    }
+
     setIsSubmitting(true);
     try {
-      // Submit entire KYC application in one call (PUT /kyc)
-      await kycService.submitKYC({
-        idType,
-        idNumber: idNumber.trim(),
-        idDocumentUrl: idDocUrl,
-        selfieUrl,
-        proofOfAddressUrl: proofUrl || undefined,
-      });
+      const documents: SubmitKYCDocumentRequest[] = [
+        // 1. Primary ID Document (the main document + selfie URL in fileName hint)
+        {
+          type: docType,
+          idNumber: cleanId,
+          fileUrl: idDocUpload.url,
+          fileName: idDocUpload.fileName,
+        },
+      ];
+
+      // 2. Proof of address (optional — submitted as UTILITY_BILL or BANK_STATEMENT)
+      if (proofUpload) {
+        documents.push({
+          type: 'UTILITY_BILL',
+          idNumber: cleanId,
+          fileUrl: proofUpload.url,
+          fileName: proofUpload.fileName,
+        });
+      }
+
+      // Submit each document individually via POST /kyc/documents
+      await kycService.submitDocuments(documents);
 
       Alert.alert('Submitted!', 'Your KYC documents have been submitted for review.', [
         { text: 'OK', onPress: () => router.back() },
@@ -117,7 +151,7 @@ export default function KYCSubmitScreen() {
     }
   };
 
-  const next = () => { if (step < 3) setStep(step + 1); else handleSubmit(); };
+  const next = () => { if (step < 2) setStep(step + 1); else handleSubmit(); };
   const back = () => { if (step > 0) setStep(step - 1); else router.back(); };
 
   // ─── Step renderers ─────────────────────────
@@ -138,20 +172,20 @@ export default function KYCSubmitScreen() {
     </View>
   );
 
-  const renderPersonalInfo = () => (
+  const renderIDDetails = () => (
     <View>
-      <Text style={styles.sectionTitle}>Select ID Type</Text>
-      {ID_TYPES.map((t) => (
+      <Text style={styles.sectionTitle}>Select Document Type</Text>
+      {DOC_TYPES.map((t) => (
         <TouchableOpacity
           key={t.value}
-          style={[styles.radioCard, idType === t.value && styles.radioCardActive]}
-          onPress={() => setIdType(t.value)}
+          style={[styles.radioCard, docType === t.value && styles.radioCardActive]}
+          onPress={() => setDocType(t.value)}
           activeOpacity={0.7}
         >
-          <View style={[styles.radio, idType === t.value && styles.radioActive]}>
-            {idType === t.value && <View style={styles.radioDot} />}
+          <View style={[styles.radio, docType === t.value && styles.radioActive]}>
+            {docType === t.value && <View style={styles.radioDot} />}
           </View>
-          <Text style={[styles.radioLabel, idType === t.value && styles.radioLabelActive]}>{t.label}</Text>
+          <Text style={[styles.radioLabel, docType === t.value && styles.radioLabelActive]}>{t.label}</Text>
         </TouchableOpacity>
       ))}
       <Text style={[styles.sectionTitle, { marginTop: Spacing.xl }]}>ID Number</Text>
@@ -160,20 +194,23 @@ export default function KYCSubmitScreen() {
         placeholder="Enter your ID number"
         placeholderTextColor={colors.textMuted}
         value={idNumber}
-        onChangeText={setIdNumber}
+        onChangeText={(text) => setIdNumber(text.replace(/[^A-Za-z0-9-]/g, ''))}
         autoCapitalize="characters"
       />
+      <Text style={[styles.hint, { marginTop: Spacing.xs, marginBottom: 0 }]}>Letters, numbers, and hyphens only</Text>
     </View>
   );
 
   const renderDocUpload = () => (
     <View>
       <Text style={styles.sectionTitle}>Upload ID Document</Text>
-      <Text style={styles.hint}>Take a clear photo of your {idType?.replace(/_/g, ' ').toLowerCase() || 'ID document'}</Text>
+      <Text style={styles.hint}>
+        Take a clear photo of your {docType?.replace(/_/g, ' ').toLowerCase() || 'ID document'}
+      </Text>
       {idDocUri ? (
         <View style={styles.previewWrap}>
           <Image source={{ uri: idDocUri }} style={styles.preview} contentFit="cover" />
-          <TouchableOpacity style={styles.removeBtn} onPress={() => { setIdDocUri(''); setIdDocUrl(''); }}>
+          <TouchableOpacity style={styles.removeBtn} onPress={() => { setIdDocUri(''); setIdDocUpload(null); }}>
             <Ionicons name="close-circle" size={24} color={colors.error} />
           </TouchableOpacity>
           {isUploading && (
@@ -184,7 +221,7 @@ export default function KYCSubmitScreen() {
           )}
         </View>
       ) : (
-        <TouchableOpacity style={styles.uploadBox} onPress={() => pickImage(setIdDocUri, setIdDocUrl)} disabled={isUploading}>
+        <TouchableOpacity style={styles.uploadBox} onPress={() => pickImage(setIdDocUri, setIdDocUpload)} disabled={isUploading}>
           <Ionicons name="cloud-upload-outline" size={32} color={colors.primary} />
           <Text style={styles.uploadLabel}>Tap to upload</Text>
           <Text style={styles.uploadHint}>JPEG, PNG (max 5MB)</Text>
@@ -196,43 +233,20 @@ export default function KYCSubmitScreen() {
       {proofUri ? (
         <View style={styles.previewWrap}>
           <Image source={{ uri: proofUri }} style={styles.preview} contentFit="cover" />
-          <TouchableOpacity style={styles.removeBtn} onPress={() => { setProofUri(''); setProofUrl(''); }}>
-            <Ionicons name="close-circle" size={24} color={colors.error} />
-          </TouchableOpacity>
-        </View>
-      ) : (
-        <TouchableOpacity style={styles.uploadBox} onPress={() => pickImage(setProofUri, setProofUrl)} disabled={isUploading}>
-          <Ionicons name="document-outline" size={28} color={colors.textMuted} />
-          <Text style={[styles.uploadLabel, { color: colors.textMuted }]}>Tap to upload (optional)</Text>
-        </TouchableOpacity>
-      )}
-    </View>
-  );
-
-  const renderSelfie = () => (
-    <View>
-      <Text style={styles.sectionTitle}>Take a Selfie</Text>
-      <Text style={styles.hint}>Ensure your face is clearly visible, well-lit, and matches your ID document.</Text>
-      {selfieUri ? (
-        <View style={styles.previewWrap}>
-          <Image source={{ uri: selfieUri }} style={[styles.preview, { borderRadius: BorderRadius.xl }]} contentFit="cover" />
-          <TouchableOpacity style={styles.removeBtn} onPress={() => { setSelfieUri(''); setSelfieUrl(''); }}>
+          <TouchableOpacity style={styles.removeBtn} onPress={() => { setProofUri(''); setProofUpload(null); }}>
             <Ionicons name="close-circle" size={24} color={colors.error} />
           </TouchableOpacity>
           {isUploading && (
-            <View style={[styles.uploadOverlay, { borderRadius: BorderRadius.xl }]}>
+            <View style={styles.uploadOverlay}>
               <ActivityIndicator color={colors.white} size="large" />
               <Text style={styles.uploadText}>Uploading...</Text>
             </View>
           )}
         </View>
       ) : (
-        <TouchableOpacity style={[styles.uploadBox, { paddingVertical: Spacing.xxxl }]} onPress={() => pickImage(setSelfieUri, setSelfieUrl, 'camera')} disabled={isUploading}>
-          <View style={styles.selfieCircle}>
-            <Ionicons name="camera" size={32} color={colors.primary} />
-          </View>
-          <Text style={styles.uploadLabel}>Open Camera</Text>
-          <Text style={styles.uploadHint}>A clear selfie is required</Text>
+        <TouchableOpacity style={styles.uploadBox} onPress={() => pickImage(setProofUri, setProofUpload)} disabled={isUploading}>
+          <Ionicons name="document-outline" size={28} color={colors.textMuted} />
+          <Text style={[styles.uploadLabel, { color: colors.textMuted }]}>Tap to upload (optional)</Text>
         </TouchableOpacity>
       )}
     </View>
@@ -245,8 +259,8 @@ export default function KYCSubmitScreen() {
 
       <Card variant="outlined" padding="md" style={styles.reviewCard}>
         <View style={styles.reviewRow}>
-          <Text style={styles.reviewLabel}>ID Type</Text>
-          <Text style={styles.reviewValue}>{ID_TYPES.find((t) => t.value === idType)?.label || '—'}</Text>
+          <Text style={styles.reviewLabel}>Document Type</Text>
+          <Text style={styles.reviewValue}>{DOC_TYPES.find((t) => t.value === docType)?.label || '—'}</Text>
         </View>
         <View style={styles.reviewRow}>
           <Text style={styles.reviewLabel}>ID Number</Text>
@@ -255,29 +269,22 @@ export default function KYCSubmitScreen() {
         <View style={styles.reviewRow}>
           <Text style={styles.reviewLabel}>ID Document</Text>
           <View style={styles.reviewCheck}>
-            <Ionicons name={idDocUrl ? 'checkmark-circle' : 'close-circle'} size={20} color={idDocUrl ? colors.success : colors.error} />
-            <Text style={styles.reviewValue}>{idDocUrl ? 'Uploaded' : 'Missing'}</Text>
-          </View>
-        </View>
-        <View style={styles.reviewRow}>
-          <Text style={styles.reviewLabel}>Selfie</Text>
-          <View style={styles.reviewCheck}>
-            <Ionicons name={selfieUrl ? 'checkmark-circle' : 'close-circle'} size={20} color={selfieUrl ? colors.success : colors.error} />
-            <Text style={styles.reviewValue}>{selfieUrl ? 'Uploaded' : 'Missing'}</Text>
+            <Ionicons name={idDocUpload ? 'checkmark-circle' : 'close-circle'} size={20} color={idDocUpload ? colors.success : colors.error} />
+            <Text style={styles.reviewValue}>{idDocUpload ? 'Uploaded' : 'Missing'}</Text>
           </View>
         </View>
         <View style={[styles.reviewRow, { borderBottomWidth: 0 }]}>
           <Text style={styles.reviewLabel}>Proof of Address</Text>
           <View style={styles.reviewCheck}>
-            <Ionicons name={proofUrl ? 'checkmark-circle' : 'remove-circle-outline'} size={20} color={proofUrl ? colors.success : colors.textMuted} />
-            <Text style={styles.reviewValue}>{proofUrl ? 'Uploaded' : 'Skipped'}</Text>
+            <Ionicons name={proofUpload ? 'checkmark-circle' : 'remove-circle-outline'} size={20} color={proofUpload ? colors.success : colors.textMuted} />
+            <Text style={styles.reviewValue}>{proofUpload ? 'Uploaded' : 'Skipped'}</Text>
           </View>
         </View>
       </Card>
     </View>
   );
 
-  const stepContent = [renderPersonalInfo, renderDocUpload, renderSelfie, renderReview];
+  const stepContent = [renderIDDetails, renderDocUpload, renderReview];
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -303,7 +310,7 @@ export default function KYCSubmitScreen() {
 
       <View style={styles.footer}>
         <Button
-          title={step === 3 ? (isSubmitting ? 'Submitting...' : 'Submit for Review') : 'Continue'}
+          title={step === 2 ? (isSubmitting ? 'Submitting...' : 'Submit for Review') : 'Continue'}
           onPress={next}
           disabled={!canProceed() || isUploading || isSubmitting}
           loading={isSubmitting}
@@ -346,7 +353,6 @@ const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   removeBtn: { position: 'absolute', top: Spacing.sm, right: Spacing.sm },
   uploadOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center', gap: Spacing.sm },
   uploadText: { ...Typography.bodySemiBold, color: colors.white },
-  selfieCircle: { width: 64, height: 64, borderRadius: 32, backgroundColor: colors.primaryLight, alignItems: 'center', justifyContent: 'center' },
   reviewCard: { marginTop: Spacing.sm },
   reviewRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: Spacing.md, borderBottomWidth: 1, borderBottomColor: colors.borderLight },
   reviewLabel: { ...Typography.caption, color: colors.textMuted },

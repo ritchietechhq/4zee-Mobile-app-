@@ -1,71 +1,75 @@
 // ============================================================
 // KYC Types
-// Matches: GET /kyc, GET /kyc/status, GET /kyc/documents, PUT /kyc
+// Matches backend Prisma schema:
+//   POST /kyc/documents  — submit a single document
+//   PUT  /kyc            — update personal info only
+//   GET  /kyc/status     — overall KYC status + summary
+//   GET  /kyc/documents  — list submitted documents
 // ============================================================
 
 /**
- * Backend KYC status values.
- * NOTE: The backend returns "VERIFIED" – we normalise to "APPROVED"
- * inside the service layer so the rest of the UI can use a single
- * canonical set of values.
+ * Backend KYC status values (Prisma enum: KycStatus).
+ * Only four canonical values exist — no SUBMITTED / IN_REVIEW / VERIFIED.
  */
 export type KYCStatus = 'NOT_SUBMITTED' | 'PENDING' | 'APPROVED' | 'REJECTED';
 
-/** ID types accepted by the backend */
-export type KYCIdType =
-  | 'NIN'
-  | 'BVN'
-  | 'DRIVERS_LICENSE'
-  | 'INTERNATIONAL_PASSPORT'
-  | 'VOTERS_CARD';
-
-/** Document types for utility bill uploads etc. */
+/**
+ * Document types accepted by POST /kyc/documents (Prisma enum: KycDocumentType).
+ *
+ * NOTE: The backend does NOT accept BVN or INTERNATIONAL_PASSPORT.
+ *       Use PASSPORT instead.
+ */
 export type KYCDocumentType =
-  | KYCIdType
+  | 'NATIONAL_ID'
+  | 'DRIVERS_LICENSE'
+  | 'PASSPORT'
+  | 'VOTERS_CARD'
+  | 'NIN'
   | 'UTILITY_BILL'
   | 'BANK_STATEMENT';
 
+/** Single KYC document record returned by the backend. */
 export interface KYCDocument {
   id: string;
+  userId?: string;
   type: KYCDocumentType;
+  idNumber?: string;
   fileUrl: string;
   fileName: string;
   expiryDate?: string;
-  status: string;
+  status: KYCStatus;
   rejectionReason?: string;
   verifiedAt?: string;
   createdAt?: string;
+  updatedAt?: string;
 }
 
 /** Summary counts returned by GET /kyc/status */
 export interface KYCStatusSummary {
+  totalDocuments?: number;
   pending: number;
   approved: number;
   rejected: number;
 }
 
 /**
- * KYC record returned by `GET /kyc` or `GET /kyc/status`.
+ * KYC aggregate returned by GET /kyc/status.
  *
- * The backend response has a flat shape:
- *   { id, status, idType, idNumber, idDocumentUrl, selfieUrl, ... }
- *
- * We keep the original fields **and** expose a `kycStatus` getter so
- * existing screens that read `kyc.kycStatus` keep working.
+ * The backend provides an overall `kycStatus` on the user profile
+ * plus a `documents[]` array of individual submissions.
  */
 export interface KYC {
   id?: string;
-  /** Normalised status (VERIFIED → APPROVED) set by the service layer */
+  clientId?: string;
+  email?: string;
+  firstName?: string;
+  lastName?: string;
+  /** Overall user KYC status (from user profile) */
   kycStatus: KYCStatus;
-  idType?: KYCIdType;
-  idNumber?: string;
-  idDocumentUrl?: string;
-  selfieUrl?: string;
-  proofOfAddressUrl?: string;
   rejectionReason?: string;
   submittedAt?: string;
   verifiedAt?: string;
-  /** Legacy — kept for backward compat with KYC index screen */
+  /** Individual KYC document records */
   documents: KYCDocument[];
   /** Summary counts (from GET /kyc/status) */
   summary?: KYCStatusSummary;
@@ -73,11 +77,34 @@ export interface KYC {
   canSubmitMore?: boolean;
 }
 
-/** PUT /kyc request body */
-export interface SubmitKYCRequest {
-  idType: KYCIdType;
+/**
+ * POST /kyc/documents — submit a single document for KYC review.
+ *
+ * Each document is submitted individually (ID doc, selfie, proof of address, etc.)
+ */
+export interface SubmitKYCDocumentRequest {
+  type: KYCDocumentType;
+  /** Required. Letters, numbers, and hyphens only. */
   idNumber: string;
-  idDocumentUrl: string;
-  selfieUrl: string;
-  proofOfAddressUrl?: string;
+  fileUrl: string;
+  fileName: string;
+  expiryDate?: string;
+}
+
+/**
+ * PUT /kyc — update personal information only (NOT document submission).
+ */
+export interface UpdateKYCPersonalInfoRequest {
+  firstName?: string;
+  lastName?: string;
+  phone?: string;
+  address?: string;
+  dateOfBirth?: string;
+  gender?: string;
+  city?: string;
+  state?: string;
+  country?: string;
+  email?: string;
+  photoUrl?: string;
+  postalCode?: string;
 }
