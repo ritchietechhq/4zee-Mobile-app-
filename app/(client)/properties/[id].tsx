@@ -34,6 +34,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { ProgressBar } from '@/components/ui/ProgressBar';
+import { FullScreenGallery } from '@/components/property/FullScreenGallery';
 import { Colors, Spacing, Typography, Shadows, BorderRadius } from '@/constants/theme';
 import { formatCurrency } from '@/utils/formatCurrency';
 import type { Property, Application } from '@/types';
@@ -474,7 +475,7 @@ export default function PropertyDetailScreen() {
       </View>
 
       {/* ── Full Screen Gallery Modal ── */}
-      <GalleryModal
+      <FullScreenGallery
         visible={galleryVisible}
         images={property.images}
         initialIndex={galleryIndex}
@@ -542,7 +543,7 @@ export default function PropertyDetailScreen() {
    SUB-COMPONENTS
 ───────────────────────────────────────────────────────────── */
 
-/** Gallery Preview - Shows thumbnails in a grid */
+/** Gallery Preview — Hero image + thumbnail strip with expand button */
 function ImageGalleryPreview({ 
   images, 
   onImagePress 
@@ -559,15 +560,15 @@ function ImageGalleryPreview({
     );
   }
 
-  // Show main image + up to 3 thumbnails
   const mainImage = images[0];
-  const thumbnails = images.slice(1, 4);
-  const remainingCount = images.length - 4;
+  const thumbnails = images.slice(1, 5);
+  const remainingCount = images.length - 5;
 
   return (
     <View style={styles.galleryPreview}>
+      {/* ── Hero image ── */}
       <TouchableOpacity 
-        activeOpacity={0.9} 
+        activeOpacity={0.95} 
         onPress={() => onImagePress(0)}
         style={styles.galleryMain}
       >
@@ -577,13 +578,30 @@ function ImageGalleryPreview({
           contentFit="cover"
           placeholder="L6PZfSi_.AyE_3t7t7R**0o#DgR4"
           transition={250}
+          cachePolicy="memory-disk"
         />
+        {/* Photo count badge */}
         <View style={styles.galleryCounter}>
-          <Ionicons name="images-outline" size={14} color={Colors.white} />
+          <Ionicons name="images-outline" size={14} color="#fff" />
           <Text style={styles.galleryCounterText}>{images.length} Photos</Text>
         </View>
+        {/* Expand button */}
+        <TouchableOpacity
+          style={styles.galleryExpandBtn}
+          onPress={() => onImagePress(0)}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <Ionicons name="expand-outline" size={18} color="#fff" />
+        </TouchableOpacity>
+        {/* Gradient overlay at bottom */}
+        <LinearGradient
+          colors={['transparent', 'rgba(0,0,0,0.15)']}
+          style={styles.galleryGradient}
+          pointerEvents="none"
+        />
       </TouchableOpacity>
-      
+
+      {/* ── Thumbnail strip ── */}
       {thumbnails.length > 0 && (
         <View style={styles.galleryThumbnails}>
           {thumbnails.map((img, idx) => (
@@ -597,9 +615,10 @@ function ImageGalleryPreview({
                 source={{ uri: img }}
                 style={styles.galleryThumbnailImage}
                 contentFit="cover"
-                transition={250}
+                transition={200}
+                cachePolicy="memory-disk"
               />
-              {idx === 2 && remainingCount > 0 && (
+              {idx === thumbnails.length - 1 && remainingCount > 0 && (
                 <View style={styles.galleryMoreOverlay}>
                   <Text style={styles.galleryMoreText}>+{remainingCount}</Text>
                 </View>
@@ -609,92 +628,6 @@ function ImageGalleryPreview({
         </View>
       )}
     </View>
-  );
-}
-
-/** Full-screen Gallery Modal */
-function GalleryModal({
-  visible,
-  images,
-  initialIndex,
-  onClose,
-}: {
-  visible: boolean;
-  images: string[];
-  initialIndex: number;
-  onClose: () => void;
-}) {
-  const [currentIndex, setCurrentIndex] = useState(initialIndex);
-  const flatListRef = useRef<FlatList>(null);
-  const insets = useSafeAreaInsets();
-
-  useEffect(() => {
-    if (visible && flatListRef.current) {
-      flatListRef.current.scrollToIndex({ index: initialIndex, animated: false });
-      setCurrentIndex(initialIndex);
-    }
-  }, [visible, initialIndex]);
-
-  const handleScroll = (e: any) => {
-    const idx = Math.round(e.nativeEvent.contentOffset.x / SCREEN_WIDTH);
-    if (idx !== currentIndex) setCurrentIndex(idx);
-  };
-
-  return (
-    <Modal visible={visible} animationType="fade" presentationStyle="fullScreen">
-      <View style={[styles.galleryModal, { paddingTop: insets.top }]}>
-        {/* Header */}
-        <View style={styles.galleryModalHeader}>
-          <TouchableOpacity onPress={onClose} style={styles.galleryModalClose}>
-            <Ionicons name="close" size={28} color={Colors.white} />
-          </TouchableOpacity>
-          <Text style={styles.galleryModalCounter}>
-            {currentIndex + 1} / {images.length}
-          </Text>
-          <View style={{ width: 44 }} />
-        </View>
-
-        {/* Images */}
-        <FlatList
-          ref={flatListRef}
-          data={images}
-          horizontal
-          pagingEnabled
-          showsHorizontalScrollIndicator={false}
-          onScroll={handleScroll}
-          scrollEventThrottle={16}
-          keyExtractor={(_, i) => i.toString()}
-          getItemLayout={(_, index) => ({
-            length: SCREEN_WIDTH,
-            offset: SCREEN_WIDTH * index,
-            index,
-          })}
-          renderItem={({ item }) => (
-            <View style={styles.galleryModalImageWrap}>
-              <Image
-                source={{ uri: item }}
-                style={styles.galleryModalImage}
-                contentFit="contain"
-                transition={200}
-              />
-            </View>
-          )}
-        />
-
-        {/* Dots */}
-        <View style={[styles.galleryModalDots, { paddingBottom: insets.bottom + Spacing.lg }]}>
-          {images.map((_, i) => (
-            <View 
-              key={i} 
-              style={[
-                styles.galleryModalDot, 
-                i === currentIndex && styles.galleryModalDotActive
-              ]} 
-            />
-          ))}
-        </View>
-      </View>
-    </Modal>
   );
 }
 
@@ -889,29 +822,20 @@ const styles = StyleSheet.create({
   floatingRight: { flexDirection: 'row', gap: Spacing.sm },
 
   // Gallery Preview
-  galleryPreview: { height: 320, backgroundColor: Colors.surface },
-  galleryMain: { height: 240, position: 'relative' },
+  galleryPreview: { backgroundColor: Colors.surface },
+  galleryMain: { height: 280, position: 'relative' },
   galleryMainImage: { width: '100%', height: '100%' },
-  galleryCounter: { position: 'absolute', bottom: Spacing.md, right: Spacing.md, flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(0,0,0,0.6)', paddingHorizontal: Spacing.sm, paddingVertical: 4, borderRadius: BorderRadius.full },
-  galleryCounterText: { ...Typography.caption, color: Colors.white, fontWeight: '600' },
-  galleryThumbnails: { flexDirection: 'row', height: 80, paddingHorizontal: Spacing.xs, paddingTop: Spacing.xs, gap: Spacing.xs },
+  galleryCounter: { position: 'absolute', top: Spacing.md, right: Spacing.md, flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(0,0,0,0.55)', paddingHorizontal: Spacing.sm, paddingVertical: 4, borderRadius: BorderRadius.full },
+  galleryCounterText: { ...Typography.caption, color: '#fff', fontWeight: '600' },
+  galleryExpandBtn: { position: 'absolute', bottom: Spacing.md, right: Spacing.md, width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center' },
+  galleryGradient: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 60 },
+  galleryThumbnails: { flexDirection: 'row', height: 64, paddingHorizontal: Spacing.xs, paddingVertical: Spacing.xs, gap: Spacing.xs },
   galleryThumbnail: { flex: 1, borderRadius: BorderRadius.md, overflow: 'hidden' },
   galleryThumbnailImage: { width: '100%', height: '100%' },
-  galleryMoreOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center' },
-  galleryMoreText: { ...Typography.h4, color: Colors.white },
-  galleryPlaceholder: { height: 320, backgroundColor: Colors.surface, alignItems: 'center', justifyContent: 'center', gap: Spacing.sm },
+  galleryMoreOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center' },
+  galleryMoreText: { ...Typography.h4, color: '#fff' },
+  galleryPlaceholder: { height: 280, backgroundColor: Colors.surface, alignItems: 'center', justifyContent: 'center', gap: Spacing.sm },
   galleryPlaceholderText: { ...Typography.bodyMedium, color: Colors.textMuted },
-
-  // Gallery Modal
-  galleryModal: { flex: 1, backgroundColor: '#000' },
-  galleryModalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md },
-  galleryModalClose: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
-  galleryModalCounter: { ...Typography.bodyMedium, color: Colors.white },
-  galleryModalImageWrap: { width: SCREEN_WIDTH, flex: 1, alignItems: 'center', justifyContent: 'center' },
-  galleryModalImage: { width: SCREEN_WIDTH, height: SCREEN_HEIGHT * 0.7 },
-  galleryModalDots: { flexDirection: 'row', justifyContent: 'center', gap: 6, paddingVertical: Spacing.lg },
-  galleryModalDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.4)' },
-  galleryModalDotActive: { backgroundColor: Colors.white, width: 24 },
 
   content: { paddingHorizontal: Spacing.xl, paddingTop: Spacing.xl, borderTopLeftRadius: BorderRadius.xxl, borderTopRightRadius: BorderRadius.xxl, marginTop: -20, backgroundColor: Colors.background },
 

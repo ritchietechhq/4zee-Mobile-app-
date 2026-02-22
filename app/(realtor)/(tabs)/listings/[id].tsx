@@ -1,12 +1,11 @@
-import React, { useEffect, useState, useRef, useMemo } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  ActivityIndicator, Dimensions, FlatList, Share, Linking, Alert,
+  ActivityIndicator, Dimensions, Share, Linking, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Image } from 'expo-image';
 import { usePropertyStore } from '@/store/property.store';
 import realtorService from '@/services/realtor.service';
 import { formatCurrency } from '@/utils/formatCurrency';
@@ -14,6 +13,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Skeleton } from '@/components/ui/Skeleton';
+import { PropertyGallery } from '@/components/property/PropertyGallery';
 import { Spacing, Typography, BorderRadius, Shadows } from '@/constants/theme';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import type { ThemeColors } from '@/constants/colors';
@@ -28,8 +28,6 @@ export default function PropertyDetail() {
     fetchPropertyById,
     clearSelectedProperty,
   } = usePropertyStore();
-  const [activeImage, setActiveImage] = useState(0);
-  const galleryRef = useRef<FlatList>(null);
 
   const colors = useThemeColors();
   const styles = useMemo(() => makeStyles(colors), [colors]);
@@ -103,45 +101,13 @@ export default function PropertyDetail() {
     );
   }
 
-  const images = property.images?.length ? property.images : [];
-
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Image Gallery */}
-        {images.length > 0 ? (
-          <View>
-            <FlatList
-              ref={galleryRef}
-              data={images}
-              horizontal
-              pagingEnabled
-              showsHorizontalScrollIndicator={false}
-              onMomentumScrollEnd={(e) => setActiveImage(Math.round(e.nativeEvent.contentOffset.x / width))}
-              keyExtractor={(_, i) => String(i)}
-              renderItem={({ item }) => (
-                <Image source={{ uri: item }} style={styles.galleryImage} contentFit="cover" transition={200} />
-              )}
-            />
-            {images.length > 1 && (
-              <View style={styles.dotRow}>
-                {images.map((_, i) => (
-                  <View key={i} style={[styles.dot, i === activeImage && styles.dotActive]} />
-                ))}
-              </View>
-            )}
-            <View style={styles.imageCount}>
-              <Ionicons name="images-outline" size={14} color={colors.white} />
-              <Text style={styles.imageCountText}>{activeImage + 1}/{images.length}</Text>
-            </View>
-          </View>
-        ) : (
-          <View style={[styles.galleryImage, styles.noImage]}>
-            <Ionicons name="image-outline" size={48} color={colors.textMuted} />
-          </View>
-        )}
+        <PropertyGallery images={property.images || []} height={260} />
 
-        {/* Back + Share overlay */}
+        {/* Back + Share overlay */}}
         <View style={styles.overlayRow}>
           <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
             <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
@@ -292,21 +258,6 @@ export default function PropertyDetail() {
 const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   topBar: { paddingHorizontal: Spacing.xl, paddingVertical: Spacing.sm },
-  galleryImage: { width, height: 240 },
-  noImage: { backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
-  dotRow: {
-    flexDirection: 'row', justifyContent: 'center', gap: 6,
-    position: 'absolute', bottom: Spacing.md, left: 0, right: 0,
-  },
-  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.5)' },
-  dotActive: { backgroundColor: colors.white, width: 20 },
-  imageCount: {
-    position: 'absolute', bottom: Spacing.md, right: Spacing.md,
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    backgroundColor: 'rgba(0,0,0,0.6)', paddingHorizontal: Spacing.sm, paddingVertical: 4,
-    borderRadius: BorderRadius.full,
-  },
-  imageCountText: { ...Typography.small, color: colors.white, fontWeight: '600' },
   overlayRow: {
     position: 'absolute', top: 10, left: Spacing.xl, right: Spacing.xl,
     flexDirection: 'row', justifyContent: 'space-between',
