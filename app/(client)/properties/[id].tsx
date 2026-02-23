@@ -192,7 +192,7 @@ export default function PropertyDetailScreen() {
       property?.realtor?.user?.phone ||
       myApplication?.realtor?.user?.phone;
     if (!phone) {
-      Alert.alert('Phone Unavailable', 'The realtor's phone number is not available. Try sending a message instead.');
+      Alert.alert('Phone Unavailable', "The realtor's phone number is not available. Try sending a message instead.");
       return;
     }
     Linking.openURL(`tel:${phone}`);
@@ -205,7 +205,7 @@ export default function PropertyDetailScreen() {
       property?.realtor?.user?.phone ||
       myApplication?.realtor?.user?.phone;
     if (!phone) {
-      Alert.alert('Phone Unavailable', 'The realtor's phone number is not available. Try sending a message instead.');
+      Alert.alert('Phone Unavailable', "The realtor's phone number is not available. Try sending a message instead.");
       return;
     }
     const cleanPhone = phone.replace(/[^0-9]/g, '');
