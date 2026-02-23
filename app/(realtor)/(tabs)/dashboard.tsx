@@ -229,21 +229,40 @@ export default function RealtorDashboard() {
               <Text style={styles.name}>{profile?.firstName ?? user?.firstName ?? 'Realtor'}</Text>
             </View>
           </View>
-          <TouchableOpacity
-            onPress={() => router.push('/(realtor)/profile/notifications' as any)}
-            style={styles.notifBtn}
-            accessibilityLabel="Notifications"
-            accessibilityRole="button"
-          >
-            <Ionicons name="notifications-outline" size={20} color={colors.textPrimary} />
-            {(unreadCount || realtorData?.alerts?.unreadNotifications || 0) > 0 && (
-              <View style={styles.notifDot}>
-                <Text style={styles.notifDotText}>
-                  {(unreadCount || realtorData?.alerts?.unreadNotifications || 0) > 9 ? '9+' : (unreadCount || realtorData?.alerts?.unreadNotifications || 0)}
-                </Text>
-              </View>
-            )}
-          </TouchableOpacity>
+          <View style={styles.headerRight}>
+            {/* Messages icon */}
+            <TouchableOpacity
+              onPress={() => router.push('/(realtor)/messages' as any)}
+              style={styles.notifBtn}
+              accessibilityLabel="Messages"
+              accessibilityRole="button"
+            >
+              <Ionicons name="chatbubble-ellipses-outline" size={20} color={colors.textPrimary} />
+              {unreadMessages > 0 && (
+                <View style={styles.notifDot}>
+                  <Text style={styles.notifDotText}>
+                    {unreadMessages > 9 ? '9+' : unreadMessages}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
+            {/* Notifications icon */}
+            <TouchableOpacity
+              onPress={() => router.push('/(realtor)/(tabs)/profile/notifications' as any)}
+              style={styles.notifBtn}
+              accessibilityLabel="Notifications"
+              accessibilityRole="button"
+            >
+              <Ionicons name="notifications-outline" size={20} color={colors.textPrimary} />
+              {(unreadCount || realtorData?.alerts?.unreadNotifications || 0) > 0 && (
+                <View style={styles.notifDot}>
+                  <Text style={styles.notifDotText}>
+                    {(unreadCount || realtorData?.alerts?.unreadNotifications || 0) > 9 ? '9+' : (unreadCount || realtorData?.alerts?.unreadNotifications || 0)}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* KYC Banner */}
@@ -533,7 +552,7 @@ export default function RealtorDashboard() {
                   { icon: 'people-circle', label: 'Leads', color: colors.success, bg: colors.successLight, route: '/(realtor)/leads' },
                   { icon: 'card', label: 'Earnings', color: colors.warning, bg: colors.warningLight, route: '/(realtor)/payments' },
                   { icon: 'shield-checkmark', label: 'KYC', color: colors.purple, bg: colors.purpleLight, route: '/(realtor)/profile/kyc' },
-                  { icon: 'chatbubbles', label: 'Messages', color: colors.pink, bg: colors.pinkLight, route: '/(realtor)/profile/notifications' },
+                  { icon: 'chatbubbles', label: 'Messages', color: colors.pink, bg: colors.pinkLight, route: '/(realtor)/messages' },
                   { icon: 'swap-horizontal', label: 'Negotiate', color: colors.orange, bg: colors.orangeLight, route: '/(realtor)/leads' },
                   { icon: 'help-circle', label: 'Help', color: colors.textSecondary, bg: colors.surface, route: '/(realtor)/profile/help' },
                 ].map((a) => (
@@ -600,6 +619,7 @@ const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: Spacing.xl, paddingTop: Spacing.lg, paddingBottom: Spacing.md },
   headerLeft: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
+  headerRight: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   avatar: { width: 38, height: 38, borderRadius: 19, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' as const },
   avatarText: { ...Typography.bodySemiBold, color: colors.white, fontSize: 13 },
   greeting: { ...Typography.caption, color: colors.textSecondary },
