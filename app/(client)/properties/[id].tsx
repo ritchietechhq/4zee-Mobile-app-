@@ -1,5 +1,5 @@
 // ============================================================
-// Property Detail Screen — Client (Enhanced)
+// Property Detail Screen — Client (Enhanced + Dark Mode)
 // Full gallery, installment plan, contact realtor, apply/pay
 // ============================================================
 
@@ -19,6 +19,7 @@ import {
   Linking,
   Alert,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -27,6 +28,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { WebView } from 'react-native-webview';
 import { usePropertyStore } from '@/store/property.store';
 import { useAuthStore } from '@/store/auth.store';
+import { useThemeStore } from '@/store/theme.store';         // ← NEW
 import { applicationService } from '@/services/application.service';
 import { paymentService } from '@/services/payment.service';
 import { messagingService } from '@/services/messaging.service';
@@ -42,11 +44,48 @@ import type { Property, Application } from '@/types';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
+// ─── Dark/Light token maps ────────────────────────────────────────────────────
+const darkTokens = {
+  background:       '#16161E',   // lifted from near-black → soft dark navy
+  surface:          '#1E1E2A',   // card/section backgrounds
+  surfaceElevated:  '#26263A',   // modals, raised cards
+  white:            '#1E1E2A',   // bottom bar / sheet background in dark
+  textPrimary:      '#EEEEF5',   // main readable text
+  textSecondary:    '#A8A8C0',   // supporting text
+  textMuted:        '#6A6A88',   // labels, hints
+  borderLight:      '#2E2E42',   // dividers, card borders
+  primaryLight:     '#1E2E52',   // icon backgrounds, tinted surfaces
+  warningLight:     '#2E2416',   // warning badge bg
+  successLight:     '#162A1E',   // success badge bg
+  errorLight:       '#2A1418',   // error badge bg
+  overlayDark:      'rgba(0,0,0,0.65)',
+};
+
+const lightTokens = {
+  background:       Colors.background,
+  surface:          Colors.surface,
+  surfaceElevated:  Colors.white,
+  white:            Colors.white,
+  textPrimary:      Colors.textPrimary,
+  textSecondary:    Colors.textSecondary,
+  textMuted:        Colors.textMuted,
+  borderLight:      Colors.borderLight,
+  primaryLight:     Colors.primaryLight,
+  warningLight:     Colors.warningLight,
+  successLight:     Colors.successLight,
+  errorLight:       Colors.errorLight,
+  overlayDark:      'rgba(0,0,0,0.5)',
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 export default function PropertyDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
   const { selectedProperty: property, isLoadingDetail, fetchPropertyById, clearSelectedProperty } = usePropertyStore();
   const { user } = useAuthStore();
+  const { isDark } = useThemeStore();                        // ← NEW
+  const T = isDark ? darkTokens : lightTokens;              // ← theme tokens shorthand
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
   // Gallery modal
@@ -82,7 +121,6 @@ export default function PropertyDetailScreen() {
     }
   }, [property]);
 
-  /** Check if user already applied for this property */
   const checkExistingApplication = async () => {
     if (!id) return;
     setIsLoadingApplication(true);
@@ -97,10 +135,8 @@ export default function PropertyDetailScreen() {
     }
   };
 
-  /** Apply for property */
   const handleApply = async () => {
     if (!property) return;
-    
     Alert.alert(
       'Apply for Property',
       `Would you like to submit an application for "${property.title}"?`,
@@ -125,10 +161,8 @@ export default function PropertyDetailScreen() {
     );
   };
 
-  /** Initiate payment for approved application */
   const handlePayment = async () => {
     if (!myApplication) return;
-    
     setIsInitiatingPayment(true);
     try {
       const response = await paymentService.initiate(myApplication.id);
@@ -141,10 +175,8 @@ export default function PropertyDetailScreen() {
     }
   };
 
-  /** Handle WebView navigation - detect payment completion */
   const handleWebViewNavigationChange = async (navState: { url: string }) => {
     const url = navState.url;
-    // Paystack callback URLs typically contain 'callback' or 'reference'
     if (url.includes('callback') || url.includes('trxref') || url.includes('reference')) {
       setPaymentUrl(null);
       if (paymentReference) {
@@ -153,7 +185,6 @@ export default function PropertyDetailScreen() {
           const status = await paymentService.pollStatus(paymentReference);
           if (status.status === 'SUCCESS') {
             Alert.alert('Payment Successful! 🎉', 'Your payment has been processed. Thank you!');
-            // Refresh application status
             checkExistingApplication();
           } else {
             Alert.alert('Payment Failed', status.failureReason || 'Payment was not completed. Please try again.');
@@ -168,7 +199,6 @@ export default function PropertyDetailScreen() {
     }
   };
 
-  /** Share property */
   const handleShare = async () => {
     if (!property) return;
     try {
@@ -179,15 +209,12 @@ export default function PropertyDetailScreen() {
     } catch { /* noop */ }
   };
 
-  /** Open gallery at specific index */
   const openGallery = (index: number) => {
     setGalleryIndex(index);
     setGalleryVisible(true);
   };
 
-  /** Contact realtor via phone */
   const handleCall = () => {
-    // Use realtorContact (new API) first, then fallback to legacy nested structure
     const phone =
       property?.realtorContact?.phone ||
       property?.realtor?.user?.phone ||
@@ -200,9 +227,7 @@ export default function PropertyDetailScreen() {
     setContactSheetVisible(false);
   };
 
-  /** Contact realtor via WhatsApp */
   const handleWhatsApp = () => {
-    // Prefer whatsapp field, then phone from realtorContact, then legacy
     const whatsappNum =
       property?.realtorContact?.whatsapp ||
       property?.realtorContact?.phone ||
@@ -218,21 +243,14 @@ export default function PropertyDetailScreen() {
     setContactSheetVisible(false);
   };
 
-  /** Start in-app chat with realtor */
   const handleStartChat = async () => {
     if (!property) return;
-    
     setIsStartingChat(true);
-
-    // Gather property context for the chat screen
     const propertyImage = property.images?.[0] || '';
     const propertyPrice = property.price ? `${property.price}` : '';
     const propertyLocation = property.location || '';
-
     try {
-      // First check if we already have a conversation for this property
       const existing = await messagingService.checkPropertyConversation(property.id);
-      
       if (existing.exists && existing.conversationId) {
         setContactSheetVisible(false);
         const realtorName = property.realtorContact?.name 
@@ -241,41 +259,21 @@ export default function PropertyDetailScreen() {
             : 'Realtor');
         router.push({
           pathname: '/(client)/messages/[id]' as any,
-          params: {
-            id: existing.conversationId,
-            name: realtorName,
-            propertyTitle: property.title,
-            propertyId: property.id,
-            propertyImage,
-            propertyPrice,
-            propertyLocation,
-          },
+          params: { id: existing.conversationId, name: realtorName, propertyTitle: property.title, propertyId: property.id, propertyImage, propertyPrice, propertyLocation },
         });
         return;
       }
-
-      // Create new inquiry
       const result = await messagingService.createPropertyInquiry(
         property.id,
         `Hi, I'm interested in "${property.title}". Is it still available?`,
       );
-      
       setContactSheetVisible(false);
       const participantFirst = result.conversation.participant?.firstName ?? '';
       const participantLast = result.conversation.participant?.lastName ?? '';
       const chatName = `${participantFirst} ${participantLast}`.trim() || 'Realtor';
-
       router.push({
         pathname: '/(client)/messages/[id]' as any,
-        params: {
-          id: result.conversation.id,
-          name: chatName,
-          propertyTitle: property.title,
-          propertyId: property.id,
-          propertyImage,
-          propertyPrice,
-          propertyLocation,
-        },
+        params: { id: result.conversation.id, name: chatName, propertyTitle: property.title, propertyId: property.id, propertyImage, propertyPrice, propertyLocation },
       });
     } catch (error: any) {
       Alert.alert('Error', error?.message || 'Could not start conversation. Please try again.');
@@ -287,10 +285,10 @@ export default function PropertyDetailScreen() {
   // ─── Loading State ───
   if (isLoadingDetail || !property) {
     return (
-      <View style={[styles.loaderWrap, { paddingTop: insets.top }]}>
+      <View style={[styles.loaderWrap, { paddingTop: insets.top, backgroundColor: T.background }]}>
         <View style={styles.loaderContent}>
           <ActivityIndicator size="large" color={Colors.primary} />
-          <Text style={styles.loaderText}>Loading property...</Text>
+          <Text style={[styles.loaderText, { color: T.textMuted }]}>Loading property...</Text>
         </View>
       </View>
     );
@@ -300,14 +298,11 @@ export default function PropertyDetailScreen() {
     property.availability === 'AVAILABLE' ? 'success'
     : property.availability === 'RESERVED' ? 'warning' : 'error';
 
-  // Determine CTA button based on application status
   const renderCTAButton = () => {
     if (isLoadingApplication) {
       return <Button title="Loading..." variant="primary" size="lg" style={styles.ctaButton} disabled />;
     }
-
     if (!myApplication) {
-      // No application yet — show Apply button
       return (
         <Button
           title={isApplying ? 'Submitting...' : 'Apply Now'}
@@ -320,93 +315,77 @@ export default function PropertyDetailScreen() {
         />
       );
     }
-
-    // Has application
     switch (myApplication.status) {
       case 'PENDING':
         return (
-          <Button
-            title="Application Pending"
-            variant="secondary"
-            size="lg"
-            style={styles.ctaButton}
-            disabled
-            icon={<Ionicons name="time-outline" size={18} color={Colors.textMuted} />}
-          />
+          <Button title="Application Pending" variant="secondary" size="lg" style={styles.ctaButton} disabled
+            icon={<Ionicons name="time-outline" size={18} color={Colors.textMuted} />} />
         );
-      
       case 'APPROVED':
         if (myApplication.paymentStatus === 'PAID') {
           return (
-            <Button
-              title="Paid ✓"
-              variant="primary"
-              size="lg"
-              style={[styles.ctaButton, { backgroundColor: Colors.success }]}
-              disabled
-              icon={<Ionicons name="checkmark-circle" size={18} color={Colors.white} />}
-            />
+            <Button title="Paid ✓" variant="primary" size="lg" style={[styles.ctaButton, { backgroundColor: Colors.success }]} disabled
+              icon={<Ionicons name="checkmark-circle" size={18} color={Colors.white} />} />
           );
         }
         return (
-          <Button
-            title={isInitiatingPayment ? 'Processing...' : 'Make Payment'}
-            onPress={handlePayment}
-            variant="primary"
-            size="lg"
-            style={styles.ctaButton}
-            disabled={isInitiatingPayment}
-            icon={<Ionicons name="card-outline" size={18} color={Colors.white} />}
-          />
+          <Button title={isInitiatingPayment ? 'Processing...' : 'Make Payment'} onPress={handlePayment}
+            variant="primary" size="lg" style={styles.ctaButton} disabled={isInitiatingPayment}
+            icon={<Ionicons name="card-outline" size={18} color={Colors.white} />} />
         );
-      
       case 'REJECTED':
         return (
-          <Button
-            title="Application Rejected"
-            variant="danger"
-            size="lg"
-            style={styles.ctaButton}
-            disabled
-            icon={<Ionicons name="close-circle" size={18} color={Colors.white} />}
-          />
+          <Button title="Application Rejected" variant="danger" size="lg" style={styles.ctaButton} disabled
+            icon={<Ionicons name="close-circle" size={18} color={Colors.white} />} />
         );
-      
       default:
         return null;
     }
   };
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: T.background }]}>
       {/* ── Floating header ── */}
       <View style={[styles.floatingHeader, { top: insets.top + Spacing.sm }]}>
-        <TouchableOpacity style={styles.floatingBtn} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={22} color={Colors.textPrimary} />
+        <TouchableOpacity
+          style={[styles.floatingBtn, { backgroundColor: isDark ? 'rgba(38,38,58,0.95)' : 'rgba(255,255,255,0.95)', borderColor: T.borderLight }]}
+          onPress={() => router.back()}
+        >
+          <Ionicons name="arrow-back" size={22} color={T.textPrimary} />
         </TouchableOpacity>
         <View style={styles.floatingRight}>
-          <TouchableOpacity style={styles.floatingBtn} onPress={() => { /* TODO: toggle save */ }}>
+          <TouchableOpacity
+            style={[styles.floatingBtn, { backgroundColor: isDark ? 'rgba(38,38,58,0.95)' : 'rgba(255,255,255,0.95)', borderColor: T.borderLight }]}
+            onPress={() => { /* TODO: toggle save */ }}
+          >
             <Ionicons name="heart-outline" size={22} color={Colors.error} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.floatingBtn} onPress={handleShare}>
-            <Ionicons name="share-outline" size={22} color={Colors.textPrimary} />
+          <TouchableOpacity
+            style={[styles.floatingBtn, { backgroundColor: isDark ? 'rgba(38,38,58,0.95)' : 'rgba(255,255,255,0.95)', borderColor: T.borderLight }]}
+            onPress={handleShare}
+          >
+            <Ionicons name="share-outline" size={22} color={T.textPrimary} />
           </TouchableOpacity>
         </View>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
         {/* ── Gallery ── */}
-        <ImageGalleryPreview images={property.images} onImagePress={openGallery} />
+        <ImageGalleryPreview images={property.images} onImagePress={openGallery} isDark={isDark} />
 
-        <Animated.View style={[styles.content, {
-          opacity: fadeAnim,
-          transform: [{ translateY: fadeAnim.interpolate({ inputRange: [0, 1], outputRange: [30, 0] }) }],
-        }]}>
+        <Animated.View style={[
+          styles.content,
+          {
+            backgroundColor: T.background,
+            opacity: fadeAnim,
+            transform: [{ translateY: fadeAnim.interpolate({ inputRange: [0, 1], outputRange: [30, 0] }) }],
+          },
+        ]}>
           {/* ── Price + Badge ── */}
           <View style={styles.priceRow}>
             <View>
-              <Text style={styles.price}>{formatCurrency(property.price)}</Text>
-              <Text style={styles.priceLabel}>Total price</Text>
+              <Text style={[styles.price, { color: Colors.primary }]}>{formatCurrency(property.price)}</Text>
+              <Text style={[styles.priceLabel, { color: T.textMuted }]}>Total price</Text>
             </View>
             <Badge label={property.availability} variant={availabilityVariant} size="md" />
           </View>
@@ -416,8 +395,9 @@ export default function PropertyDetailScreen() {
             <View style={styles.applicationStatusRow}>
               <View style={[
                 styles.applicationBadge,
-                myApplication.status === 'APPROVED' && styles.applicationBadgeApproved,
-                myApplication.status === 'REJECTED' && styles.applicationBadgeRejected,
+                { backgroundColor: T.warningLight },
+                myApplication.status === 'APPROVED' && { backgroundColor: T.successLight },
+                myApplication.status === 'REJECTED' && { backgroundColor: T.errorLight },
               ]}>
                 <Ionicons 
                   name={
@@ -432,6 +412,7 @@ export default function PropertyDetailScreen() {
                 />
                 <Text style={[
                   styles.applicationBadgeText,
+                  { color: Colors.warning },
                   myApplication.status === 'APPROVED' && { color: Colors.success },
                   myApplication.status === 'REJECTED' && { color: Colors.error },
                 ]}>
@@ -444,39 +425,39 @@ export default function PropertyDetailScreen() {
           )}
 
           {/* ── Title & Location ── */}
-          <Text style={styles.title}>{property.title}</Text>
+          <Text style={[styles.title, { color: T.textPrimary }]}>{property.title}</Text>
           <TouchableOpacity style={styles.locationRow} activeOpacity={0.7}>
-            <View style={styles.locationIcon}>
+            <View style={[styles.locationIcon, { backgroundColor: T.primaryLight }]}>
               <Ionicons name="location" size={16} color={Colors.primary} />
             </View>
-            <Text style={styles.locationText}>{property.address}, {property.city}, {property.state}</Text>
+            <Text style={[styles.locationText, { color: T.textSecondary }]}>{property.address}, {property.city}, {property.state}</Text>
           </TouchableOpacity>
 
           {/* ── Features Grid ── */}
           <View style={styles.featuresGrid}>
-            {property.bedrooms != null && <FeatureItem icon="bed-outline" label="Bedrooms" value={String(property.bedrooms)} />}
-            {property.bathrooms != null && <FeatureItem icon="water-outline" label="Bathrooms" value={String(property.bathrooms)} />}
-            {property.toilets != null && <FeatureItem icon="flask-outline" label="Toilets" value={String(property.toilets)} />}
-            {property.area != null && <FeatureItem icon="resize-outline" label="Area" value={`${property.area} sqm`} />}
-            <FeatureItem icon="pricetag-outline" label="Type" value={property.type} />
-            <FeatureItem icon="eye-outline" label="Views" value={String(property.viewCount)} />
+            {property.bedrooms != null && <FeatureItem icon="bed-outline" label="Bedrooms" value={String(property.bedrooms)} isDark={isDark} T={T} />}
+            {property.bathrooms != null && <FeatureItem icon="water-outline" label="Bathrooms" value={String(property.bathrooms)} isDark={isDark} T={T} />}
+            {property.toilets != null && <FeatureItem icon="flask-outline" label="Toilets" value={String(property.toilets)} isDark={isDark} T={T} />}
+            {property.area != null && <FeatureItem icon="resize-outline" label="Area" value={`${property.area} sqm`} isDark={isDark} T={T} />}
+            <FeatureItem icon="pricetag-outline" label="Type" value={property.type} isDark={isDark} T={T} />
+            <FeatureItem icon="eye-outline" label="Views" value={String(property.viewCount)} isDark={isDark} T={T} />
           </View>
 
           {/* ── Description ── */}
           <View style={styles.descriptionSection}>
-            <Text style={styles.sectionTitle}>Description</Text>
-            <Text style={styles.description}>{property.description}</Text>
+            <Text style={[styles.sectionTitle, { color: T.textPrimary }]}>Description</Text>
+            <Text style={[styles.description, { color: T.textSecondary }]}>{property.description}</Text>
           </View>
 
           {/* ── Amenities ── */}
           {property.amenities.length > 0 && (
             <View style={styles.amenitiesSection}>
-              <Text style={styles.sectionTitle}>Amenities</Text>
+              <Text style={[styles.sectionTitle, { color: T.textPrimary }]}>Amenities</Text>
               <View style={styles.amenitiesWrap}>
                 {property.amenities.map((amenity, idx) => (
-                  <View key={idx} style={styles.amenityChip}>
+                  <View key={idx} style={[styles.amenityChip, { backgroundColor: T.successLight }]}>
                     <Ionicons name="checkmark-circle" size={16} color={Colors.success} />
-                    <Text style={styles.amenityText}>{amenity}</Text>
+                    <Text style={[styles.amenityText, { color: Colors.success }]}>{amenity}</Text>
                   </View>
                 ))}
               </View>
@@ -489,32 +470,31 @@ export default function PropertyDetailScreen() {
             application={myApplication}
             onApply={handleApply}
             isApplying={isApplying}
+            isDark={isDark}
+            T={T}
           />
 
-          {/* ── Realtor Info (from realtorContact, property.realtor, or application) ── */}
+          {/* ── Realtor Info ── */}
           {(property.realtorContact || property.realtor || myApplication?.realtor) && (() => {
-            // Prefer new realtorContact, fallback to legacy realtor
             const realtorContact = property.realtorContact;
             const legacyRealtor = property.realtor || myApplication?.realtor;
-            
             const displayName = realtorContact?.name 
               || (legacyRealtor?.user ? `${legacyRealtor.user.firstName} ${legacyRealtor.user.lastName}`.trim() : 'Realtor');
             const initials = displayName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || 'R';
             const agency = realtorContact?.agency;
-            
             return (
-              <Card style={styles.realtorCard}>
-                <Text style={styles.sectionTitle}>Listed By</Text>
+              <Card style={[styles.realtorCard, { backgroundColor: T.surfaceElevated, borderColor: T.borderLight }]}>
+                <Text style={[styles.sectionTitle, { color: T.textPrimary }]}>Listed By</Text>
                 <View style={styles.realtorInfo}>
-                  <View style={styles.realtorAvatar}>
+                  <View style={[styles.realtorAvatar, { backgroundColor: Colors.primary }]}>
                     <Text style={styles.realtorInitials}>{initials}</Text>
                   </View>
                   <View style={styles.realtorDetails}>
-                    <Text style={styles.realtorName}>{displayName}</Text>
-                    <Text style={styles.realtorLabel}>{agency || 'Licensed Realtor'}</Text>
+                    <Text style={[styles.realtorName, { color: T.textPrimary }]}>{displayName}</Text>
+                    <Text style={[styles.realtorLabel, { color: T.textMuted }]}>{agency || 'Licensed Realtor'}</Text>
                   </View>
                   <TouchableOpacity 
-                    style={styles.realtorChatBtn}
+                    style={[styles.realtorChatBtn, { backgroundColor: T.primaryLight }]}
                     onPress={() => setContactSheetVisible(true)}
                   >
                     <Ionicons name="chatbubble-ellipses" size={20} color={Colors.primary} />
@@ -529,9 +509,16 @@ export default function PropertyDetailScreen() {
       </ScrollView>
 
       {/* ── Bottom CTA ── */}
-      <View style={[styles.bottomCTA, { paddingBottom: insets.bottom + Spacing.md }]}>
+      <View style={[
+        styles.bottomCTA,
+        { 
+          paddingBottom: insets.bottom + Spacing.md,
+          backgroundColor: T.white,
+          borderTopColor: T.borderLight,
+        },
+      ]}>
         <TouchableOpacity 
-          style={styles.callBtn} 
+          style={[styles.callBtn, { borderColor: Colors.primary, backgroundColor: T.primaryLight }]} 
           activeOpacity={0.7}
           onPress={() => setContactSheetVisible(true)}
         >
@@ -557,22 +544,21 @@ export default function PropertyDetailScreen() {
         onChat={handleStartChat}
         isStartingChat={isStartingChat}
         realtorName={property?.realtorContact?.name || property?.realtor?.user?.firstName || myApplication?.realtor?.user?.firstName || 'Realtor'}
+        isDark={isDark}
+        T={T}
       />
 
       {/* ── Payment WebView Modal ── */}
       <Modal visible={!!paymentUrl} animationType="slide" presentationStyle="fullScreen">
-        <View style={[styles.webViewContainer, { paddingTop: insets.top }]}>
-          <View style={styles.webViewHeader}>
+        <View style={[styles.webViewContainer, { paddingTop: insets.top, backgroundColor: T.white }]}>
+          <View style={[styles.webViewHeader, { borderBottomColor: T.borderLight }]}>
             <TouchableOpacity 
-              onPress={() => {
-                setPaymentUrl(null);
-                setPaymentReference(null);
-              }}
+              onPress={() => { setPaymentUrl(null); setPaymentReference(null); }}
               style={styles.webViewClose}
             >
-              <Ionicons name="close" size={24} color={Colors.textPrimary} />
+              <Ionicons name="close" size={24} color={T.textPrimary} />
             </TouchableOpacity>
-            <Text style={styles.webViewTitle}>Complete Payment</Text>
+            <Text style={[styles.webViewTitle, { color: T.textPrimary }]}>Complete Payment</Text>
             <View style={{ width: 40 }} />
           </View>
           {paymentUrl && (
@@ -582,7 +568,7 @@ export default function PropertyDetailScreen() {
               style={styles.webView}
               startInLoadingState
               renderLoading={() => (
-                <View style={styles.webViewLoading}>
+                <View style={[styles.webViewLoading, { backgroundColor: T.white }]}>
                   <ActivityIndicator size="large" color={Colors.primary} />
                 </View>
               )}
@@ -594,14 +580,14 @@ export default function PropertyDetailScreen() {
       {/* ── Payment Polling Overlay ── */}
       {isPollingPayment && (
         <View style={styles.pollingOverlay}>
-          <View style={styles.pollingContent}>
+          <View style={[styles.pollingContent, { backgroundColor: T.surfaceElevated }]}>
             <ActivityIndicator size="large" color={Colors.primary} />
-            <Text style={styles.pollingText}>Verifying payment...</Text>
-            <Text style={styles.pollingSubtext}>Please wait</Text>
+            <Text style={[styles.pollingText, { color: T.textPrimary }]}>Verifying payment...</Text>
+            <Text style={[styles.pollingSubtext, { color: T.textMuted }]}>Please wait</Text>
           </View>
         </View>
       )}
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -609,19 +595,23 @@ export default function PropertyDetailScreen() {
    SUB-COMPONENTS
 ───────────────────────────────────────────────────────────── */
 
-/** Gallery Preview — Hero image + thumbnail strip with expand button */
+/** Gallery Preview */
 function ImageGalleryPreview({ 
   images, 
-  onImagePress 
+  onImagePress,
+  isDark,
 }: { 
   images: string[]; 
   onImagePress: (index: number) => void;
+  isDark: boolean;
 }) {
+  const T = isDark ? darkTokens : lightTokens;
+
   if (!images || images.length === 0) {
     return (
-      <View style={styles.galleryPlaceholder}>
-        <Ionicons name="image-outline" size={48} color={Colors.textMuted} />
-        <Text style={styles.galleryPlaceholderText}>No images available</Text>
+      <View style={[styles.galleryPlaceholder, { backgroundColor: T.surface }]}>
+        <Ionicons name="image-outline" size={48} color={T.textMuted} />
+        <Text style={[styles.galleryPlaceholderText, { color: T.textMuted }]}>No images available</Text>
       </View>
     );
   }
@@ -631,13 +621,8 @@ function ImageGalleryPreview({
   const remainingCount = images.length - 5;
 
   return (
-    <View style={styles.galleryPreview}>
-      {/* ── Hero image ── */}
-      <TouchableOpacity 
-        activeOpacity={0.95} 
-        onPress={() => onImagePress(0)}
-        style={styles.galleryMain}
-      >
+    <View style={[styles.galleryPreview, { backgroundColor: T.surface }]}>
+      <TouchableOpacity activeOpacity={0.95} onPress={() => onImagePress(0)} style={styles.galleryMain}>
         <Image
           source={{ uri: mainImage }}
           style={styles.galleryMainImage}
@@ -646,44 +631,21 @@ function ImageGalleryPreview({
           transition={250}
           cachePolicy="memory-disk"
         />
-        {/* Photo count badge */}
         <View style={styles.galleryCounter}>
           <Ionicons name="images-outline" size={14} color="#fff" />
           <Text style={styles.galleryCounterText}>{images.length} Photos</Text>
         </View>
-        {/* Expand button */}
-        <TouchableOpacity
-          style={styles.galleryExpandBtn}
-          onPress={() => onImagePress(0)}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-        >
+        <TouchableOpacity style={styles.galleryExpandBtn} onPress={() => onImagePress(0)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
           <Ionicons name="expand-outline" size={18} color="#fff" />
         </TouchableOpacity>
-        {/* Gradient overlay at bottom */}
-        <LinearGradient
-          colors={['transparent', 'rgba(0,0,0,0.15)']}
-          style={styles.galleryGradient}
-          pointerEvents="none"
-        />
+        <LinearGradient colors={['transparent', 'rgba(0,0,0,0.15)']} style={styles.galleryGradient} pointerEvents="none" />
       </TouchableOpacity>
 
-      {/* ── Thumbnail strip ── */}
       {thumbnails.length > 0 && (
-        <View style={styles.galleryThumbnails}>
+        <View style={[styles.galleryThumbnails, { backgroundColor: T.surface }]}>
           {thumbnails.map((img, idx) => (
-            <TouchableOpacity 
-              key={idx}
-              activeOpacity={0.9}
-              onPress={() => onImagePress(idx + 1)}
-              style={styles.galleryThumbnail}
-            >
-              <Image
-                source={{ uri: img }}
-                style={styles.galleryThumbnailImage}
-                contentFit="cover"
-                transition={200}
-                cachePolicy="memory-disk"
-              />
+            <TouchableOpacity key={idx} activeOpacity={0.9} onPress={() => onImagePress(idx + 1)} style={styles.galleryThumbnail}>
+              <Image source={{ uri: img }} style={styles.galleryThumbnailImage} contentFit="cover" transition={200} cachePolicy="memory-disk" />
               {idx === thumbnails.length - 1 && remainingCount > 0 && (
                 <View style={styles.galleryMoreOverlay}>
                   <Text style={styles.galleryMoreText}>+{remainingCount}</Text>
@@ -699,13 +661,7 @@ function ImageGalleryPreview({
 
 /** Contact Sheet Modal */
 function ContactSheetModal({
-  visible,
-  onClose,
-  onCall,
-  onWhatsApp,
-  onChat,
-  isStartingChat,
-  realtorName,
+  visible, onClose, onCall, onWhatsApp, onChat, isStartingChat, realtorName, isDark, T,
 }: {
   visible: boolean;
   onClose: () => void;
@@ -714,54 +670,45 @@ function ContactSheetModal({
   onChat: () => void;
   isStartingChat: boolean;
   realtorName: string;
+  isDark: boolean;
+  T: typeof darkTokens;
 }) {
   const insets = useSafeAreaInsets();
-
   return (
     <Modal visible={visible} animationType="slide" transparent>
-      <TouchableOpacity 
-        style={styles.contactSheetOverlay}
-        activeOpacity={1}
-        onPress={onClose}
-      >
-        <View style={[styles.contactSheet, { paddingBottom: insets.bottom + Spacing.lg }]}>
-          <View style={styles.contactSheetHandle} />
-          <Text style={styles.contactSheetTitle}>Contact {realtorName}</Text>
-          <Text style={styles.contactSheetSubtitle}>Choose how you'd like to get in touch</Text>
+      <TouchableOpacity style={[styles.contactSheetOverlay, { backgroundColor: T.overlayDark }]} activeOpacity={1} onPress={onClose}>
+        <View style={[styles.contactSheet, { paddingBottom: insets.bottom + Spacing.lg, backgroundColor: T.white }]}>
+          <View style={[styles.contactSheetHandle, { backgroundColor: T.borderLight }]} />
+          <Text style={[styles.contactSheetTitle, { color: T.textPrimary }]}>Contact {realtorName}</Text>
+          <Text style={[styles.contactSheetSubtitle, { color: T.textMuted }]}>Choose how you'd like to get in touch</Text>
           
           <View style={styles.contactOptions}>
             <TouchableOpacity style={styles.contactOption} onPress={onCall}>
-              <View style={[styles.contactOptionIcon, { backgroundColor: Colors.primaryLight }]}>
+              <View style={[styles.contactOptionIcon, { backgroundColor: T.primaryLight }]}>
                 <Ionicons name="call" size={24} color={Colors.primary} />
               </View>
-              <Text style={styles.contactOptionLabel}>Phone Call</Text>
+              <Text style={[styles.contactOptionLabel, { color: T.textSecondary }]}>Phone Call</Text>
             </TouchableOpacity>
-
             <TouchableOpacity style={styles.contactOption} onPress={onWhatsApp}>
-              <View style={[styles.contactOptionIcon, { backgroundColor: '#dcf8c6' }]}>
+              <View style={[styles.contactOptionIcon, { backgroundColor: isDark ? '#1A2E1A' : '#dcf8c6' }]}>
                 <Ionicons name="logo-whatsapp" size={24} color="#25D366" />
               </View>
-              <Text style={styles.contactOptionLabel}>WhatsApp</Text>
+              <Text style={[styles.contactOptionLabel, { color: T.textSecondary }]}>WhatsApp</Text>
             </TouchableOpacity>
-
-            <TouchableOpacity 
-              style={styles.contactOption} 
-              onPress={onChat}
-              disabled={isStartingChat}
-            >
-              <View style={[styles.contactOptionIcon, { backgroundColor: Colors.primaryLight }]}>
+            <TouchableOpacity style={styles.contactOption} onPress={onChat} disabled={isStartingChat}>
+              <View style={[styles.contactOptionIcon, { backgroundColor: T.primaryLight }]}>
                 {isStartingChat ? (
                   <ActivityIndicator size="small" color={Colors.primary} />
                 ) : (
                   <Ionicons name="chatbubbles" size={24} color={Colors.primary} />
                 )}
               </View>
-              <Text style={styles.contactOptionLabel}>In-App Chat</Text>
+              <Text style={[styles.contactOptionLabel, { color: T.textSecondary }]}>In-App Chat</Text>
             </TouchableOpacity>
           </View>
 
-          <TouchableOpacity style={styles.contactSheetCancel} onPress={onClose}>
-            <Text style={styles.contactSheetCancelText}>Cancel</Text>
+          <TouchableOpacity style={[styles.contactSheetCancel, { backgroundColor: T.surface }]} onPress={onClose}>
+            <Text style={[styles.contactSheetCancelText, { color: T.textMuted }]}>Cancel</Text>
           </TouchableOpacity>
         </View>
       </TouchableOpacity>
@@ -770,27 +717,36 @@ function ContactSheetModal({
 }
 
 /** Feature Item */
-function FeatureItem({ icon, label, value }: { icon: keyof typeof Ionicons.glyphMap; label: string; value: string }) {
+function FeatureItem({ 
+  icon, label, value, isDark, T 
+}: { 
+  icon: keyof typeof Ionicons.glyphMap; 
+  label: string; 
+  value: string;
+  isDark: boolean;
+  T: typeof darkTokens;
+}) {
   return (
-    <View style={styles.featureItem}>
-      <View style={styles.featureIcon}><Ionicons name={icon} size={20} color={Colors.primary} /></View>
-      <Text style={styles.featureValue}>{value}</Text>
-      <Text style={styles.featureLabel}>{label}</Text>
+    <View style={[styles.featureItem, { backgroundColor: T.surface, borderColor: T.borderLight }]}>
+      <View style={[styles.featureIcon, { backgroundColor: T.primaryLight }]}>
+        <Ionicons name={icon} size={20} color={Colors.primary} />
+      </View>
+      <Text style={[styles.featureValue, { color: T.textPrimary }]}>{value}</Text>
+      <Text style={[styles.featureLabel, { color: T.textMuted }]}>{label}</Text>
     </View>
   );
 }
 
-/** Installment Plan Card — fetches real templates from API */
+/** Installment Plan Card */
 function InstallmentPlanCard({ 
-  property, 
-  application,
-  onApply,
-  isApplying,
+  property, application, onApply, isApplying, isDark, T,
 }: { 
   property: Property;
   application: Application | null;
   onApply: () => void;
   isApplying: boolean;
+  isDark: boolean;
+  T: typeof darkTokens;
 }) {
   const [templates, setTemplates] = useState<PaymentPlanTemplate[]>([]);
   const [selectedIdx, setSelectedIdx] = useState(0);
@@ -809,8 +765,6 @@ function InstallmentPlanCard({
 
   const totalPrice = property.price;
   const template = templates[selectedIdx];
-
-  // Compute breakdown from the selected template or fallback
   const downPct = template?.downPaymentPct ?? 30;
   const durationMonths = template?.durationMonths ?? 12;
   const interestRate = template?.interestRate ?? 0;
@@ -818,32 +772,30 @@ function InstallmentPlanCard({
   const financed = totalPrice - downPayment;
   const totalWithInterest = financed * (1 + interestRate / 100);
   const monthlyPayment = Math.round(totalWithInterest / durationMonths);
-
-  // Calculate payment progress if application exists and is paid
   const paidAmount = application?.paymentStatus === 'PAID' ? totalPrice : 0;
   const progress = paidAmount / totalPrice;
 
   return (
-    <Card style={styles.installmentCard} variant="outlined">
+    <Card style={[styles.installmentCard, { borderColor: T.borderLight }]} variant="outlined">
       <LinearGradient 
-        colors={[Colors.primaryLight + '60', Colors.primaryLight + '20']} 
+        colors={isDark ? ['rgba(30,46,82,0.5)', 'rgba(30,46,82,0.15)'] : [Colors.primaryLight + '60', Colors.primaryLight + '20']} 
         style={styles.installmentGradient} 
         start={{ x: 0, y: 0 }} 
         end={{ x: 1, y: 1 }} 
       />
       
       <View style={styles.installmentHeader}>
-        <View style={styles.installmentBadge}>
+        <View style={[styles.installmentBadge, { backgroundColor: T.primaryLight }]}>
           <Ionicons name="card-outline" size={16} color={Colors.primary} />
-          <Text style={styles.installmentBadgeText}>Flexible Payment Options</Text>
+          <Text style={[styles.installmentBadgeText, { color: Colors.primary }]}>Flexible Payment Options</Text>
         </View>
       </View>
 
-      <Text style={styles.installmentDesc}>
+      <Text style={[styles.installmentDesc, { color: T.textSecondary }]}>
         This property supports multiple payment options including full payment and installment plans.
       </Text>
 
-      {/* Plan selector chips (when multiple templates) */}
+      {/* Plan selector chips */}
       {templates.length > 1 && (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: Spacing.md, marginHorizontal: -Spacing.xs }}>
           {templates.map((tp, idx) => (
@@ -853,13 +805,13 @@ function InstallmentPlanCard({
               style={{
                 paddingHorizontal: Spacing.md, paddingVertical: Spacing.xs + 2,
                 borderRadius: BorderRadius.full, marginRight: Spacing.sm,
-                backgroundColor: idx === selectedIdx ? Colors.primary : Colors.surface,
-                borderWidth: 1, borderColor: idx === selectedIdx ? Colors.primary : Colors.borderLight,
+                backgroundColor: idx === selectedIdx ? Colors.primary : T.surface,
+                borderWidth: 1, borderColor: idx === selectedIdx ? Colors.primary : T.borderLight,
               }}
             >
               <Text style={{
                 ...Typography.caption, fontWeight: '600',
-                color: idx === selectedIdx ? Colors.white : Colors.textSecondary,
+                color: idx === selectedIdx ? Colors.white : T.textSecondary,
               }}>
                 {tp.name || `${tp.durationMonths}mo plan`}
               </Text>
@@ -869,38 +821,31 @@ function InstallmentPlanCard({
       )}
 
       {/* Payment Breakdown */}
-      <View style={styles.installmentBreakdown}>
+      <View style={[styles.installmentBreakdown, { backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.80)' }]}>
         <View style={styles.installmentRow}>
-          <Text style={styles.installmentLabel}>Total Price</Text>
-          <Text style={styles.installmentValue}>{formatCurrency(totalPrice)}</Text>
+          <Text style={[styles.installmentLabel, { color: T.textMuted }]}>Total Price</Text>
+          <Text style={[styles.installmentValue, { color: T.textPrimary }]}>{formatCurrency(totalPrice)}</Text>
         </View>
-        <View style={styles.installmentDivider} />
+        <View style={[styles.installmentDivider, { backgroundColor: T.borderLight }]} />
         <View style={styles.installmentRow}>
-          <Text style={styles.installmentLabel}>Down Payment ({downPct}%)</Text>
-          <Text style={styles.installmentValue}>{formatCurrency(downPayment)}</Text>
+          <Text style={[styles.installmentLabel, { color: T.textMuted }]}>Down Payment ({downPct}%)</Text>
+          <Text style={[styles.installmentValue, { color: T.textPrimary }]}>{formatCurrency(downPayment)}</Text>
         </View>
         <View style={styles.installmentRow}>
-          <Text style={styles.installmentLabel}>Monthly ({durationMonths} months{interestRate > 0 ? ` @ ${interestRate}%` : ''})</Text>
-          <Text style={styles.installmentValue}>{formatCurrency(monthlyPayment)}</Text>
+          <Text style={[styles.installmentLabel, { color: T.textMuted }]}>Monthly ({durationMonths} months{interestRate > 0 ? ` @ ${interestRate}%` : ''})</Text>
+          <Text style={[styles.installmentValue, { color: T.textPrimary }]}>{formatCurrency(monthlyPayment)}</Text>
         </View>
-        {loadingTemplates && (
-          <ActivityIndicator size="small" color={Colors.primary} style={{ marginTop: Spacing.sm }} />
-        )}
+        {loadingTemplates && <ActivityIndicator size="small" color={Colors.primary} style={{ marginTop: Spacing.sm }} />}
       </View>
 
       {/* Progress Bar */}
       {application && (
         <>
-          <ProgressBar 
-            progress={progress * 100} 
-            label="Payment Progress" 
-            showPercentage 
-            style={styles.progressBar} 
-          />
+          <ProgressBar progress={progress * 100} label="Payment Progress" showPercentage style={styles.progressBar} />
           {application.paymentStatus === 'PAID' && (
-            <View style={styles.paidBadge}>
+            <View style={[styles.paidBadge, { backgroundColor: T.successLight }]}>
               <Ionicons name="checkmark-circle" size={16} color={Colors.success} />
-              <Text style={styles.paidBadgeText}>Fully Paid</Text>
+              <Text style={[styles.paidBadgeText, { color: Colors.success }]}>Fully Paid</Text>
             </View>
           )}
         </>
@@ -910,9 +855,7 @@ function InstallmentPlanCard({
       {!application && (
         <Button 
           title={isApplying ? 'Applying...' : 'Apply to View Full Plan'}
-          variant="outline" 
-          size="md" 
-          onPress={onApply}
+          variant="outline" size="md" onPress={onApply}
           disabled={isApplying || property.availability !== 'AVAILABLE'}
           style={styles.installmentButton} 
           icon={<Ionicons name="arrow-forward" size={16} color={Colors.primary} />} 
@@ -924,21 +867,21 @@ function InstallmentPlanCard({
 }
 
 /* ────────────────────────────────────────────────────────────
-   STYLES
+   STYLES  (static/layout only — colours applied inline above)
 ───────────────────────────────────────────────────────────── */
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background },
-  loaderWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.background },
+  container: { flex: 1 },
+  loaderWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   loaderContent: { alignItems: 'center', gap: Spacing.md },
-  loaderText: { ...Typography.caption, color: Colors.textMuted },
+  loaderText: { ...Typography.caption },
 
   floatingHeader: { position: 'absolute', left: Spacing.lg, right: Spacing.lg, flexDirection: 'row', justifyContent: 'space-between', zIndex: 10 },
-  floatingBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: 'rgba(255,255,255,0.95)', alignItems: 'center', justifyContent: 'center', ...Shadows.md, borderWidth: 1, borderColor: Colors.borderLight },
+  floatingBtn: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', ...Shadows.md, borderWidth: 1 },
   floatingRight: { flexDirection: 'row', gap: Spacing.sm },
 
-  // Gallery Preview
-  galleryPreview: { backgroundColor: Colors.surface },
+  // Gallery
+  galleryPreview: {},
   galleryMain: { height: 280, position: 'relative' },
   galleryMainImage: { width: '100%', height: '100%' },
   galleryCounter: { position: 'absolute', top: Spacing.md, right: Spacing.md, flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(0,0,0,0.55)', paddingHorizontal: Spacing.sm, paddingVertical: 4, borderRadius: BorderRadius.full },
@@ -950,98 +893,95 @@ const styles = StyleSheet.create({
   galleryThumbnailImage: { width: '100%', height: '100%' },
   galleryMoreOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center' },
   galleryMoreText: { ...Typography.h4, color: '#fff' },
-  galleryPlaceholder: { height: 280, backgroundColor: Colors.surface, alignItems: 'center', justifyContent: 'center', gap: Spacing.sm },
-  galleryPlaceholderText: { ...Typography.bodyMedium, color: Colors.textMuted },
+  galleryPlaceholder: { height: 280, alignItems: 'center', justifyContent: 'center', gap: Spacing.sm },
+  galleryPlaceholderText: { ...Typography.bodyMedium },
 
-  content: { paddingHorizontal: Spacing.xl, paddingTop: Spacing.xl, borderTopLeftRadius: BorderRadius.xxl, borderTopRightRadius: BorderRadius.xxl, marginTop: -20, backgroundColor: Colors.background },
+  content: { paddingHorizontal: Spacing.xl, paddingTop: Spacing.xl, borderTopLeftRadius: BorderRadius.xxl, borderTopRightRadius: BorderRadius.xxl, marginTop: -20 },
 
   priceRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: Spacing.md },
-  price: { ...Typography.h2, color: Colors.primary },
-  priceLabel: { ...Typography.small, color: Colors.textMuted, marginTop: 2 },
+  price: { ...Typography.h2 },
+  priceLabel: { ...Typography.small, marginTop: 2 },
 
   applicationStatusRow: { marginBottom: Spacing.lg },
-  applicationBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.warningLight, paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm, borderRadius: BorderRadius.lg, gap: Spacing.xs },
-  applicationBadgeApproved: { backgroundColor: Colors.successLight },
-  applicationBadgeRejected: { backgroundColor: Colors.errorLight },
-  applicationBadgeText: { ...Typography.captionMedium, color: Colors.warning },
+  applicationBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm, borderRadius: BorderRadius.lg, gap: Spacing.xs },
+  applicationBadgeText: { ...Typography.captionMedium },
 
-  title: { ...Typography.h3, color: Colors.textPrimary, marginBottom: Spacing.sm },
+  title: { ...Typography.h3, marginBottom: Spacing.sm },
   locationRow: { flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.xxl, gap: Spacing.sm },
-  locationIcon: { width: 32, height: 32, borderRadius: 16, backgroundColor: Colors.primaryLight, alignItems: 'center', justifyContent: 'center' },
-  locationText: { ...Typography.caption, color: Colors.textSecondary, flex: 1 },
+  locationIcon: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  locationText: { ...Typography.caption, flex: 1 },
 
   featuresGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm, marginBottom: Spacing.xxl },
-  featureItem: { width: '31%', backgroundColor: Colors.surface, borderRadius: BorderRadius.xl, padding: Spacing.md, alignItems: 'center', borderWidth: 1, borderColor: Colors.borderLight },
-  featureIcon: { width: 44, height: 44, borderRadius: 22, backgroundColor: Colors.primaryLight, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.xs },
-  featureValue: { ...Typography.bodySemiBold, color: Colors.textPrimary },
-  featureLabel: { ...Typography.small, color: Colors.textMuted, marginTop: 2 },
+  featureItem: { width: '31%', borderRadius: BorderRadius.xl, padding: Spacing.md, alignItems: 'center', borderWidth: 1 },
+  featureIcon: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.xs },
+  featureValue: { ...Typography.bodySemiBold },
+  featureLabel: { ...Typography.small, marginTop: 2 },
 
   descriptionSection: { marginBottom: Spacing.xxl },
-  sectionTitle: { ...Typography.h4, color: Colors.textPrimary, marginBottom: Spacing.md },
-  description: { ...Typography.body, color: Colors.textSecondary, lineHeight: 24 },
+  sectionTitle: { ...Typography.h4, marginBottom: Spacing.md },
+  description: { ...Typography.body, lineHeight: 24 },
 
   amenitiesSection: { marginBottom: Spacing.xxl },
   amenitiesWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
-  amenityChip: { flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.successLight, borderRadius: BorderRadius.full, paddingHorizontal: Spacing.md, paddingVertical: Spacing.xs + 2, gap: Spacing.xs },
-  amenityText: { ...Typography.caption, color: Colors.success, fontWeight: '500' },
+  amenityChip: { flexDirection: 'row', alignItems: 'center', borderRadius: BorderRadius.full, paddingHorizontal: Spacing.md, paddingVertical: Spacing.xs + 2, gap: Spacing.xs },
+  amenityText: { ...Typography.caption, fontWeight: '500' },
 
   // Installment Card
   installmentCard: { marginBottom: Spacing.xxl, position: 'relative', overflow: 'hidden' },
   installmentGradient: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: BorderRadius.lg },
   installmentHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.md },
-  installmentBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.primaryLight, paddingHorizontal: Spacing.md, paddingVertical: Spacing.xs, borderRadius: BorderRadius.full, gap: Spacing.xs },
-  installmentBadgeText: { ...Typography.captionMedium, color: Colors.primary },
-  installmentDesc: { ...Typography.caption, color: Colors.textSecondary, marginBottom: Spacing.lg, lineHeight: 20 },
-  installmentBreakdown: { backgroundColor: Colors.white + '80', borderRadius: BorderRadius.lg, padding: Spacing.md, marginBottom: Spacing.md },
+  installmentBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: Spacing.md, paddingVertical: Spacing.xs, borderRadius: BorderRadius.full, gap: Spacing.xs },
+  installmentBadgeText: { ...Typography.captionMedium },
+  installmentDesc: { ...Typography.caption, marginBottom: Spacing.lg, lineHeight: 20 },
+  installmentBreakdown: { borderRadius: BorderRadius.lg, padding: Spacing.md, marginBottom: Spacing.md },
   installmentRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: Spacing.xs },
-  installmentLabel: { ...Typography.caption, color: Colors.textMuted },
-  installmentValue: { ...Typography.captionMedium, color: Colors.textPrimary },
-  installmentDivider: { height: 1, backgroundColor: Colors.borderLight, marginVertical: Spacing.sm },
+  installmentLabel: { ...Typography.caption },
+  installmentValue: { ...Typography.captionMedium },
+  installmentDivider: { height: 1, marginVertical: Spacing.sm },
   progressBar: { marginBottom: Spacing.md },
   installmentButton: {},
-  paidBadge: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.xs, backgroundColor: Colors.successLight, paddingVertical: Spacing.sm, borderRadius: BorderRadius.lg },
-  paidBadgeText: { ...Typography.captionMedium, color: Colors.success },
+  paidBadge: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.xs, paddingVertical: Spacing.sm, borderRadius: BorderRadius.lg },
+  paidBadgeText: { ...Typography.captionMedium },
 
   // Realtor Card
   realtorCard: { marginBottom: Spacing.xxl },
   realtorInfo: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
-  realtorAvatar: { width: 50, height: 50, borderRadius: 25, backgroundColor: Colors.primary, alignItems: 'center', justifyContent: 'center' },
+  realtorAvatar: { width: 50, height: 50, borderRadius: 25, alignItems: 'center', justifyContent: 'center' },
   realtorInitials: { ...Typography.bodyMedium, color: Colors.white, fontWeight: '700' },
   realtorDetails: { flex: 1 },
-  realtorName: { ...Typography.bodyMedium, color: Colors.textPrimary },
-  realtorLabel: { ...Typography.small, color: Colors.textMuted },
-  realtorChatBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: Colors.primaryLight, alignItems: 'center', justifyContent: 'center' },
+  realtorName: { ...Typography.bodyMedium },
+  realtorLabel: { ...Typography.small },
+  realtorChatBtn: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
 
   // Bottom CTA
-  bottomCTA: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: Colors.white, paddingHorizontal: Spacing.xl, paddingTop: Spacing.md, flexDirection: 'row', gap: Spacing.md, alignItems: 'center', ...Shadows.lg, borderTopWidth: 1, borderTopColor: Colors.borderLight },
-  callBtn: { width: 52, height: 52, borderRadius: BorderRadius.xl, borderWidth: 1.5, borderColor: Colors.primary, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.primaryLight },
+  bottomCTA: { position: 'absolute', bottom: 0, left: 0, right: 0, paddingHorizontal: Spacing.xl, paddingTop: Spacing.md, flexDirection: 'row', gap: Spacing.md, alignItems: 'center', ...Shadows.lg, borderTopWidth: 1 },
+  callBtn: { width: 52, height: 52, borderRadius: BorderRadius.xl, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
   ctaButton: { flex: 1 },
 
   // Contact Sheet
-  contactSheetOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  contactSheet: { backgroundColor: Colors.white, borderTopLeftRadius: BorderRadius.xxl, borderTopRightRadius: BorderRadius.xxl, paddingHorizontal: Spacing.xl, paddingTop: Spacing.md },
-  contactSheetHandle: { width: 40, height: 4, backgroundColor: Colors.borderLight, borderRadius: 2, alignSelf: 'center', marginBottom: Spacing.lg },
-  contactSheetTitle: { ...Typography.h4, color: Colors.textPrimary, textAlign: 'center' },
-  contactSheetSubtitle: { ...Typography.caption, color: Colors.textMuted, textAlign: 'center', marginBottom: Spacing.xl },
+  contactSheetOverlay: { flex: 1, justifyContent: 'flex-end' },
+  contactSheet: { borderTopLeftRadius: BorderRadius.xxl, borderTopRightRadius: BorderRadius.xxl, paddingHorizontal: Spacing.xl, paddingTop: Spacing.md },
+  contactSheetHandle: { width: 40, height: 4, borderRadius: 2, alignSelf: 'center', marginBottom: Spacing.lg },
+  contactSheetTitle: { ...Typography.h4, textAlign: 'center' },
+  contactSheetSubtitle: { ...Typography.caption, textAlign: 'center', marginBottom: Spacing.xl },
   contactOptions: { flexDirection: 'row', justifyContent: 'space-around', marginBottom: Spacing.xl },
   contactOption: { alignItems: 'center', gap: Spacing.sm },
   contactOptionIcon: { width: 60, height: 60, borderRadius: 30, alignItems: 'center', justifyContent: 'center' },
-  contactOptionLabel: { ...Typography.caption, color: Colors.textSecondary },
-  contactSheetCancel: { backgroundColor: Colors.surface, paddingVertical: Spacing.md, borderRadius: BorderRadius.lg, alignItems: 'center' },
-  contactSheetCancelText: { ...Typography.bodyMedium, color: Colors.textMuted },
+  contactOptionLabel: { ...Typography.caption },
+  contactSheetCancel: { paddingVertical: Spacing.md, borderRadius: BorderRadius.lg, alignItems: 'center' },
+  contactSheetCancelText: { ...Typography.bodyMedium },
 
   // WebView
-  webViewContainer: { flex: 1, backgroundColor: Colors.white },
-  webViewHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md, borderBottomWidth: 1, borderBottomColor: Colors.borderLight },
+  webViewContainer: { flex: 1 },
+  webViewHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md, borderBottomWidth: 1 },
   webViewClose: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  webViewTitle: { ...Typography.bodyMedium, color: Colors.textPrimary },
+  webViewTitle: { ...Typography.bodyMedium },
   webView: { flex: 1 },
-  webViewLoading: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.white },
+  webViewLoading: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' },
 
   // Polling Overlay
   pollingOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.7)', alignItems: 'center', justifyContent: 'center', zIndex: 100 },
-  pollingContent: { backgroundColor: Colors.white, borderRadius: BorderRadius.xl, padding: Spacing.xxl, alignItems: 'center', gap: Spacing.md },
-  pollingText: { ...Typography.bodyMedium, color: Colors.textPrimary },
-  pollingSubtext: { ...Typography.caption, color: Colors.textMuted },
+  pollingContent: { borderRadius: BorderRadius.xl, padding: Spacing.xxl, alignItems: 'center', gap: Spacing.md },
+  pollingText: { ...Typography.bodyMedium },
+  pollingSubtext: { ...Typography.caption },
 });
-
