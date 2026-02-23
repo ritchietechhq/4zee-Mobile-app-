@@ -1,26 +1,33 @@
 // ============================================================
-// Chat Screen — Full backend alignment
-// ✓ Uses isMine flag from backend (no guessing senderId)
+// Chat Screen — Keyboard-safe, clean text messaging
+// ✓ Proper keyboard handling for edge-to-edge Android + iOS
+// ✓ Uses isMine flag from backend
 // ✓ Uses sender.name for display
-// ✓ Real voice upload → POST /uploads/direct → send VOICE_NOTE
-// ✓ Voice playback via expo-av Sound
-// ✓ Property context card from conversation.property
+// ✓ Property context card
 // ✓ Smart optimistic sends with pending tracking
 // ✓ otherParticipant name, email, phone for header
 // ============================================================
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  View, Text, StyleSheet, FlatList, TouchableOpacity,
-  TextInput, KeyboardAvoidingView, Platform,
-  ActivityIndicator, Animated, Vibration, Alert,
-  Dimensions,
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  TouchableOpacity,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
+  Keyboard,
+  ActivityIndicator,
+  Animated,
+  Vibration,
+  Alert,
 } from 'react-native';
 import { Image } from 'expo-image';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Audio } from 'expo-av';
 import { messagingService } from '@/services/messaging.service';
 import { useAuthStore } from '@/store/auth.store';
 import type { Message, Conversation } from '@/types';
@@ -28,8 +35,6 @@ import { Spacing, Typography, BorderRadius } from '@/constants/theme';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import type { ThemeColors } from '@/constants/colors';
 import { formatCurrency } from '@/utils/formatCurrency';
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 // ─── Helpers ─────────────────────────────────────────────────
 
@@ -46,13 +51,11 @@ function formatDateLabel(dateStr: string): string {
   yesterday.setDate(today.getDate() - 1);
   if (d.toDateString() === today.toDateString()) return 'Today';
   if (d.toDateString() === yesterday.toDateString()) return 'Yesterday';
-  return d.toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' });
-}
-
-function formatDuration(seconds: number): string {
-  const m = Math.floor(seconds / 60);
-  const s = Math.floor(seconds % 60);
-  return `${m}:${s.toString().padStart(2, '0')}`;
+  return d.toLocaleDateString('en-NG', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
 }
 
 /**
@@ -67,7 +70,6 @@ function getParticipantDisplayName(
   }
   const p = conversation?.participant;
   if (p) {
-    // Prefer the `name` field from otherParticipant
     if (p.name && p.name !== 'Unknown') return p.name;
     const full = `${p.firstName ?? ''} ${p.lastName ?? ''}`.trim();
     if (full && full !== 'Unknown') return full;
@@ -84,6 +86,8 @@ export default function ChatScreen() {
   const colors = useThemeColors();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const router = useRouter();
+  const insets = useSafeAreaInsets();
+
   const {
     id: conversationId,
     name: participantName,
@@ -119,22 +123,36 @@ export default function ChatScreen() {
   const pendingOptimisticIds = useRef<Set<string>>(new Set());
   const isSendingRef = useRef(false);
 
-  // Voice recording
-  const [isRecording, setIsRecording] = useState(false);
-  const [recordingDuration, setRecordingDuration] = useState(0);
-  const recordingRef = useRef<Audio.Recording | null>(null);
-  const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const [showVoiceUI, setShowVoiceUI] = useState(false);
-  const [isUploadingVoice, setIsUploadingVoice] = useState(false);
-
-  // Voice playback
-  const [playingMsgId, setPlayingMsgId] = useState<string | null>(null);
-  const soundRef = useRef<Audio.Sound | null>(null);
+  // Keyboard tracking for safe-area bottom handling
+  const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
 
   // Animations
   const sendAnim = useRef(new Animated.Value(0)).current;
-  const voicePulse = useRef(new Animated.Value(1)).current;
   const inputBarAnim = useRef(new Animated.Value(0)).current;
+
+  // ── Keyboard listeners ──
+  useEffect(() => {
+    const showEvent =
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent =
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+
+    const showSub = Keyboard.addListener(showEvent, () =>
+      setIsKeyboardOpen(true),
+    );
+    const hideSub = Keyboard.addListener(hideEvent, () =>
+      setIsKeyboardOpen(false),
+    );
+
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
+
+  // When keyboard is open → no extra bottom padding (KAV handles it)
+  // When keyboard is closed → add bottom inset (edge-to-edge nav bar / home indicator)
+  const bottomSafePadding = isKeyboardOpen ? 0 : insets.bottom;
 
   // ── Init ──
   useEffect(() => {
@@ -158,14 +176,19 @@ export default function ChatScreen() {
             if (pendingOptimisticIds.current.size === 0) return serverMessages;
             const serverIds = new Set(serverMessages.map((m) => m.id));
             const pending = prev.filter(
-              (m) => pendingOptimisticIds.current.has(m.id) && !serverIds.has(m.id),
+              (m) =>
+                pendingOptimisticIds.current.has(m.id) && !serverIds.has(m.id),
             );
             return [...pending, ...serverMessages];
           });
 
           messagingService.markAsRead(conversationId).catch(() => {});
         } else {
-          const res = await messagingService.getMessages(conversationId, cursor, 30);
+          const res = await messagingService.getMessages(
+            conversationId,
+            cursor,
+            30,
+          );
           setMessages((prev) => [...prev, ...res.items]);
           setCursor(res.pagination?.nextCursor ?? undefined);
           setHasMore(res.pagination?.hasNext ?? false);
@@ -214,22 +237,41 @@ export default function ChatScreen() {
     setMessages((prev) => [optimistic, ...prev]);
 
     Animated.sequence([
-      Animated.timing(sendAnim, { toValue: 1, duration: 80, useNativeDriver: true }),
-      Animated.timing(sendAnim, { toValue: 0, duration: 80, useNativeDriver: true }),
+      Animated.timing(sendAnim, {
+        toValue: 1,
+        duration: 80,
+        useNativeDriver: true,
+      }),
+      Animated.timing(sendAnim, {
+        toValue: 0,
+        duration: 80,
+        useNativeDriver: true,
+      }),
     ]).start();
 
     try {
       const sent = isRealtor
-        ? await messagingService.realtorReply(conversationId, { content: text, type: 'RESPONSE' })
-        : await messagingService.sendMessage(conversationId, { content: text, type: 'RESPONSE' });
+        ? await messagingService.realtorReply(conversationId, {
+            content: text,
+            type: 'RESPONSE',
+          })
+        : await messagingService.sendMessage(conversationId, {
+            content: text,
+            type: 'RESPONSE',
+          });
 
       pendingOptimisticIds.current.delete(optimisticId);
-      setMessages((prev) => prev.map((m) => (m.id === optimisticId ? sent : m)));
+      setMessages((prev) =>
+        prev.map((m) => (m.id === optimisticId ? sent : m)),
+      );
     } catch (e) {
       pendingOptimisticIds.current.delete(optimisticId);
       setMessages((prev) => prev.filter((m) => m.id !== optimisticId));
       setInputText(text);
-      Alert.alert('Send Failed', 'Message could not be sent. Please try again.');
+      Alert.alert(
+        'Send Failed',
+        'Message could not be sent. Please try again.',
+      );
       if (__DEV__) console.warn('[Chat] send error', e);
     } finally {
       isSendingRef.current = false;
@@ -237,201 +279,11 @@ export default function ChatScreen() {
     }
   };
 
-  // ── Send Voice Note (real upload) ──
-  const sendVoiceNote = async (uri: string, duration: number) => {
-    if (!conversationId || !uri) return;
-    if (isSendingRef.current) return;
-
-    isSendingRef.current = true;
-    setIsSending(true);
-    setIsUploadingVoice(true);
-    Vibration.vibrate(10);
-
-    const optimisticId = `_opt_voice_${Date.now()}`;
-    const optimistic: Message = {
-      id: optimisticId,
-      content: '',
-      senderId: user?.id || '',
-      isMine: true,
-      createdAt: new Date().toISOString(),
-      type: 'VOICE_NOTE',
-      isVoiceNote: true,
-      voiceDuration: duration,
-      isRead: false,
-    };
-
-    pendingOptimisticIds.current.add(optimisticId);
-    setMessages((prev) => [optimistic, ...prev]);
-
-    try {
-      // 1. Upload voice file
-      const voiceNoteUrl = await messagingService.uploadVoiceNote(uri);
-
-      // 2. Send message with voice note fields
-      const payload = {
-        content: '',
-        type: 'VOICE_NOTE' as const,
-        voiceNoteUrl,
-        isVoiceNote: true,
-        voiceDuration: duration,
-      };
-
-      const sent = isRealtor
-        ? await messagingService.realtorReply(conversationId, payload)
-        : await messagingService.sendMessage(conversationId, payload);
-
-      pendingOptimisticIds.current.delete(optimisticId);
-      setMessages((prev) => prev.map((m) => (m.id === optimisticId ? sent : m)));
-    } catch (e) {
-      pendingOptimisticIds.current.delete(optimisticId);
-      setMessages((prev) => prev.filter((m) => m.id !== optimisticId));
-      Alert.alert('Send Failed', 'Voice note could not be sent. Please try again.');
-      if (__DEV__) console.warn('[Chat] voice send error', e);
-    } finally {
-      isSendingRef.current = false;
-      setIsSending(false);
-      setIsUploadingVoice(false);
-    }
-  };
-
   const loadMore = () => {
     if (hasMore && !isLoading) fetchMessages(true);
   };
 
-  // ── Voice Recording ──
-  const startRecording = async () => {
-    try {
-      const { granted } = await Audio.requestPermissionsAsync();
-      if (!granted) {
-        Alert.alert('Permission Required', 'Please allow microphone access to send voice messages.');
-        return;
-      }
-
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: true,
-        playsInSilentModeIOS: true,
-      });
-
-      const { recording } = await Audio.Recording.createAsync(
-        Audio.RecordingOptionsPresets.HIGH_QUALITY,
-      );
-
-      recordingRef.current = recording;
-      setIsRecording(true);
-      setShowVoiceUI(true);
-      setRecordingDuration(0);
-
-      recordingTimerRef.current = setInterval(() => {
-        setRecordingDuration((d) => d + 1);
-      }, 1000);
-
-      Animated.loop(
-        Animated.sequence([
-          Animated.timing(voicePulse, { toValue: 1.3, duration: 600, useNativeDriver: true }),
-          Animated.timing(voicePulse, { toValue: 1, duration: 600, useNativeDriver: true }),
-        ]),
-      ).start();
-    } catch (e) {
-      if (__DEV__) console.warn('[Voice] start error', e);
-      Alert.alert('Error', 'Could not start recording. Please try again.');
-    }
-  };
-
-  const cancelRecording = async () => {
-    try {
-      if (recordingRef.current) {
-        await recordingRef.current.stopAndUnloadAsync();
-        recordingRef.current = null;
-      }
-    } catch {}
-    clearRecordingState();
-  };
-
-  const finishRecording = async () => {
-    if (!recordingRef.current) return;
-    const duration = recordingDuration;
-
-    try {
-      await recordingRef.current.stopAndUnloadAsync();
-      const uri = recordingRef.current.getURI();
-      recordingRef.current = null;
-      clearRecordingState();
-
-      if (uri && duration >= 1) {
-        // Upload + send as real VOICE_NOTE
-        await sendVoiceNote(uri, duration);
-      }
-
-      await Audio.setAudioModeAsync({ allowsRecordingIOS: false });
-    } catch (e) {
-      if (__DEV__) console.warn('[Voice] finish error', e);
-      clearRecordingState();
-    }
-  };
-
-  const clearRecordingState = () => {
-    setIsRecording(false);
-    setShowVoiceUI(false);
-    setRecordingDuration(0);
-    voicePulse.setValue(1);
-    if (recordingTimerRef.current) {
-      clearInterval(recordingTimerRef.current);
-      recordingTimerRef.current = null;
-    }
-  };
-
-  // ── Voice Playback ──
-  const playVoice = async (msg: Message) => {
-    const url = msg.voiceNoteUrl;
-    if (!url) return;
-
-    try {
-      // Stop any currently playing sound
-      if (soundRef.current) {
-        await soundRef.current.stopAsync();
-        await soundRef.current.unloadAsync();
-        soundRef.current = null;
-      }
-
-      if (playingMsgId === msg.id) {
-        setPlayingMsgId(null);
-        return;
-      }
-
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: false,
-        playsInSilentModeIOS: true,
-      });
-
-      const { sound } = await Audio.Sound.createAsync({ uri: url });
-      soundRef.current = sound;
-      setPlayingMsgId(msg.id);
-
-      sound.setOnPlaybackStatusUpdate((status) => {
-        if (status.isLoaded && status.didJustFinish) {
-          setPlayingMsgId(null);
-          sound.unloadAsync();
-          soundRef.current = null;
-        }
-      });
-
-      await sound.playAsync();
-    } catch (e) {
-      if (__DEV__) console.warn('[Voice] play error', e);
-      setPlayingMsgId(null);
-    }
-  };
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (recordingRef.current) recordingRef.current.stopAndUnloadAsync().catch(() => {});
-      if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
-      if (soundRef.current) soundRef.current.unloadAsync().catch(() => {});
-    };
-  }, []);
-
-  // Animate input bar
+  // Animate input bar in
   useEffect(() => {
     if (!isLoading) {
       Animated.spring(inputBarAnim, {
@@ -446,26 +298,24 @@ export default function ChatScreen() {
   // ── Render Message ──
   const renderMessage = useCallback(
     ({ item, index }: { item: Message; index: number }) => {
-      // Use isMine from backend when available, fallback to senderId check
       const isMe = item.isMine ?? item.senderId === user?.id;
       const isOptimistic = item.id.startsWith('_opt_');
       const prevMsg = messages[index + 1];
       const showDateLabel =
         !prevMsg ||
-        new Date(item.createdAt).toDateString() !== new Date(prevMsg.createdAt).toDateString();
+        new Date(item.createdAt).toDateString() !==
+          new Date(prevMsg.createdAt).toDateString();
 
       const showRead = isMe && index === 0 && item.isRead;
-      const isVoice = item.isVoiceNote || item.type === 'VOICE_NOTE';
-      const isPlaying = playingMsgId === item.id;
-
-      // Sender display: use sender.name from backend
       const senderDisplay = item.sender?.name ?? item.senderName;
 
       return (
         <>
           {showDateLabel && (
             <View style={styles.dateLabelWrap}>
-              <Text style={styles.dateLabel}>{formatDateLabel(item.createdAt)}</Text>
+              <Text style={styles.dateLabel}>
+                {formatDateLabel(item.createdAt)}
+              </Text>
             </View>
           )}
           <View
@@ -478,7 +328,11 @@ export default function ChatScreen() {
             {/* Inquiry tag */}
             {item.type === 'INQUIRY' && !isMe && (
               <View style={styles.inquiryTag}>
-                <Ionicons name="mail-outline" size={10} color={colors.primary} />
+                <Ionicons
+                  name="mail-outline"
+                  size={10}
+                  color={colors.primary}
+                />
                 <Text style={styles.inquiryTagText}>Initial Inquiry</Text>
               </View>
             )}
@@ -488,52 +342,24 @@ export default function ChatScreen() {
               <Text style={styles.senderName}>{senderDisplay}</Text>
             )}
 
-            {/* Voice note UI */}
-            {isVoice ? (
-              <TouchableOpacity
-                style={styles.voiceMessageRow}
-                onPress={() => playVoice(item)}
-                activeOpacity={0.7}
-              >
-                <View style={[styles.voicePlayBtn, isMe && styles.voicePlayBtnMe]}>
-                  <Ionicons
-                    name={isPlaying ? 'pause' : 'play'}
-                    size={18}
-                    color={isMe ? colors.primary : colors.white}
-                  />
-                </View>
-                <View style={styles.voiceWaveform}>
-                  {Array.from({ length: 20 }).map((_, i) => (
-                    <View
-                      key={i}
-                      style={[
-                        styles.waveBar,
-                        {
-                          height: 4 + Math.sin(i * 0.8) * 12 + Math.random() * 4,
-                          backgroundColor: isMe ? 'rgba(255,255,255,0.6)' : colors.primary + '70',
-                          opacity: isPlaying ? 1 : 0.7,
-                        },
-                      ]}
-                    />
-                  ))}
-                </View>
-                <Text
-                  style={[
-                    styles.voiceDurationLabel,
-                    isMe ? styles.bubbleTimeMe : styles.bubbleTimeThem,
-                  ]}
-                >
-                  {formatDuration(item.voiceDuration ?? 0)}
-                </Text>
-              </TouchableOpacity>
-            ) : (
-              <Text style={[styles.bubbleText, isMe ? styles.bubbleTextMe : styles.bubbleTextThem]}>
-                {item.content}
-              </Text>
-            )}
+            {/* Message content */}
+            <Text
+              style={[
+                styles.bubbleText,
+                isMe ? styles.bubbleTextMe : styles.bubbleTextThem,
+              ]}
+            >
+              {item.content || (item.isVoiceNote ? '🎤 Voice message' : '')}
+            </Text>
 
+            {/* Footer: time + read receipt */}
             <View style={styles.bubbleFooter}>
-              <Text style={[styles.bubbleTime, isMe ? styles.bubbleTimeMe : styles.bubbleTimeThem]}>
+              <Text
+                style={[
+                  styles.bubbleTime,
+                  isMe ? styles.bubbleTimeMe : styles.bubbleTimeThem,
+                ]}
+              >
                 {formatMessageTime(item.createdAt)}
               </Text>
               {isMe && (
@@ -561,16 +387,19 @@ export default function ChatScreen() {
         </>
       );
     },
-    [messages, user?.id, colors, styles, playingMsgId],
+    [messages, user?.id, colors, styles],
   );
 
   // ── Property Context Card ──
   const propertyData = conversation?.property;
-  const propTitle = propertyTitle || conversation?.propertyTitle || propertyData?.title;
+  const propTitle =
+    propertyTitle || conversation?.propertyTitle || propertyData?.title;
   const propImage = propertyImage || propertyData?.images?.[0];
-  const propPrice = propertyPrice || (propertyData?.price ? `${propertyData.price}` : undefined);
+  const propPrice =
+    propertyPrice || (propertyData?.price ? `${propertyData.price}` : undefined);
   const propLocation = propertyLocation || propertyData?.location;
-  const propId = propertyId || conversation?.propertyId || propertyData?.id;
+  const propId =
+    propertyId || conversation?.propertyId || propertyData?.id;
 
   const renderPropertyCard = () => {
     if (!propTitle) return null;
@@ -588,10 +417,23 @@ export default function ChatScreen() {
         }}
       >
         {propImage ? (
-          <Image source={{ uri: propImage }} style={styles.propertyCardImage} contentFit="cover" />
+          <Image
+            source={{ uri: propImage }}
+            style={styles.propertyCardImage}
+            contentFit="cover"
+          />
         ) : (
-          <View style={[styles.propertyCardImage, styles.propertyCardImagePlaceholder]}>
-            <Ionicons name="home-outline" size={20} color={colors.textMuted} />
+          <View
+            style={[
+              styles.propertyCardImage,
+              styles.propertyCardImagePlaceholder,
+            ]}
+          >
+            <Ionicons
+              name="home-outline"
+              size={20}
+              color={colors.textMuted}
+            />
           </View>
         )}
         <View style={styles.propertyCardBody}>
@@ -600,17 +442,27 @@ export default function ChatScreen() {
           </Text>
           {propLocation && (
             <View style={styles.propertyCardRow}>
-              <Ionicons name="location-outline" size={11} color={colors.textMuted} />
+              <Ionicons
+                name="location-outline"
+                size={11}
+                color={colors.textMuted}
+              />
               <Text style={styles.propertyCardLocation} numberOfLines={1}>
                 {propLocation}
               </Text>
             </View>
           )}
           {propPrice && Number(propPrice) > 0 && (
-            <Text style={styles.propertyCardPrice}>{formatCurrency(Number(propPrice))}</Text>
+            <Text style={styles.propertyCardPrice}>
+              {formatCurrency(Number(propPrice))}
+            </Text>
           )}
         </View>
-        <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+        <Ionicons
+          name="chevron-forward"
+          size={16}
+          color={colors.textMuted}
+        />
       </TouchableOpacity>
     );
   };
@@ -667,15 +519,25 @@ export default function ChatScreen() {
                 const phone = participant?.phone;
                 if (phone) {
                   const url = `tel:${phone}`;
-                  import('react-native').then(({ Linking }) => Linking.openURL(url));
+                  import('react-native').then(({ Linking }) =>
+                    Linking.openURL(url),
+                  );
                 }
               }}
             >
-              <Ionicons name="call-outline" size={20} color={colors.primary} />
+              <Ionicons
+                name="call-outline"
+                size={20}
+                color={colors.primary}
+              />
             </TouchableOpacity>
           )}
           <TouchableOpacity style={styles.headerActionBtn}>
-            <Ionicons name="ellipsis-vertical" size={20} color={colors.textPrimary} />
+            <Ionicons
+              name="ellipsis-vertical"
+              size={20}
+              color={colors.textPrimary}
+            />
           </TouchableOpacity>
         </View>
       </View>
@@ -683,11 +545,11 @@ export default function ChatScreen() {
       {/* ── Property Context ── */}
       {renderPropertyCard()}
 
-      {/* ── Messages ── */}
+      {/* ── Messages + Input ── */}
       <KeyboardAvoidingView
         style={styles.kav}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={0}
+        behavior="padding"
+        keyboardVerticalOffset={Platform.select({ ios: 0, android: 0 })}
       >
         {isLoading ? (
           <View style={styles.loadingWrap}>
@@ -703,12 +565,20 @@ export default function ChatScreen() {
             inverted
             contentContainerStyle={styles.messagesContent}
             showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="interactive"
             ListEmptyComponent={
               <View style={styles.emptyChat}>
                 <View style={styles.emptyChatIcon}>
-                  <Ionicons name="chatbubble-ellipses-outline" size={48} color={colors.primary} />
+                  <Ionicons
+                    name="chatbubble-ellipses-outline"
+                    size={48}
+                    color={colors.primary}
+                  />
                 </View>
-                <Text style={styles.emptyChatTitle}>Start the Conversation</Text>
+                <Text style={styles.emptyChatTitle}>
+                  Start the Conversation
+                </Text>
                 <Text style={styles.emptyChatText}>
                   {isRealtor
                     ? "Respond to the client's inquiry below."
@@ -730,105 +600,66 @@ export default function ChatScreen() {
           />
         )}
 
-        {/* ── Voice Recording Overlay ── */}
-        {showVoiceUI && (
-          <View style={styles.voiceOverlay}>
-            <TouchableOpacity onPress={cancelRecording} style={styles.voiceCancelBtn}>
-              <Ionicons name="close-circle" size={36} color={colors.error} />
-              <Text style={styles.voiceCancelText}>Cancel</Text>
-            </TouchableOpacity>
+        {/* ── Input Bar ── */}
+        <Animated.View
+          style={[
+            styles.inputBar,
+            { paddingBottom: Math.max(bottomSafePadding, Spacing.xs) },
+            {
+              opacity: inputBarAnim,
+              transform: [
+                {
+                  translateY: inputBarAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [20, 0],
+                  }),
+                },
+              ],
+            },
+          ]}
+        >
+          <View style={styles.inputWrap}>
+            <TextInput
+              style={styles.textInput}
+              value={inputText}
+              onChangeText={setInputText}
+              placeholder="Type a message…"
+              placeholderTextColor={colors.textMuted}
+              multiline
+              maxLength={2000}
+              returnKeyType="default"
+            />
+          </View>
 
-            <View style={styles.voiceCenter}>
-              <Animated.View
-                style={[
-                  styles.voiceRecordingCircle,
-                  { transform: [{ scale: voicePulse }] },
-                ]}
-              >
-                <Ionicons name="mic" size={32} color={colors.white} />
-              </Animated.View>
-              <Text style={styles.voiceDurationText}>{formatDuration(recordingDuration)}</Text>
-              <Text style={styles.voiceRecordingLabel}>Recording...</Text>
-            </View>
-
-            <TouchableOpacity onPress={finishRecording} style={styles.voiceSendBtn}>
-              {isUploadingVoice ? (
+          <Animated.View
+            style={{
+              transform: [
+                {
+                  scale: sendAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [1, 0.9],
+                  }),
+                },
+              ],
+            }}
+          >
+            <TouchableOpacity
+              style={[
+                styles.sendBtn,
+                !inputText.trim() && styles.sendBtnDisabled,
+              ]}
+              onPress={() => sendMessage()}
+              disabled={isSending || !inputText.trim()}
+              activeOpacity={0.7}
+            >
+              {isSending ? (
                 <ActivityIndicator size="small" color={colors.white} />
               ) : (
-                <Ionicons name="send" size={22} color={colors.white} />
+                <Ionicons name="send" size={18} color={colors.white} />
               )}
-              <Text style={styles.voiceSendText}>Send</Text>
             </TouchableOpacity>
-          </View>
-        )}
-
-        {/* ── Input Bar ── */}
-        {!showVoiceUI && (
-          <Animated.View
-            style={[
-              styles.inputBar,
-              {
-                opacity: inputBarAnim,
-                transform: [
-                  {
-                    translateY: inputBarAnim.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: [20, 0],
-                    }),
-                  },
-                ],
-              },
-            ]}
-          >
-            <View style={styles.inputWrap}>
-              <TextInput
-                style={styles.textInput}
-                value={inputText}
-                onChangeText={setInputText}
-                placeholder="Type a message…"
-                placeholderTextColor={colors.textMuted}
-                multiline
-                maxLength={2000}
-                returnKeyType="default"
-              />
-            </View>
-
-            {inputText.trim() ? (
-              <Animated.View
-                style={{
-                  transform: [
-                    {
-                      scale: sendAnim.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [1, 0.9],
-                      }),
-                    },
-                  ],
-                }}
-              >
-                <TouchableOpacity
-                  style={styles.sendBtn}
-                  onPress={() => sendMessage()}
-                  disabled={isSending}
-                >
-                  {isSending ? (
-                    <ActivityIndicator size="small" color={colors.white} />
-                  ) : (
-                    <Ionicons name="send" size={18} color={colors.white} />
-                  )}
-                </TouchableOpacity>
-              </Animated.View>
-            ) : (
-              <TouchableOpacity
-                style={styles.voiceBtn}
-                onPress={startRecording}
-                activeOpacity={0.7}
-              >
-                <Ionicons name="mic" size={22} color={colors.primary} />
-              </TouchableOpacity>
-            )}
           </Animated.View>
-        )}
+        </Animated.View>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -875,7 +706,11 @@ const makeStyles = (colors: ThemeColors) =>
       position: 'relative',
     },
     headerAvatarImg: { width: 42, height: 42, borderRadius: 21 },
-    headerAvatarText: { ...Typography.bodySemiBold, color: colors.primary, fontSize: 16 },
+    headerAvatarText: {
+      ...Typography.bodySemiBold,
+      color: colors.primary,
+      fontSize: 16,
+    },
     headerOnline: {
       position: 'absolute',
       bottom: 0,
@@ -888,8 +723,17 @@ const makeStyles = (colors: ThemeColors) =>
       borderColor: colors.background,
     },
     headerInfo: { marginLeft: Spacing.sm, flex: 1 },
-    headerName: { ...Typography.bodySemiBold, color: colors.textPrimary, fontSize: 15 },
-    headerRole: { ...Typography.small, color: colors.textMuted, marginTop: 1, fontSize: 12 },
+    headerName: {
+      ...Typography.bodySemiBold,
+      color: colors.textPrimary,
+      fontSize: 15,
+    },
+    headerRole: {
+      ...Typography.small,
+      color: colors.textMuted,
+      marginTop: 1,
+      fontSize: 12,
+    },
     headerActions: { flexDirection: 'row', alignItems: 'center' },
     headerActionBtn: {
       width: 36,
@@ -919,19 +763,47 @@ const makeStyles = (colors: ThemeColors) =>
       borderRadius: BorderRadius.md,
       backgroundColor: colors.borderLight,
     },
-    propertyCardImagePlaceholder: { alignItems: 'center', justifyContent: 'center' },
+    propertyCardImagePlaceholder: {
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
     propertyCardBody: { flex: 1, marginLeft: Spacing.sm },
-    propertyCardTitle: { ...Typography.bodySemiBold, color: colors.textPrimary, fontSize: 13 },
-    propertyCardRow: { flexDirection: 'row', alignItems: 'center', marginTop: 2 },
-    propertyCardLocation: { ...Typography.small, color: colors.textMuted, marginLeft: 3, fontSize: 11 },
-    propertyCardPrice: { ...Typography.bodySemiBold, color: colors.primary, fontSize: 13, marginTop: 2 },
+    propertyCardTitle: {
+      ...Typography.bodySemiBold,
+      color: colors.textPrimary,
+      fontSize: 13,
+    },
+    propertyCardRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginTop: 2,
+    },
+    propertyCardLocation: {
+      ...Typography.small,
+      color: colors.textMuted,
+      marginLeft: 3,
+      fontSize: 11,
+    },
+    propertyCardPrice: {
+      ...Typography.bodySemiBold,
+      color: colors.primary,
+      fontSize: 13,
+      marginTop: 2,
+    },
 
     // Loading
     loadingWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-    loadingText: { ...Typography.body, color: colors.textMuted, marginTop: Spacing.md },
+    loadingText: {
+      ...Typography.body,
+      color: colors.textMuted,
+      marginTop: Spacing.md,
+    },
 
     // Messages
-    messagesContent: { paddingHorizontal: Spacing.md, paddingBottom: Spacing.sm },
+    messagesContent: {
+      paddingHorizontal: Spacing.md,
+      paddingBottom: Spacing.sm,
+    },
     dateLabelWrap: { alignItems: 'center', marginVertical: Spacing.md },
     dateLabel: {
       ...Typography.small,
@@ -944,6 +816,7 @@ const makeStyles = (colors: ThemeColors) =>
       fontSize: 11,
     },
 
+    // Bubbles
     bubble: {
       maxWidth: '78%',
       paddingHorizontal: Spacing.md,
@@ -981,7 +854,12 @@ const makeStyles = (colors: ThemeColors) =>
       marginLeft: 4,
       fontSize: 10,
     },
-    senderName: { ...Typography.small, color: colors.primary, fontWeight: '600', marginBottom: 2 },
+    senderName: {
+      ...Typography.small,
+      color: colors.primary,
+      fontWeight: '600',
+      marginBottom: 2,
+    },
     bubbleText: { ...Typography.body, lineHeight: 22 },
     bubbleTextMe: { color: colors.white },
     bubbleTextThem: { color: colors.textPrimary },
@@ -995,36 +873,7 @@ const makeStyles = (colors: ThemeColors) =>
     bubbleTimeMe: { color: 'rgba(255,255,255,0.7)' },
     bubbleTimeThem: { color: colors.textMuted },
 
-    // Voice Message Bubble
-    voiceMessageRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingVertical: 4,
-      minWidth: 180,
-    },
-    voicePlayBtn: {
-      width: 36,
-      height: 36,
-      borderRadius: 18,
-      backgroundColor: colors.primary,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    voicePlayBtnMe: {
-      backgroundColor: 'rgba(255,255,255,0.25)',
-    },
-    voiceWaveform: {
-      flex: 1,
-      flexDirection: 'row',
-      alignItems: 'center',
-      marginHorizontal: 8,
-      height: 28,
-      gap: 2,
-    },
-    waveBar: { width: 3, borderRadius: 2 },
-    voiceDurationLabel: { ...Typography.small, fontSize: 12, fontWeight: '500', minWidth: 32 },
-
-    // Empty
+    // Empty state
     emptyChat: {
       alignItems: 'center',
       justifyContent: 'center',
@@ -1040,7 +889,11 @@ const makeStyles = (colors: ThemeColors) =>
       justifyContent: 'center',
       marginBottom: Spacing.lg,
     },
-    emptyChatTitle: { ...Typography.h4, color: colors.textPrimary, marginBottom: Spacing.xs },
+    emptyChatTitle: {
+      ...Typography.h4,
+      color: colors.textPrimary,
+      marginBottom: Spacing.xs,
+    },
     emptyChatText: {
       ...Typography.body,
       color: colors.textMuted,
@@ -1053,7 +906,7 @@ const makeStyles = (colors: ThemeColors) =>
       flexDirection: 'row',
       alignItems: 'flex-end',
       paddingHorizontal: Spacing.sm,
-      paddingVertical: Spacing.sm,
+      paddingTop: Spacing.sm,
       borderTopWidth: 1,
       borderTopColor: colors.borderLight,
       backgroundColor: colors.background,
@@ -1065,7 +918,8 @@ const makeStyles = (colors: ThemeColors) =>
       backgroundColor: colors.surface,
       borderRadius: BorderRadius.xl,
       paddingHorizontal: Spacing.lg,
-      paddingVertical: Platform.OS === 'ios' ? Spacing.sm + 2 : Spacing.sm,
+      paddingTop: Platform.OS === 'ios' ? Spacing.sm + 2 : Spacing.sm,
+      paddingBottom: Platform.OS === 'ios' ? Spacing.sm + 2 : Spacing.sm,
       maxHeight: 120,
       borderWidth: 1,
       borderColor: colors.borderLight,
@@ -1080,54 +934,7 @@ const makeStyles = (colors: ThemeColors) =>
       justifyContent: 'center',
       marginLeft: Spacing.xs,
     },
-    voiceBtn: {
-      width: 42,
-      height: 42,
-      borderRadius: 21,
-      backgroundColor: colors.primary + '15',
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginLeft: Spacing.xs,
-    },
-
-    // Voice Overlay
-    voiceOverlay: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      paddingHorizontal: Spacing.lg,
-      paddingVertical: Spacing.lg,
-      borderTopWidth: 1,
-      borderTopColor: colors.borderLight,
-      backgroundColor: colors.background,
-    },
-    voiceCancelBtn: { alignItems: 'center', justifyContent: 'center' },
-    voiceCancelText: { ...Typography.small, color: colors.error, marginTop: 4, fontWeight: '600' },
-    voiceCenter: { alignItems: 'center', justifyContent: 'center' },
-    voiceRecordingCircle: {
-      width: 64,
-      height: 64,
-      borderRadius: 32,
-      backgroundColor: colors.error,
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginBottom: 8,
-    },
-    voiceDurationText: { ...Typography.bodySemiBold, color: colors.textPrimary, fontSize: 18 },
-    voiceRecordingLabel: { ...Typography.small, color: colors.error, marginTop: 2 },
-    voiceSendBtn: {
-      alignItems: 'center',
-      justifyContent: 'center',
-      width: 54,
-      height: 54,
-      borderRadius: 27,
-      backgroundColor: colors.primary,
-    },
-    voiceSendText: {
-      ...Typography.small,
-      color: colors.white,
-      marginTop: 2,
-      fontWeight: '600',
-      fontSize: 10,
+    sendBtnDisabled: {
+      backgroundColor: colors.primary + '40',
     },
   });
