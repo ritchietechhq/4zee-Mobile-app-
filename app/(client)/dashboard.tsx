@@ -42,6 +42,13 @@ const QUICK_FILTERS: { label: string; value: PropertyType | undefined; icon: key
   { label: 'Commercial', value: 'Commercial' as PropertyType, icon: 'storefront-outline' },
 ];
 
+// ── Market insight tiles (static/decorative — swap with real data if available)
+const MARKET_INSIGHTS = [
+  { label: 'Avg. Price', value: '₦45M', change: '+3.2%', up: true, icon: 'trending-up-outline' as keyof typeof Ionicons.glyphMap },
+  { label: 'New Listings', value: '128', change: '+12 today', up: true, icon: 'home-outline' as keyof typeof Ionicons.glyphMap },
+  { label: 'Avg. Days Listed', value: '21d', change: '-2 days', up: false, icon: 'time-outline' as keyof typeof Ionicons.glyphMap },
+];
+
 function getGreeting(): string {
   const hour = new Date().getHours();
   if (hour < 12) return 'Good morning';
@@ -72,6 +79,7 @@ export default function DashboardScreen() {
 
   const headerAnim = useRef(new Animated.Value(0)).current;
   const contentAnim = useRef(new Animated.Value(0)).current;
+  const heroAnim = useRef(new Animated.Value(0)).current;
 
   const dynamicStyles = useMemo(() => createStyles(colors), [colors]);
 
@@ -90,9 +98,10 @@ export default function DashboardScreen() {
     fetchClientDashboard();
     fetchUnreadCount();
     fetchUnreadMessages();
-    Animated.stagger(120, [
+    Animated.stagger(80, [
       Animated.spring(headerAnim, { toValue: 1, useNativeDriver: true, tension: 60, friction: 12 }),
-      Animated.spring(contentAnim, { toValue: 1, useNativeDriver: true, tension: 50, friction: 12 }),
+      Animated.spring(heroAnim,   { toValue: 1, useNativeDriver: true, tension: 55, friction: 13 }),
+      Animated.spring(contentAnim,{ toValue: 1, useNativeDriver: true, tension: 50, friction: 12 }),
     ]).start();
   }, []);
 
@@ -109,11 +118,13 @@ export default function DashboardScreen() {
   };
 
   const firstName = user?.firstName ?? 'there';
+  const isDark = colors.background === '#16161E' || colors.background < '#888888';
 
   return (
     <View style={[dynamicStyles.container, { paddingTop: insets.top }]}>
-      {/* ── Subtle background texture layer ── */}
-      <View style={dynamicStyles.bgAccent} pointerEvents="none" />
+      {/* ── Decorative background blobs ── */}
+      <View style={dynamicStyles.bgBlob1} pointerEvents="none" />
+      <View style={dynamicStyles.bgBlob2} pointerEvents="none" />
 
       {/* ── Header ── */}
       <Animated.View style={[dynamicStyles.header, {
@@ -144,7 +155,6 @@ export default function DashboardScreen() {
           </View>
         </TouchableOpacity>
         <View style={dynamicStyles.headerRight}>
-          {/* Messages icon */}
           <TouchableOpacity
             style={dynamicStyles.headerIconBtn}
             onPress={() => router.push('/(client)/messages' as never)}
@@ -158,7 +168,6 @@ export default function DashboardScreen() {
               </View>
             )}
           </TouchableOpacity>
-          {/* Notifications icon */}
           <TouchableOpacity
             style={dynamicStyles.headerIconBtn}
             onPress={() => router.push('/notifications')}
@@ -180,6 +189,34 @@ export default function DashboardScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
         contentContainerStyle={dynamicStyles.scrollContent}
       >
+        {/* ── Hero Search Banner ── */}
+        <Animated.View style={[dynamicStyles.heroBannerWrap, {
+          opacity: heroAnim,
+          transform: [{ translateY: heroAnim.interpolate({ inputRange: [0, 1], outputRange: [16, 0] }) }],
+        }]}>
+          <LinearGradient
+            colors={[colors.primary, colors.primary + 'AA', colors.primary + '66']}
+            style={dynamicStyles.heroBanner}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          >
+            {/* Decorative circle inside banner */}
+            <View style={dynamicStyles.heroBannerCircle} />
+            <View style={dynamicStyles.heroBannerCircle2} />
+            <View style={dynamicStyles.heroBannerContent}>
+              <Text style={dynamicStyles.heroBannerLabel}>FIND YOUR DREAM HOME</Text>
+              <Text style={dynamicStyles.heroBannerTitle}>Discover{'\n'}Properties Near You</Text>
+              {/* <TouchableOpacity style={dynamicStyles.heroBannerBtn} onPress={() => router.push('/search')} activeOpacity={0.85}>
+                <Ionicons name="search" size={15} color={colors.primary} />
+                <Text style={[dynamicStyles.heroBannerBtnText, { color: colors.primary }]}>Start Searching</Text>
+              </TouchableOpacity> */}
+            </View>
+            <View style={dynamicStyles.heroBannerIllustration}>
+              <Ionicons name="business" size={80} color="rgba(255,255,255,0.12)" />
+            </View>
+          </LinearGradient>
+        </Animated.View>
+
         <Animated.View style={{
           opacity: contentAnim,
           transform: [{ translateY: contentAnim.interpolate({ inputRange: [0, 1], outputRange: [28, 0] }) }],
@@ -210,6 +247,16 @@ export default function DashboardScreen() {
               <StatCard icon="hourglass-outline" label="Pending" value={clientData.applicationsSummary?.PENDING ?? 0} color="#D97706" bgColor="#FEF3C7" gradientColors={['#FEF3C7', '#FDE68A'] as const} />
             </View>
           )}
+
+          {/* ── Quick Actions Row ── */}
+          <View style={dynamicStyles.quickActionsWrap}>
+            <Text style={[dynamicStyles.quickActionsTitle, { color: colors.textPrimary }]}>Quick Actions</Text>
+            <View style={dynamicStyles.quickActionsRow}>
+              <QuickActionBtn icon="search-outline" label="Search" color="#6366F1" onPress={() => router.push('/search')} colors={colors} />
+              <QuickActionBtn icon="chatbubble-ellipses-outline" label="Messages" color="#D97706" onPress={() => router.push('/(client)/messages' as never)} colors={colors} badge={unreadMessages} />
+              <QuickActionBtn icon="heart-outline" label="Saved" color="#E11D48" onPress={() => router.push('/saved' as never)} colors={colors} />
+            </View>
+          </View>
 
           {/* ── Quick Filters ── */}
           <View style={dynamicStyles.filtersRow}>
@@ -246,33 +293,8 @@ export default function DashboardScreen() {
             />
           </View>
 
-          {/* ── Featured Properties ── */}
-          <View style={dynamicStyles.sectionHeaderWrap}>
-            <SectionHeader title="Featured Properties" actionLabel="See All" onAction={() => router.push('/search')} style={dynamicStyles.sectionHeader} />
-          </View>
-          {isLoadingFeatured ? (
-            <FeaturedSkeleton colors={colors} />
-          ) : featured.length > 0 ? (
-            <FlatList
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              data={featured}
-              keyExtractor={(item) => item.id}
-              contentContainerStyle={dynamicStyles.featuredList}
-              snapToInterval={FEATURED_CARD_WIDTH + Spacing.md}
-              decelerationRate="fast"
-              renderItem={({ item }) => (
-                <TouchableOpacity activeOpacity={0.88} onPress={() => router.push(`/properties/${item.id}`)} style={dynamicStyles.featuredCardWrapper}>
-                  <FeaturedCard property={item} colors={colors} />
-                </TouchableOpacity>
-              )}
-            />
-          ) : (
-            <EmptyState icon="home-outline" title="No featured properties" description="Featured listings will appear here." style={dynamicStyles.emptyInline} />
-          )}
-
           {/* ── Recommended ── */}
-          <View style={[dynamicStyles.sectionHeaderWrap, { marginTop: Spacing.lg }]}>
+          <View style={dynamicStyles.sectionHeaderWrap}>
             <SectionHeader title="Recommended for You" actionLabel="View All" onAction={() => router.push('/search')} style={dynamicStyles.sectionHeader} />
           </View>
           {isLoadingProperties ? (
@@ -296,6 +318,56 @@ export default function DashboardScreen() {
             <EmptyState icon="search-outline" title="No properties yet" description="Pull down to refresh or try a different filter." style={dynamicStyles.emptyInline} />
           )}
 
+          {/* ── Featured Properties ── */}
+          <View style={[dynamicStyles.sectionHeaderWrap, { marginTop: Spacing.lg }]}>
+            <SectionHeader title="Featured Properties" actionLabel="See All" onAction={() => router.push('/search')} style={dynamicStyles.sectionHeader} />
+          </View>
+          {isLoadingFeatured ? (
+            <FeaturedSkeleton colors={colors} />
+          ) : featured.length > 0 ? (
+            <FlatList
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              data={featured}
+              keyExtractor={(item) => item.id}
+              contentContainerStyle={dynamicStyles.featuredList}
+              snapToInterval={FEATURED_CARD_WIDTH + Spacing.md}
+              decelerationRate="fast"
+              renderItem={({ item }) => (
+                <TouchableOpacity activeOpacity={0.88} onPress={() => router.push(`/properties/${item.id}`)} style={dynamicStyles.featuredCardWrapper}>
+                  <FeaturedCard property={item} colors={colors} />
+                </TouchableOpacity>
+              )}
+            />
+          ) : (
+            <EmptyState icon="home-outline" title="No featured properties" description="Featured listings will appear here." style={dynamicStyles.emptyInline} />
+          )}
+
+          {/* ── Recently Viewed / Browse CTA ── */}
+          <View style={dynamicStyles.browseCTAWrap}>
+            <LinearGradient
+              colors={[colors.primary + '18', colors.primary + '06']}
+              style={dynamicStyles.browseCTA}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+            >
+              <View style={[dynamicStyles.browseCTAIcon, { backgroundColor: colors.primaryLight }]}>
+                <Ionicons name="compass-outline" size={26} color={colors.primary} />
+              </View>
+              <View style={dynamicStyles.browseCTAText}>
+                <Text style={[dynamicStyles.browseCTATitle, { color: colors.textPrimary }]}>Explore All Properties</Text>
+                <Text style={[dynamicStyles.browseCTASub, { color: colors.textMuted }]}>Browse hundreds of listings across Nigeria</Text>
+              </View>
+              <TouchableOpacity
+                style={[dynamicStyles.browseCTABtn, { backgroundColor: colors.primary }]}
+                onPress={() => router.push('/search')}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="arrow-forward" size={18} color="#fff" />
+              </TouchableOpacity>
+            </LinearGradient>
+          </View>
+
           <View style={{ height: Spacing.xxxxl + 20 }} />
         </Animated.View>
       </ScrollView>
@@ -304,6 +376,31 @@ export default function DashboardScreen() {
 }
 
 /* ────────── Sub-components ────────── */
+
+function QuickActionBtn({
+  icon, label, color, onPress, colors, badge,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  color: string;
+  onPress: () => void;
+  colors: any;
+  badge?: number;
+}) {
+  return (
+    <TouchableOpacity style={styles.qaBtn} onPress={onPress} activeOpacity={0.78}>
+      <View style={[styles.qaIconWrap, { backgroundColor: color + '18', borderColor: color + '30' }]}>
+        <Ionicons name={icon} size={22} color={color} />
+        {!!badge && badge > 0 && (
+          <View style={[styles.qaBadge, { backgroundColor: color }]}>
+            <Text style={styles.qaBadgeText}>{badge > 9 ? '9+' : badge}</Text>
+          </View>
+        )}
+      </View>
+      <Text style={[styles.qaLabel, { color: colors.textSecondary }]}>{label}</Text>
+    </TouchableOpacity>
+  );
+}
 
 function StatCard({ icon, label, value, color, bgColor, gradientColors }: {
   icon: keyof typeof Ionicons.glyphMap; label: string; value: number; color: string; bgColor: string; gradientColors: readonly [string, string, ...string[]];
@@ -470,7 +567,6 @@ function FeaturedCard({ property, colors }: { property: Property; colors: any })
           colors={['transparent', 'rgba(0,0,0,0.72)']}
           style={featureStyles.featuredGradient}
         />
-        {/* Top row: badge + save */}
         <View style={featureStyles.featuredTopRow}>
           <View style={featureStyles.featuredBadge}>
             <View style={featureStyles.featuredBadgeDot} />
@@ -480,7 +576,6 @@ function FeaturedCard({ property, colors }: { property: Property; colors: any })
             <Ionicons name="heart-outline" size={17} color="#FFFFFF" />
           </TouchableOpacity>
         </View>
-        {/* Price overlay */}
         <View style={featureStyles.featuredPriceOnImage}>
           <Text style={featureStyles.featuredPriceLabel}>LISTING PRICE</Text>
           <Text style={featureStyles.featuredPriceText}>{formatCurrency(property.price)}</Text>
@@ -559,24 +654,74 @@ function FeaturedSkeleton({ colors }: { colors: any }) {
   );
 }
 
-/* ────────── Styles ────────── */
+/* ────────── Static styles (for new components) ────────── */
+const styles = StyleSheet.create({
+  qaBtn: {
+    flex: 1,
+    alignItems: 'center',
+    gap: Spacing.xs + 2,
+  },
+  qaIconWrap: {
+    width: 56,
+    height: 56,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    position: 'relative',
+  },
+  qaBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 3,
+  },
+  qaBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  qaLabel: {
+    fontSize: 11,
+    fontWeight: '500',
+    textAlign: 'center',
+  },
+});
 
+/* ────────── Dynamic Styles ────────── */
 const createStyles = (colors: any) =>
   StyleSheet.create({
     container: {
       flex: 1,
       backgroundColor: colors.background,
     },
-    bgAccent: {
+    // ── Background decorative blobs
+    bgBlob1: {
       position: 'absolute',
-      top: -80,
-      right: -60,
-      width: 260,
-      height: 260,
-      borderRadius: 130,
-      backgroundColor: colors.primary + '08',
+      top: -100,
+      right: -80,
+      width: 280,
+      height: 280,
+      borderRadius: 140,
+      backgroundColor: colors.primary + '0A',
       zIndex: 0,
     },
+    bgBlob2: {
+      position: 'absolute',
+      top: 200,
+      left: -100,
+      width: 220,
+      height: 220,
+      borderRadius: 110,
+      backgroundColor: colors.primary + '06',
+      zIndex: 0,
+    },
+    // ── Header
     header: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -665,17 +810,6 @@ const createStyles = (colors: any) =>
       borderColor: colors.border,
       ...Shadows.sm,
     },
-    notificationBtn: {
-      width: 46,
-      height: 46,
-      borderRadius: 23,
-      backgroundColor: colors.surface,
-      alignItems: 'center',
-      justifyContent: 'center',
-      borderWidth: 1,
-      borderColor: colors.border,
-      ...Shadows.sm,
-    },
     notifBadge: {
       position: 'absolute',
       top: 3,
@@ -698,6 +832,78 @@ const createStyles = (colors: any) =>
     scrollContent: {
       paddingBottom: Spacing.xxxxl,
     },
+    // ── Hero Banner
+    heroBannerWrap: {
+      paddingHorizontal: Spacing.xl,
+      marginBottom: Spacing.lg,
+    },
+    heroBanner: {
+      borderRadius: BorderRadius.xxl,
+      padding: Spacing.xl,
+      minHeight: 150,
+      overflow: 'hidden',
+      flexDirection: 'row',
+      alignItems: 'center',
+      ...Shadows.md,
+    },
+    heroBannerCircle: {
+      position: 'absolute',
+      width: 180,
+      height: 180,
+      borderRadius: 90,
+      backgroundColor: 'rgba(255,255,255,0.07)',
+      right: -40,
+      top: -50,
+    },
+    heroBannerCircle2: {
+      position: 'absolute',
+      width: 100,
+      height: 100,
+      borderRadius: 50,
+      backgroundColor: 'rgba(255,255,255,0.05)',
+      right: 60,
+      bottom: -30,
+    },
+    heroBannerContent: {
+      flex: 1,
+      zIndex: 1,
+    },
+    heroBannerIllustration: {
+      position: 'absolute',
+      right: Spacing.lg,
+      bottom: 0,
+      zIndex: 0,
+    },
+    heroBannerLabel: {
+      fontSize: 10,
+      fontWeight: '700',
+      color: 'rgba(255,255,255,0.75)',
+      letterSpacing: 1.5,
+      marginBottom: Spacing.xs,
+    },
+    heroBannerTitle: {
+      fontSize: 22,
+      fontWeight: '800',
+      color: '#FFFFFF',
+      letterSpacing: -0.5,
+      lineHeight: 28,
+      marginBottom: Spacing.lg,
+    },
+    heroBannerBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      backgroundColor: '#FFFFFF',
+      paddingHorizontal: Spacing.md + 4,
+      paddingVertical: Spacing.sm + 2,
+      borderRadius: BorderRadius.full,
+      alignSelf: 'flex-start',
+    },
+    heroBannerBtnText: {
+      fontSize: 13,
+      fontWeight: '700',
+    },
+    // ── Search Bar
     searchBar: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -740,12 +946,93 @@ const createStyles = (colors: any) =>
       alignItems: 'center',
       justifyContent: 'center',
     },
+    // ── Stats
     statsRow: {
       flexDirection: 'row',
       paddingHorizontal: Spacing.xl,
       gap: Spacing.sm + 2,
       marginBottom: Spacing.xl,
     },
+    // ── Market Pulse
+    marketPulseWrap: {
+      marginBottom: Spacing.xl,
+    },
+    marketPulseHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: Spacing.xs,
+      paddingHorizontal: Spacing.xl,
+      marginBottom: Spacing.md,
+    },
+    marketPulseDot: {
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+    },
+    marketPulseTitle: {
+      fontSize: 13,
+      fontWeight: '600',
+      letterSpacing: 0.3,
+    },
+    marketPulseList: {
+      paddingHorizontal: Spacing.xl,
+      gap: Spacing.md,
+    },
+    marketPulseCard: {
+      width: 120,
+      borderRadius: BorderRadius.xl,
+      padding: Spacing.md,
+      alignItems: 'center',
+      borderWidth: 1,
+      ...Shadows.sm,
+    },
+    marketPulseIconWrap: {
+      width: 36,
+      height: 36,
+      borderRadius: 12,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: Spacing.sm,
+    },
+    marketPulseValue: {
+      fontSize: 18,
+      fontWeight: '700',
+      letterSpacing: -0.5,
+    },
+    marketPulseLabel: {
+      fontSize: 11,
+      fontWeight: '500',
+      marginTop: 2,
+      marginBottom: Spacing.sm,
+    },
+    marketPulseChangePill: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 3,
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+      borderRadius: BorderRadius.full,
+    },
+    marketPulseChange: {
+      fontSize: 10,
+      fontWeight: '700',
+    },
+    // ── Quick Actions
+    quickActionsWrap: {
+      paddingHorizontal: Spacing.xl,
+      marginBottom: Spacing.xl,
+    },
+    quickActionsTitle: {
+      fontSize: 16,
+      fontWeight: '700',
+      letterSpacing: -0.2,
+      marginBottom: Spacing.md,
+    },
+    quickActionsRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+    },
+    // ── Filters
     filtersRow: {
       marginBottom: Spacing.xl,
     },
@@ -786,6 +1073,7 @@ const createStyles = (colors: any) =>
       color: '#FFFFFF',
       fontWeight: '600',
     },
+    // ── Section headers
     sectionHeaderWrap: {
       paddingHorizontal: Spacing.xl,
       marginBottom: Spacing.md,
@@ -816,6 +1104,48 @@ const createStyles = (colors: any) =>
       padding: Spacing.md,
       borderWidth: 1,
       borderColor: colors.border,
+      ...Shadows.sm,
+    },
+    // ── Browse CTA
+    browseCTAWrap: {
+      paddingHorizontal: Spacing.xl,
+      marginTop: Spacing.lg,
+    },
+    browseCTA: {
+      borderRadius: BorderRadius.xxl,
+      padding: Spacing.lg,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: Spacing.md,
+      borderWidth: 1,
+      borderColor: colors.primary + '20',
+    },
+    browseCTAIcon: {
+      width: 52,
+      height: 52,
+      borderRadius: 16,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    browseCTAText: {
+      flex: 1,
+    },
+    browseCTATitle: {
+      fontSize: 15,
+      fontWeight: '700',
+      letterSpacing: -0.2,
+    },
+    browseCTASub: {
+      fontSize: 12,
+      marginTop: 2,
+      lineHeight: 16,
+    },
+    browseCTABtn: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      alignItems: 'center',
+      justifyContent: 'center',
       ...Shadows.sm,
     },
   });
