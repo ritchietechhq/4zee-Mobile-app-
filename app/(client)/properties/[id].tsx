@@ -223,12 +223,17 @@ export default function PropertyDetailScreen() {
     if (!property) return;
     
     setIsStartingChat(true);
+
+    // Gather property context for the chat screen
+    const propertyImage = property.images?.[0] || '';
+    const propertyPrice = property.price ? `${property.price}` : '';
+    const propertyLocation = property.location || '';
+
     try {
       // First check if we already have a conversation for this property
       const existing = await messagingService.checkPropertyConversation(property.id);
       
       if (existing.exists && existing.conversationId) {
-        // Navigate to existing conversation
         setContactSheetVisible(false);
         const realtorName = property.realtorContact?.name 
           || (property.realtor?.user 
@@ -240,25 +245,36 @@ export default function PropertyDetailScreen() {
             id: existing.conversationId,
             name: realtorName,
             propertyTitle: property.title,
+            propertyId: property.id,
+            propertyImage,
+            propertyPrice,
+            propertyLocation,
           },
         });
         return;
       }
 
-      // Create new inquiry using the correct API endpoint
+      // Create new inquiry
       const result = await messagingService.createPropertyInquiry(
         property.id,
         `Hi, I'm interested in "${property.title}". Is it still available?`,
       );
       
       setContactSheetVisible(false);
-      // Navigate to the chat screen
+      const participantFirst = result.conversation.participant?.firstName ?? '';
+      const participantLast = result.conversation.participant?.lastName ?? '';
+      const chatName = `${participantFirst} ${participantLast}`.trim() || 'Realtor';
+
       router.push({
         pathname: '/(client)/messages/[id]' as any,
         params: {
           id: result.conversation.id,
-          name: `${result.conversation.participant.firstName} ${result.conversation.participant.lastName}`.trim(),
+          name: chatName,
           propertyTitle: property.title,
+          propertyId: property.id,
+          propertyImage,
+          propertyPrice,
+          propertyLocation,
         },
       });
     } catch (error: any) {

@@ -77,13 +77,18 @@ export default function LeadsScreen() {
   };
 
   const handleLeadPress = (lead: Lead) => {
+    const propImages = lead.property.images ?? lead.property.mediaUrls ?? [];
     // Navigate to messages with this conversation
     router.push({
       pathname: '/(realtor)/messages/[id]' as any,
       params: {
         id: lead.id,
-        name: lead.client.name,
+        name: lead.client.name || 'Client',
         propertyTitle: lead.property.title,
+        propertyId: lead.property.id || '',
+        propertyImage: propImages[0] || '',
+        propertyPrice: lead.property.price ? `${lead.property.price}` : '',
+        propertyLocation: lead.property.location || '',
       },
     });
   };

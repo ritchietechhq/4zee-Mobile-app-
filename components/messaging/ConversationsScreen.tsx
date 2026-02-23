@@ -83,7 +83,9 @@ export default function ConversationsScreen() {
   }, [fetchConversations]);
 
   const openChat = (conversation: Conversation) => {
-    const participantName = `${conversation.participant.firstName} ${conversation.participant.lastName}`.trim();
+    const firstName = conversation.participant?.firstName ?? '';
+    const lastName = conversation.participant?.lastName ?? '';
+    const participantName = `${firstName} ${lastName}`.trim() || 'Realtor';
     const route = isRealtor ? '/(realtor)/messages/[id]' : '/(client)/messages/[id]';
     
     router.push({
@@ -92,13 +94,19 @@ export default function ConversationsScreen() {
         id: conversation.id,
         name: participantName,
         propertyTitle: conversation.propertyTitle || '',
+        propertyId: conversation.propertyId || conversation.property?.id || '',
+        propertyImage: conversation.property?.images?.[0] || '',
+        propertyPrice: conversation.property?.price ? `${conversation.property.price}` : '',
+        propertyLocation: conversation.property?.location || '',
       },
     });
   };
 
   const renderConversation = ({ item }: { item: Conversation }) => {
-    const name = `${item.participant.firstName} ${item.participant.lastName}`.trim() || 'Unknown';
-    const initial = item.participant.firstName?.charAt(0)?.toUpperCase() || '?';
+    const firstName = item.participant?.firstName ?? '';
+    const lastName = item.participant?.lastName ?? '';
+    const name = `${firstName} ${lastName}`.trim() || item.propertyTitle?.replace('Inquiry: ', '') || 'Realtor';
+    const initial = firstName?.charAt(0)?.toUpperCase() || name.charAt(0)?.toUpperCase() || '?';
     const hasUnread = item.unreadCount > 0;
     const lastMsg = item.lastMessage?.content || 'No messages yet';
     const time = timeAgo(item.lastMessage?.createdAt || item.updatedAt || '');

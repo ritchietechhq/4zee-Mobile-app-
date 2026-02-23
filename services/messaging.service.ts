@@ -52,7 +52,7 @@ export interface ConversationCheckResponse {
 function normalizeConversation(raw: any, currentUserId?: string): Conversation {
   if (!raw) return raw;
 
-  // Find the "other" participant
+  // Find the "other" participant — try multiple shapes
   let participant = raw.participant;
   if (!participant && Array.isArray(raw.participants) && raw.participants.length) {
     const other = raw.participants.find((p: any) => 
@@ -63,12 +63,49 @@ function normalizeConversation(raw: any, currentUserId?: string): Conversation {
       id: other.id ?? '',
       firstName: other.firstName ?? other.name?.split(' ')[0] ?? '',
       lastName: other.lastName ?? other.name?.split(' ').slice(1).join(' ') ?? '',
-      profilePicture: other.profilePicture,
+      profilePicture: other.profilePicture ?? other.avatar,
       role: other.role,
     };
   }
 
-  // Build last message from various possible shapes
+  // If participant exists but has empty names, try to resolve from other fields
+  if (participant) {
+    const hasName = (participant.firstName && participant.firstName !== 'Unknown') 
+      || (participant.lastName && participant.lastName !== 'Unknown');
+
+    if (!hasName) {
+      // Try name field (some APIs return a single "name" string)
+      if (participant.name && typeof participant.name === 'string') {
+        const parts = participant.name.split(' ');
+        participant.firstName = parts[0] || '';
+        participant.lastName = parts.slice(1).join(' ') || '';
+      }
+      // Try fullName
+      else if (participant.fullName && typeof participant.fullName === 'string') {
+        const parts = participant.fullName.split(' ');
+        participant.firstName = parts[0] || '';
+        participant.lastName = parts.slice(1).join(' ') || '';
+      }
+      // Try user sub-object
+      else if (participant.user) {
+        participant.firstName = participant.user.firstName ?? participant.firstName ?? '';
+        participant.lastName = participant.user.lastName ?? participant.lastName ?? '';
+        participant.profilePicture = participant.profilePicture ?? participant.user.profilePicture;
+      }
+    }
+  }
+
+  // Also try raw.realtor or raw.client for name
+  if (participant && !participant.firstName && !participant.lastName) {
+    const alt = raw.realtor ?? raw.client ?? raw.otherUser;
+    if (alt) {
+      participant.firstName = alt.firstName ?? alt.name?.split(' ')[0] ?? '';
+      participant.lastName = alt.lastName ?? alt.name?.split(' ').slice(1).join(' ') ?? '';
+      participant.profilePicture = participant.profilePicture ?? alt.profilePicture;
+    }
+  }
+
+  // Build last message
   const lastMsg = raw.lastMessage;
   const lastMessage = lastMsg ? {
     content: lastMsg.content ?? '',
@@ -90,7 +127,7 @@ function normalizeConversation(raw: any, currentUserId?: string): Conversation {
   return {
     id: raw.id,
     subject: raw.subject,
-    participant: participant ?? { id: '', firstName: 'Unknown', lastName: '' },
+    participant: participant ?? { id: '', firstName: '', lastName: '' },
     lastMessage,
     unreadCount: raw.unreadCount ?? 0,
     propertyId: raw.propertyId ?? raw.property?.id,
