@@ -7,7 +7,6 @@
     "icon": "./assets/icon.png",
     "scheme": "zeeproperties",
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
@@ -25,8 +24,6 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#1E40AF"
       },
-      "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false,
       "package": "com.zeeproperties.app",
       "config": {
         "googleMaps": {
@@ -51,7 +48,8 @@
             "./assets/sounds/kyc_alert.wav"
           ]
         }
-      ]
+      ],
+      "expo-image"
     ],
     "experiments": {
       "typedRoutes": true
