@@ -1,20 +1,22 @@
 // ============================================================
 // Chat Screen — shows messages in a conversation
-// Shared between client & realtor via component
+// Polished UI with mark-as-read, typing indicator placeholder,
+// and proper API integration per MOBILE_MESSAGING_API.md
 // ============================================================
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
   TextInput, KeyboardAvoidingView, Platform,
-  ActivityIndicator,
+  ActivityIndicator, Animated, Vibration,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { messagingService } from '@/services/messaging.service';
 import { useAuthStore } from '@/store/auth.store';
-import type { Message } from '@/types';
+import type { Message, Conversation } from '@/types';
 import { Spacing, Typography, BorderRadius } from '@/constants/theme';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import type { ThemeColors } from '@/constants/colors';
@@ -39,10 +41,16 @@ export default function ChatScreen() {
   const colors = useThemeColors();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const router = useRouter();
-  const { id: conversationId, name: participantName } = useLocalSearchParams<{ id: string; name?: string }>();
+  const { id: conversationId, name: participantName, propertyTitle } = useLocalSearchParams<{ 
+    id: string; 
+    name?: string;
+    propertyTitle?: string;
+  }>();
   const user = useAuthStore((s) => s.user);
+  const isRealtor = user?.role?.toLowerCase() === 'realtor';
 
   const [messages, setMessages] = useState<Message[]>([]);
+  const [conversation, setConversation] = useState<Conversation | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
   const [inputText, setInputText] = useState('');
@@ -50,35 +58,48 @@ export default function ChatScreen() {
   const [hasMore, setHasMore] = useState(false);
   const flatListRef = useRef<FlatList>(null);
 
+  // Animation for new message
+  const sendAnim = useRef(new Animated.Value(0)).current;
+
+  // Set current user ID for proper participant detection
+  useEffect(() => {
+    if (user?.id) {
+      messagingService.setCurrentUserId(user.id);
+    }
+  }, [user?.id]);
+
   const fetchMessages = useCallback(async (loadMore = false) => {
     if (!conversationId) return;
     try {
-      const res = await messagingService.getMessages(
-        conversationId,
-        loadMore ? cursor : undefined,
-        30,
-      );
-      const newItems = res.items;
-
-      if (loadMore) {
-        setMessages((prev) => [...prev, ...newItems]);
+      if (!loadMore) {
+        // Get full conversation with messages on first load
+        const data = isRealtor
+          ? await messagingService.getRealtorConversation(conversationId)
+          : await messagingService.getConversation(conversationId);
+        
+        setConversation(data.conversation);
+        setMessages(data.messages.reverse()); // Reverse for inverted FlatList
+        
+        // Mark conversation as read
+        messagingService.markAsRead(conversationId).catch(() => {});
       } else {
-        setMessages(newItems);
+        // Paginated load more
+        const res = await messagingService.getMessages(conversationId, cursor, 30);
+        setMessages((prev) => [...prev, ...res.items]);
+        setCursor(res.pagination?.nextCursor ?? undefined);
+        setHasMore(res.pagination?.hasNext ?? false);
       }
-
-      // The messages come newest-first in an inverted FlatList
-      setCursor(res.pagination?.nextCursor ?? undefined);
-      setHasMore(res.pagination?.hasNext ?? false);
     } catch (e) {
       if (__DEV__) console.warn('[Chat] fetch error', e);
     }
-  }, [conversationId, cursor]);
+  }, [conversationId, cursor, isRealtor]);
 
   useEffect(() => {
     setIsLoading(true);
     fetchMessages(false).finally(() => setIsLoading(false));
-    // Poll for new messages every 10 seconds
-    const interval = setInterval(() => fetchMessages(false), 10_000);
+
+    // Poll for new messages every 8 seconds
+    const interval = setInterval(() => fetchMessages(false), 8_000);
     return () => clearInterval(interval);
   }, [conversationId]);
 
@@ -89,17 +110,32 @@ export default function ChatScreen() {
     setIsSending(true);
     setInputText('');
 
+    // Haptic feedback
+    Vibration.vibrate(10);
+
     // Optimistic local insert
     const optimistic: Message = {
       id: `_opt_${Date.now()}`,
       content: text,
       senderId: user?.id || '',
       createdAt: new Date().toISOString(),
+      type: 'RESPONSE',
+      isRead: false,
     };
     setMessages((prev) => [optimistic, ...prev]);
 
+    // Animate send
+    Animated.sequence([
+      Animated.timing(sendAnim, { toValue: 1, duration: 100, useNativeDriver: true }),
+      Animated.timing(sendAnim, { toValue: 0, duration: 100, useNativeDriver: true }),
+    ]).start();
+
     try {
-      const sent = await messagingService.sendMessage(conversationId, { content: text });
+      // Use role-specific endpoint for realtor
+      const sent = isRealtor
+        ? await messagingService.realtorReply(conversationId, { content: text, type: 'RESPONSE' })
+        : await messagingService.sendMessage(conversationId, { content: text, type: 'RESPONSE' });
+      
       // Replace optimistic message
       setMessages((prev) =>
         prev.map((m) => (m.id === optimistic.id ? sent : m)),
@@ -127,6 +163,9 @@ export default function ChatScreen() {
       !prevMsg ||
       new Date(item.createdAt).toDateString() !== new Date(prevMsg.createdAt).toDateString();
 
+    // Show read indicator for last message sent by me
+    const showRead = isMe && index === 0 && item.isRead;
+
     return (
       <>
         {showDateLabel && (
@@ -135,19 +174,43 @@ export default function ChatScreen() {
           </View>
         )}
         <View style={[styles.bubble, isMe ? styles.bubbleMe : styles.bubbleThem]}>
+          {/* Message type indicator for inquiries */}
+          {item.type === 'INQUIRY' && !isMe && (
+            <View style={styles.inquiryTag}>
+              <Ionicons name="mail-outline" size={10} color={colors.primary} />
+              <Text style={styles.inquiryTagText}>Initial Inquiry</Text>
+            </View>
+          )}
+          
           {!isMe && item.senderName && (
             <Text style={styles.senderName}>{item.senderName}</Text>
           )}
+          
           <Text style={[styles.bubbleText, isMe ? styles.bubbleTextMe : styles.bubbleTextThem]}>
             {item.content}
           </Text>
-          <Text style={[styles.bubbleTime, isMe ? styles.bubbleTimeMe : styles.bubbleTimeThem]}>
-            {formatMessageTime(item.createdAt)}
-          </Text>
+          
+          <View style={styles.bubbleFooter}>
+            <Text style={[styles.bubbleTime, isMe ? styles.bubbleTimeMe : styles.bubbleTimeThem]}>
+              {formatMessageTime(item.createdAt)}
+            </Text>
+            {isMe && (
+              <Ionicons 
+                name={showRead ? 'checkmark-done' : 'checkmark'} 
+                size={14} 
+                color={showRead ? colors.success : 'rgba(255,255,255,0.5)'} 
+                style={{ marginLeft: 4 }}
+              />
+            )}
+          </View>
         </View>
       </>
     );
   };
+
+  // Get display info
+  const displayName = participantName || conversation?.participant?.firstName || 'Chat';
+  const displayProperty = propertyTitle || conversation?.propertyTitle;
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -156,10 +219,26 @@ export default function ChatScreen() {
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={22} color={colors.textPrimary} />
         </TouchableOpacity>
-        <View style={styles.headerCenter}>
-          <Text style={styles.headerName} numberOfLines={1}>{participantName || 'Chat'}</Text>
-        </View>
-        <View style={{ width: 36 }} />
+        
+        <TouchableOpacity style={styles.headerCenter} activeOpacity={0.7}>
+          <View style={styles.headerAvatar}>
+            <Text style={styles.headerAvatarText}>
+              {displayName.charAt(0).toUpperCase()}
+            </Text>
+          </View>
+          <View style={styles.headerInfo}>
+            <Text style={styles.headerName} numberOfLines={1}>{displayName}</Text>
+            {displayProperty && (
+              <Text style={styles.headerProperty} numberOfLines={1}>
+                <Ionicons name="home-outline" size={10} color={colors.primary} /> {displayProperty}
+              </Text>
+            )}
+          </View>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.moreBtn}>
+          <Ionicons name="ellipsis-vertical" size={20} color={colors.textPrimary} />
+        </TouchableOpacity>
       </View>
 
       {/* ── Messages ── */}
@@ -171,6 +250,7 @@ export default function ChatScreen() {
         {isLoading ? (
           <View style={styles.loadingWrap}>
             <ActivityIndicator size="large" color={colors.primary} />
+            <Text style={styles.loadingText}>Loading messages...</Text>
           </View>
         ) : (
           <FlatList
@@ -183,8 +263,15 @@ export default function ChatScreen() {
             showsVerticalScrollIndicator={false}
             ListEmptyComponent={
               <View style={styles.emptyChat}>
-                <Ionicons name="chatbubble-outline" size={40} color={colors.textMuted} />
-                <Text style={styles.emptyChatText}>No messages yet. Say hello!</Text>
+                <View style={styles.emptyChatIcon}>
+                  <Ionicons name="chatbubble-ellipses-outline" size={48} color={colors.primary} />
+                </View>
+                <Text style={styles.emptyChatTitle}>Start the Conversation</Text>
+                <Text style={styles.emptyChatText}>
+                  {isRealtor 
+                    ? "Respond to the client's inquiry below."
+                    : "Send a message to get started!"}
+                </Text>
               </View>
             }
             onEndReached={loadMore}
@@ -199,26 +286,35 @@ export default function ChatScreen() {
 
         {/* ── Input Bar ── */}
         <View style={styles.inputBar}>
-          <TextInput
-            style={styles.textInput}
-            value={inputText}
-            onChangeText={setInputText}
-            placeholder="Type a message…"
-            placeholderTextColor={colors.textMuted}
-            multiline
-            maxLength={2000}
-          />
-          <TouchableOpacity
-            style={[styles.sendBtn, !inputText.trim() && styles.sendBtnDisabled]}
-            onPress={sendMessage}
-            disabled={!inputText.trim() || isSending}
-          >
-            {isSending ? (
-              <ActivityIndicator size="small" color={colors.white} />
-            ) : (
-              <Ionicons name="send" size={18} color={colors.white} />
-            )}
+          <TouchableOpacity style={styles.attachBtn}>
+            <Ionicons name="add-circle-outline" size={26} color={colors.primary} />
           </TouchableOpacity>
+          
+          <View style={styles.inputWrap}>
+            <TextInput
+              style={styles.textInput}
+              value={inputText}
+              onChangeText={setInputText}
+              placeholder="Type a message…"
+              placeholderTextColor={colors.textMuted}
+              multiline
+              maxLength={2000}
+            />
+          </View>
+          
+          <Animated.View style={{ transform: [{ scale: sendAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 0.9] }) }] }}>
+            <TouchableOpacity
+              style={[styles.sendBtn, !inputText.trim() && styles.sendBtnDisabled]}
+              onPress={sendMessage}
+              disabled={!inputText.trim() || isSending}
+            >
+              {isSending ? (
+                <ActivityIndicator size="small" color={colors.white} />
+              ) : (
+                <Ionicons name="send" size={18} color={colors.white} />
+              )}
+            </TouchableOpacity>
+          </Animated.View>
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -230,8 +326,8 @@ const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   kav: { flex: 1 },
 
   header: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md,
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm,
     borderBottomWidth: 1, borderBottomColor: colors.borderLight,
     backgroundColor: colors.background,
   },
@@ -239,10 +335,25 @@ const makeStyles = (colors: ThemeColors) => StyleSheet.create({
     width: 36, height: 36, borderRadius: 18,
     alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface,
   },
-  headerCenter: { flex: 1, alignItems: 'center' },
+  headerCenter: { 
+    flex: 1, flexDirection: 'row', alignItems: 'center',
+    marginLeft: Spacing.sm,
+  },
+  headerAvatar: {
+    width: 40, height: 40, borderRadius: 20,
+    backgroundColor: colors.primary + '20', alignItems: 'center', justifyContent: 'center',
+  },
+  headerAvatarText: { ...Typography.bodySemiBold, color: colors.primary },
+  headerInfo: { marginLeft: Spacing.sm, flex: 1 },
   headerName: { ...Typography.bodySemiBold, color: colors.textPrimary },
+  headerProperty: { ...Typography.small, color: colors.textMuted, marginTop: 1 },
+  moreBtn: {
+    width: 36, height: 36, borderRadius: 18,
+    alignItems: 'center', justifyContent: 'center',
+  },
 
   loadingWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  loadingText: { ...Typography.body, color: colors.textMuted, marginTop: Spacing.md },
 
   messagesContent: { paddingHorizontal: Spacing.md, paddingBottom: Spacing.sm },
 
@@ -265,29 +376,46 @@ const makeStyles = (colors: ThemeColors) => StyleSheet.create({
     alignSelf: 'flex-start', backgroundColor: colors.surface,
     borderBottomLeftRadius: 4, borderWidth: 1, borderColor: colors.borderLight,
   },
+  inquiryTag: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: colors.primary + '15',
+    paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4,
+    alignSelf: 'flex-start', marginBottom: 6,
+  },
+  inquiryTagText: { ...Typography.small, color: colors.primary, fontWeight: '600', marginLeft: 4, fontSize: 10 },
   senderName: { ...Typography.small, color: colors.primary, fontWeight: '600', marginBottom: 2 },
   bubbleText: { ...Typography.body, lineHeight: 22 },
   bubbleTextMe: { color: colors.white },
   bubbleTextThem: { color: colors.textPrimary },
-  bubbleTime: { ...Typography.small, marginTop: 4, alignSelf: 'flex-end' },
+  bubbleFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', marginTop: 4 },
+  bubbleTime: { ...Typography.small },
   bubbleTimeMe: { color: 'rgba(255,255,255,0.7)' },
   bubbleTimeThem: { color: colors.textMuted },
 
   emptyChat: {
     alignItems: 'center', justifyContent: 'center', paddingVertical: Spacing.xxxxl,
-    // inverted list, so we flip this
-    transform: [{ scaleY: -1 }],
+    transform: [{ scaleY: -1 }], // inverted list
   },
-  emptyChatText: { ...Typography.body, color: colors.textMuted, marginTop: Spacing.md },
+  emptyChatIcon: {
+    width: 80, height: 80, borderRadius: 40,
+    backgroundColor: colors.primary + '15', alignItems: 'center', justifyContent: 'center',
+    marginBottom: Spacing.lg,
+  },
+  emptyChatTitle: { ...Typography.h4, color: colors.textPrimary, marginBottom: Spacing.xs },
+  emptyChatText: { ...Typography.body, color: colors.textMuted, textAlign: 'center', paddingHorizontal: Spacing.xxl },
 
   inputBar: {
     flexDirection: 'row', alignItems: 'flex-end',
-    paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.sm, paddingVertical: Spacing.sm,
     borderTopWidth: 1, borderTopColor: colors.borderLight,
     backgroundColor: colors.background,
   },
+  attachBtn: {
+    width: 40, height: 40, alignItems: 'center', justifyContent: 'center',
+  },
+  inputWrap: { flex: 1 },
   textInput: {
-    flex: 1, ...Typography.body, color: colors.textPrimary,
+    ...Typography.body, color: colors.textPrimary,
     backgroundColor: colors.surface, borderRadius: BorderRadius.xl,
     paddingHorizontal: Spacing.lg, paddingVertical: Platform.OS === 'ios' ? Spacing.sm + 2 : Spacing.sm,
     maxHeight: 120, borderWidth: 1, borderColor: colors.borderLight,
@@ -295,7 +423,7 @@ const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   sendBtn: {
     width: 40, height: 40, borderRadius: 20,
     backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center',
-    marginLeft: Spacing.sm,
+    marginLeft: Spacing.xs,
   },
-  sendBtnDisabled: { opacity: 0.4 },
+  sendBtnDisabled: { backgroundColor: colors.primary + '60' },
 });

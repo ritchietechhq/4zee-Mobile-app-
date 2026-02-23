@@ -133,12 +133,18 @@ export type {
 export type {
   ConversationParticipant,
   ConversationLastMessage,
+  ConversationProperty,
   Conversation,
   MessageType,
   Message,
   SendMessageRequest,
   StartConversationRequest,
   PropertyInquiryRequest,
+  InquiryResponse,
+  ConversationCheckResponse,
+  UnreadCountResponse as MessagingUnreadCount,
+  MarkAsReadResponse,
+  MessagePushData,
 } from './messaging';
 
 // Dashboard

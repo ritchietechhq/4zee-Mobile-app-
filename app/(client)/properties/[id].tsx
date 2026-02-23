@@ -220,19 +220,39 @@ export default function PropertyDetailScreen() {
     
     setIsStartingChat(true);
     try {
-      // Use the dedicated inquiry endpoint — it auto-creates a conversation
-      // with the property's realtor
-      const conversation = await messagingService.sendInquiry({
-        propertyId: property.id,
-        message: `Hi, I'm interested in "${property.title}"`,
-      });
+      // First check if we already have a conversation for this property
+      const existing = await messagingService.checkPropertyConversation(property.id);
+      
+      if (existing.exists && existing.conversationId) {
+        // Navigate to existing conversation
+        setContactSheetVisible(false);
+        router.push({
+          pathname: '/(client)/messages/[id]' as any,
+          params: {
+            id: existing.conversationId,
+            name: property.realtor?.user 
+              ? `${property.realtor.user.firstName} ${property.realtor.user.lastName}`.trim()
+              : 'Realtor',
+            propertyTitle: property.title,
+          },
+        });
+        return;
+      }
+
+      // Create new inquiry using the correct API endpoint
+      const result = await messagingService.createPropertyInquiry(
+        property.id,
+        `Hi, I'm interested in "${property.title}". Is it still available?`,
+      );
+      
       setContactSheetVisible(false);
       // Navigate to the chat screen
       router.push({
         pathname: '/(client)/messages/[id]' as any,
         params: {
-          id: conversation.id,
-          name: `${conversation.participant.firstName} ${conversation.participant.lastName}`.trim(),
+          id: result.conversation.id,
+          name: `${result.conversation.participant.firstName} ${result.conversation.participant.lastName}`.trim(),
+          propertyTitle: property.title,
         },
       });
     } catch (error: any) {

@@ -10,6 +10,7 @@ import { useThemeStore } from '@/store/theme.store';
 import { useTheme } from '@/hooks/useTheme';
 import { Colors } from '@/constants/theme';
 import AnimatedSplash from '@/components/splash/AnimatedSplash';
+import MessageNotificationToast from '@/components/messaging/MessageNotificationToast';
 import { warmUpBackend } from '@/services/warmup.service';
 import { pushService } from '@/services/push.service';
 
@@ -146,6 +147,8 @@ export default function RootLayout() {
               options={{ animation: 'slide_from_bottom' }}
             />
           </Stack>
+          {/* Global in-app message notification toast */}
+          <MessageNotificationToast />
         </AuthGuard>
       </SafeAreaProvider>
     </GestureHandlerRootView>

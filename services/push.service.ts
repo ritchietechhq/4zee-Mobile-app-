@@ -15,6 +15,7 @@ import Constants from 'expo-constants';
 import { router } from 'expo-router';
 import api from './api';
 import { ttsService } from './tts.service';
+import { showMessageToast } from '@/components/messaging/MessageNotificationToast';
 import type { RegisterDeviceRequest } from '@/types';
 
 // Lazy-loaded reference — set in init()
@@ -22,6 +23,7 @@ let Notifications: typeof import('expo-notifications') | null = null;
 
 // ─── Android Notification Channels ────────────────────────────
 const KYC_CHANNEL_ID = 'kyc_notifications';
+const MESSAGES_CHANNEL_ID = 'messages';
 
 // ─── State ────────────────────────────────────────────────────
 let _pushToken: string | null = null;
@@ -179,6 +181,17 @@ class PushService {
       enableVibrate: true,
       enableLights: true,
     });
+
+    // Messages channel for in-app messaging
+    await N.setNotificationChannelAsync(MESSAGES_CHANNEL_ID, {
+      name: 'Messages',
+      description: 'New message notifications from property inquiries and chats',
+      importance: N.AndroidImportance.HIGH,
+      vibrationPattern: [0, 200, 100, 200],
+      lightColor: '#1E40AF',
+      enableVibrate: true,
+      enableLights: true,
+    });
   }
 
   // ─── Permissions ──────────────────────────────────────────
@@ -252,9 +265,25 @@ class PushService {
     // Notification received while app is in foreground
     N.addNotificationReceivedListener((notification) => {
       const data = notification.request.content.data ?? {};
+      const title = notification.request.content.title;
+      const body = notification.request.content.body;
       console.log('[Push] Foreground notification:', data);
 
       // TTS is already handled in setNotificationHandler above
+
+      // Show in-app toast for messaging notifications
+      const type = data.type as string | undefined;
+      if (type === 'property_inquiry' || type === 'message') {
+        const conversationId = data.conversationId as string | undefined;
+        if (conversationId) {
+          showMessageToast({
+            conversationId,
+            senderName: (data.senderName as string) || title?.replace('🏠 Property Inquiry: ', '').split(' is asking')[0] || 'Someone',
+            preview: (data.preview as string) || body || 'Sent you a message',
+            propertyTitle: data.propertyId ? undefined : undefined, // Will be looked up if needed
+          });
+        }
+      }
     });
 
     // User tapped on a notification
@@ -287,6 +316,24 @@ class PushService {
     data: Record<string, unknown>,
   ): void {
     const screen = data.screen as string | undefined;
+    const type = data.type as string | undefined;
+
+    // Handle messaging notifications first
+    if (type === 'property_inquiry' || type === 'message') {
+      const conversationId = data.conversationId as string | undefined;
+      if (conversationId) {
+        const senderName = data.senderName as string | undefined;
+        // Navigate to chat screen — detect role from current route or use client default
+        router.push({
+          pathname: '/(client)/messages/[id]' as any,
+          params: {
+            id: conversationId,
+            name: senderName || 'Chat',
+          },
+        });
+        return;
+      }
+    }
 
     switch (screen) {
       case 'kyc_pending':
@@ -301,6 +348,21 @@ class PushService {
         break;
       case 'payment':
         router.push('/(client)/payments' as any);
+        break;
+      case 'messages':
+      case 'conversations':
+        router.push('/(client)/messages' as any);
+        break;
+      case 'chat':
+        // Direct navigation to a specific chat
+        if (data.conversationId) {
+          router.push({
+            pathname: '/(client)/messages/[id]' as any,
+            params: { id: data.conversationId as string, name: (data.senderName as string) || 'Chat' },
+          });
+        } else {
+          router.push('/(client)/messages' as any);
+        }
         break;
       default:
         // If there's a generic deep link path, try navigating to it
