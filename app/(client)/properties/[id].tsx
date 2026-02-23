@@ -33,6 +33,7 @@ import { applicationService } from '@/services/application.service';
 import { paymentService } from '@/services/payment.service';
 import { messagingService } from '@/services/messaging.service';
 import { paymentPlanService, type PaymentPlanTemplate } from '@/services/paymentPlan.service';
+import favoritesService from '@/services/favorites.service';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -106,14 +107,76 @@ export default function PropertyDetailScreen() {
   // Contact sheet
   const [contactSheetVisible, setContactSheetVisible] = useState(false);
   const [isStartingChat, setIsStartingChat] = useState(false);
+  
+  // Save/favorite state
+  const [isFavorite, setIsFavorite] = useState(false);
+  const [isTogglingFavorite, setIsTogglingFavorite] = useState(false);
+  
+  // Installment enrollment state
+  const [isRequestingInstallment, setIsRequestingInstallment] = useState(false);
+  const [hasEnrollment, setHasEnrollment] = useState(false);
 
   useEffect(() => {
     if (id) {
       fetchPropertyById(id);
       checkExistingApplication();
+      checkFavoriteStatus();
     }
     return () => clearSelectedProperty();
   }, [id]);
+
+  const checkFavoriteStatus = async () => {
+    if (!id) return;
+    try {
+      const status = await favoritesService.check(id);
+      setIsFavorite(status);
+    } catch {
+      // Silently fail — not logged in or API error
+    }
+  };
+
+  const handleToggleFavorite = async () => {
+    if (isTogglingFavorite || !id) return;
+    setIsTogglingFavorite(true);
+    const newState = !isFavorite;
+    setIsFavorite(newState); // Optimistic update
+    try {
+      if (newState) {
+        await favoritesService.add(id);
+      } else {
+        await favoritesService.remove(id);
+      }
+    } catch {
+      setIsFavorite(!newState); // Revert on error
+      Alert.alert('Error', newState ? 'Failed to save property' : 'Failed to remove from saved');
+    } finally {
+      setIsTogglingFavorite(false);
+    }
+  };
+
+  const handleRequestInstallment = async (templateId: string) => {
+    if (!myApplication || myApplication.status !== 'APPROVED') {
+      Alert.alert('Error', 'You need an approved application to request an installment plan.');
+      return;
+    }
+    setIsRequestingInstallment(true);
+    try {
+      await paymentPlanService.enroll({
+        applicationId: myApplication.id,
+        templateId,
+      });
+      setHasEnrollment(true);
+      Alert.alert(
+        'Request Submitted!',
+        'Your installment plan request has been sent to the realtor for approval. You will be notified once it is reviewed.',
+        [{ text: 'OK' }]
+      );
+    } catch (error: any) {
+      Alert.alert('Error', error?.message || 'Failed to submit installment request. Please try again.');
+    } finally {
+      setIsRequestingInstallment(false);
+    }
+  };
 
   useEffect(() => {
     if (property) {
@@ -355,10 +418,15 @@ export default function PropertyDetailScreen() {
         </TouchableOpacity>
         <View style={styles.floatingRight}>
           <TouchableOpacity
-            style={[styles.floatingBtn, { backgroundColor: isDark ? 'rgba(38,38,58,0.95)' : 'rgba(255,255,255,0.95)', borderColor: T.borderLight }]}
-            onPress={() => { /* TODO: toggle save */ }}
+            style={[
+              styles.floatingBtn, 
+              { backgroundColor: isDark ? 'rgba(38,38,58,0.95)' : 'rgba(255,255,255,0.95)', borderColor: T.borderLight },
+              isFavorite && { backgroundColor: Colors.errorLight }
+            ]}
+            onPress={handleToggleFavorite}
+            disabled={isTogglingFavorite}
           >
-            <Ionicons name="heart-outline" size={22} color={Colors.error} />
+            <Ionicons name={isFavorite ? 'heart' : 'heart-outline'} size={22} color={Colors.error} />
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.floatingBtn, { backgroundColor: isDark ? 'rgba(38,38,58,0.95)' : 'rgba(255,255,255,0.95)', borderColor: T.borderLight }]}
@@ -470,6 +538,9 @@ export default function PropertyDetailScreen() {
             application={myApplication}
             onApply={handleApply}
             isApplying={isApplying}
+            onRequestInstallment={handleRequestInstallment}
+            isRequestingInstallment={isRequestingInstallment}
+            hasEnrollment={hasEnrollment}
             isDark={isDark}
             T={T}
           />
@@ -739,12 +810,15 @@ function FeatureItem({
 
 /** Installment Plan Card */
 function InstallmentPlanCard({ 
-  property, application, onApply, isApplying, isDark, T,
+  property, application, onApply, isApplying, onRequestInstallment, isRequestingInstallment, hasEnrollment, isDark, T,
 }: { 
   property: Property;
   application: Application | null;
   onApply: () => void;
   isApplying: boolean;
+  onRequestInstallment: (templateId: string) => void;
+  isRequestingInstallment: boolean;
+  hasEnrollment: boolean;
   isDark: boolean;
   T: typeof darkTokens;
 }) {
@@ -851,7 +925,7 @@ function InstallmentPlanCard({
         </>
       )}
 
-      {/* CTA */}
+      {/* CTA - Show different buttons based on application state */}
       {!application && (
         <Button 
           title={isApplying ? 'Applying...' : 'Apply to View Full Plan'}
@@ -861,6 +935,28 @@ function InstallmentPlanCard({
           icon={<Ionicons name="arrow-forward" size={16} color={Colors.primary} />} 
           iconPosition="right" 
         />
+      )}
+
+      {/* Show Request Installment button when application is approved but unpaid */}
+      {application && application.status === 'APPROVED' && application.paymentStatus !== 'PAID' && !hasEnrollment && template && (
+        <Button 
+          title={isRequestingInstallment ? 'Requesting...' : 'Request Installment Plan'}
+          variant="primary" size="md" 
+          onPress={() => onRequestInstallment(template.id)}
+          disabled={isRequestingInstallment || loadingTemplates}
+          style={styles.installmentButton} 
+          icon={<Ionicons name="calendar-outline" size={16} color={Colors.white} />} 
+        />
+      )}
+
+      {/* Show pending message if enrollment was requested */}
+      {hasEnrollment && (
+        <View style={[styles.enrollmentPending, { backgroundColor: T.warningLight }]}>
+          <Ionicons name="time-outline" size={18} color={Colors.warning} />
+          <Text style={[styles.enrollmentPendingText, { color: Colors.warning }]}>
+            Installment request pending realtor approval
+          </Text>
+        </View>
       )}
     </Card>
   );
@@ -984,4 +1080,8 @@ const styles = StyleSheet.create({
   pollingContent: { borderRadius: BorderRadius.xl, padding: Spacing.xxl, alignItems: 'center', gap: Spacing.md },
   pollingText: { ...Typography.bodyMedium },
   pollingSubtext: { ...Typography.caption },
+
+  // Enrollment pending
+  enrollmentPending: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm, borderRadius: BorderRadius.lg, marginTop: Spacing.sm },
+  enrollmentPendingText: { ...Typography.caption, fontWeight: '600', flex: 1 },
 });

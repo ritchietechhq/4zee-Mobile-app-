@@ -9,7 +9,7 @@ const TAB_CONFIG = [
   { name: 'dashboard', title: 'Home', icon: 'home' },
   { name: 'search', title: 'Explore', icon: 'search' },
   { name: 'saved', title: 'Saved', icon: 'heart' },
-  { name: 'map', title: 'Map', icon: 'map' },
+  { name: 'messages/index', title: 'Messages', icon: 'chatbubbles' },
   { name: 'profile', title: 'Profile', icon: 'person' },
 ] as const;
 
@@ -25,7 +25,7 @@ const HIDDEN_ROUTES = [
   'privacy',
   'terms',
   'payments',
-  'messages/index',
+  'map',
   'messages/[id]',
 ] as const;
 

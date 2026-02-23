@@ -1,5 +1,5 @@
-import React, { useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
+import React, { useMemo, useState, useCallback } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Dimensions, Alert } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -11,18 +11,45 @@ import { Spacing, BorderRadius, Typography, Shadows } from '@/constants/theme';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import type { ThemeColors } from '@/constants/colors';
 import { formatCurrency } from '@/utils/formatCurrency';
+import favoritesService from '@/services/favorites.service';
 
 interface PropertyCardProps {
   property: Property;
   variant?: 'horizontal' | 'vertical';
+  isFavorite?: boolean;
+  onFavoriteChange?: (propertyId: string, isFavorite: boolean) => void;
 }
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-export function PropertyCard({ property, variant = 'vertical' }: PropertyCardProps) {
+export function PropertyCard({ property, variant = 'vertical', isFavorite: initialFavorite, onFavoriteChange }: PropertyCardProps) {
   const colors = useThemeColors();
   const styles = useMemo(() => makeStyles(colors), [colors]);
+  const [isFavorite, setIsFavorite] = useState(initialFavorite ?? false);
+  const [isToggling, setIsToggling] = useState(false);
+
   const handlePress = () => { router.push(`/properties/${property.id}`); };
+
+  const handleToggleFavorite = useCallback(async (e?: any) => {
+    e?.stopPropagation?.();
+    if (isToggling) return;
+    setIsToggling(true);
+    const newState = !isFavorite;
+    setIsFavorite(newState); // Optimistic update
+    try {
+      if (newState) {
+        await favoritesService.add(property.id);
+      } else {
+        await favoritesService.remove(property.id);
+      }
+      onFavoriteChange?.(property.id, newState);
+    } catch (error) {
+      setIsFavorite(!newState); // Revert on error
+      Alert.alert('Error', newState ? 'Failed to save property' : 'Failed to remove from saved');
+    } finally {
+      setIsToggling(false);
+    }
+  }, [isFavorite, isToggling, property.id, onFavoriteChange]);
 
   const availabilityVariant =
     property.availability === 'AVAILABLE' ? 'success'
@@ -92,8 +119,8 @@ export function PropertyCard({ property, variant = 'vertical' }: PropertyCardPro
           <LinearGradient colors={['transparent', 'rgba(0,0,0,0.4)']} style={styles.imageGradient} />
           <View style={styles.imageOverlay}>
             <Badge label={property.availability} variant={availabilityVariant} />
-            <TouchableOpacity style={styles.saveBtn} activeOpacity={0.7}>
-              <Ionicons name="heart-outline" size={18} color={colors.white} />
+            <TouchableOpacity style={[styles.saveBtn, isFavorite && styles.saveBtnActive]} activeOpacity={0.7} onPress={handleToggleFavorite}>
+              <Ionicons name={isFavorite ? 'heart' : 'heart-outline'} size={18} color={isFavorite ? colors.error : colors.white} />
             </TouchableOpacity>
           </View>
           <View style={styles.priceOnImage}>
@@ -141,6 +168,7 @@ const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   imageGradient: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 60 },
   imageOverlay: { position: 'absolute', top: Spacing.sm, left: Spacing.sm, right: Spacing.sm, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
   saveBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(0,0,0,0.3)', alignItems: 'center', justifyContent: 'center' },
+  saveBtnActive: { backgroundColor: 'rgba(255,255,255,0.9)' },
   priceOnImage: { position: 'absolute', bottom: Spacing.sm, left: Spacing.sm },
   vPriceText: { ...Typography.bodySemiBold, color: colors.white, fontSize: 17 },
   verticalContent: { padding: Spacing.md },

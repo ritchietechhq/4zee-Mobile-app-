@@ -102,3 +102,60 @@ export interface ScheduleResponse {
 export interface UnreadMessagesResponse {
   count: number;
 }
+
+// ---- Installment Requests ----
+
+export type InstallmentRequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+
+export interface InstallmentRequestClient {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email?: string;
+  phone?: string;
+}
+
+export interface InstallmentRequestProperty {
+  id: string;
+  title: string;
+  price: number;
+  type?: string;
+  images?: string[];
+}
+
+export interface InstallmentRequestPlan {
+  id: string;
+  name: string;
+  durationMonths: number;
+  downPaymentPct: number;
+  interestRate: number;
+}
+
+export interface InstallmentRequest {
+  id: string;
+  status: InstallmentRequestStatus;
+  applicationId: string;
+  client: InstallmentRequestClient;
+  property: InstallmentRequestProperty;
+  paymentPlan: InstallmentRequestPlan;
+  requestedAt: string;
+  processedAt?: string;
+  rejectionReason?: string;
+  // Calculated amounts
+  totalAmount: number;
+  downPayment: number;
+  monthlyAmount: number;
+  // Agreement (if approved)
+  agreement?: {
+    id: string;
+    documentUrl?: string;
+    signedAt?: string;
+    status: 'PENDING_SIGNATURE' | 'SIGNED' | 'EXPIRED';
+  };
+}
+
+export interface InstallmentRequestsResponse {
+  items: InstallmentRequest[];
+  total: number;
+  pending: number;
+}

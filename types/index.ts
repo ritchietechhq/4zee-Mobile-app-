@@ -266,4 +266,10 @@ export type {
   ScheduleItem,
   ScheduleResponse,
   UnreadMessagesResponse,
+  InstallmentRequestStatus,
+  InstallmentRequestClient,
+  InstallmentRequestProperty,
+  InstallmentRequestPlan,
+  InstallmentRequest,
+  InstallmentRequestsResponse,
 } from './realtor';

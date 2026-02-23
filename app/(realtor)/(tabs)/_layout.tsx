@@ -9,8 +9,8 @@ import type { ThemeColors } from '@/constants/colors';
 const TAB_CONFIG = [
   { name: 'dashboard', title: 'Dashboard', iconFocused: 'grid', iconDefault: 'grid-outline' },
   { name: 'listings', title: 'Listings', iconFocused: 'business', iconDefault: 'business-outline' },
+  { name: 'requests', title: 'Requests', iconFocused: 'document-text', iconDefault: 'document-text-outline' },
   { name: 'leads', title: 'Leads', iconFocused: 'people-circle', iconDefault: 'people-circle-outline' },
-  { name: 'payments', title: 'Earnings', iconFocused: 'card', iconDefault: 'card-outline' },
   { name: 'profile', title: 'Profile', iconFocused: 'person-circle', iconDefault: 'person-circle-outline' },
 ] as const;
 

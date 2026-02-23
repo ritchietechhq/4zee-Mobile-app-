@@ -7,6 +7,7 @@ import {
   RefreshControl,
   Animated,
   TouchableOpacity,
+  Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -24,6 +25,7 @@ export default function SavedScreen() {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
   const [favorites, setFavorites] = useState<Property[]>([]);
+  const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('list');
@@ -34,6 +36,7 @@ export default function SavedScreen() {
     try {
       const data = await favoritesService.list();
       setFavorites(data);
+      setFavoriteIds(new Set(data.map(p => p.id)));
     } catch {
       // Silently fail — show empty state
     } finally {
@@ -50,6 +53,18 @@ export default function SavedScreen() {
     setRefreshing(true);
     await fetchFavorites();
     setRefreshing(false);
+  }, [fetchFavorites]);
+
+  const handleFavoriteChange = useCallback((propertyId: string, isFavorite: boolean) => {
+    if (!isFavorite) {
+      // Remove from local state immediately
+      setFavorites(prev => prev.filter(p => p.id !== propertyId));
+      setFavoriteIds(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(propertyId);
+        return newSet;
+      });
+    }
   }, []);
 
   return (
@@ -97,7 +112,12 @@ export default function SavedScreen() {
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
             renderItem={({ item }) => (
               <View style={viewMode === 'grid' ? dynamicStyles.gridItem : dynamicStyles.listItem}>
-                <PropertyCard property={item} variant={viewMode === 'grid' ? 'vertical' : 'horizontal'} />
+                <PropertyCard 
+                  property={item} 
+                  variant={viewMode === 'grid' ? 'vertical' : 'horizontal'} 
+                  isFavorite={favoriteIds.has(item.id)}
+                  onFavoriteChange={handleFavoriteChange}
+                />
               </View>
             )}
             ListEmptyComponent={

@@ -18,6 +18,8 @@ import type {
   ListingAnalyticsResponse,
   GoalsResponse,
   ScheduleResponse,
+  InstallmentRequest,
+  InstallmentRequestsResponse,
 } from '@/types';
 
 /**
@@ -113,6 +115,36 @@ class RealtorService {
   async getSchedule(): Promise<ScheduleResponse> {
     const res = await api.get<ScheduleResponse>('/realtor/schedule');
     return res.data ?? { items: [], total: 0, pendingApplications: 0, unreadInquiries: 0 };
+  }
+
+  // ── Installment Requests ──────────────────────────────────────────────────
+
+  /** GET /realtor/installment-requests — list payment plan requests from clients */
+  async getInstallmentRequests(status?: 'PENDING' | 'APPROVED' | 'REJECTED'): Promise<InstallmentRequestsResponse> {
+    const res = await api.get<any>('/realtor/installment-requests', status ? { status } : undefined);
+    const raw = res.data;
+    if (Array.isArray(raw)) {
+      return { items: raw, total: raw.length, pending: raw.filter((r: any) => r.status === 'PENDING').length };
+    }
+    return raw ?? { items: [], total: 0, pending: 0 };
+  }
+
+  /** GET /realtor/installment-requests/:id — get single request details */
+  async getInstallmentRequest(id: string): Promise<InstallmentRequest> {
+    const res = await api.get<InstallmentRequest>(`/realtor/installment-requests/${id}`);
+    return res.data!;
+  }
+
+  /** POST /realtor/installment-requests/:id/approve — approve and auto-generate agreement */
+  async approveInstallmentRequest(id: string): Promise<InstallmentRequest> {
+    const res = await api.post<InstallmentRequest>(`/realtor/installment-requests/${id}/approve`);
+    return res.data!;
+  }
+
+  /** POST /realtor/installment-requests/:id/reject — reject with reason */
+  async rejectInstallmentRequest(id: string, reason: string): Promise<InstallmentRequest> {
+    const res = await api.post<InstallmentRequest>(`/realtor/installment-requests/${id}/reject`, { reason });
+    return res.data!;
   }
 }
 
