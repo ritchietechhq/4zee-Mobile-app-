@@ -1,7 +1,8 @@
 // ============================================================
 // Payment Service
-// Endpoints: POST /payments/initiate, GET /payments/:ref/status,
-//            GET /payments/:ref, GET /payments/me (paginated)
+// Endpoints: POST /payments/initiate, POST /payments/installment,
+//            GET /payments/:ref/status, GET /payments/:ref,
+//            GET /payments/me (paginated)
 // ============================================================
 
 import api from './api';
@@ -15,12 +16,32 @@ import type {
 /** Delay helper for polling */
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+/** Response from POST /payments/installment */
+export interface InstallmentPaymentResponse {
+  authorizationUrl: string;
+  reference: string;
+  accessCode: string;
+  installmentId: string;
+  installmentNo: number;
+  amount: number;
+  propertyTitle?: string;
+}
+
 class PaymentService {
   /** POST /payments/initiate — idempotent */
   async initiate(applicationId: string): Promise<PaymentInitiateResponse> {
     const res = await api.post<PaymentInitiateResponse>('/payments/initiate', {
       applicationId,
     });
+    return res.data!;
+  }
+
+  /**
+   * POST /payments/installment — Pay a specific installment
+   * Used by clients enrolled in a payment plan to pay individual installments.
+   */
+  async payInstallment(installmentId: string): Promise<InstallmentPaymentResponse> {
+    const res = await api.post<any>('/payments/installment', { installmentId });
     return res.data!;
   }
 

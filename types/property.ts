@@ -7,6 +7,18 @@ export type PropertyType = 'LAND' | 'APARTMENT' | 'DUPLEX' | 'BUNGALOW' | 'TERRA
 
 export type PropertyAvailability = 'AVAILABLE' | 'SOLD' | 'RESERVED';
 
+/** Realtor contact info returned by GET /properties/:id */
+export interface RealtorContact {
+  id: string;
+  userId: string;
+  name: string;
+  email?: string;
+  phone?: string;
+  whatsapp?: string;
+  agency?: string;
+  profilePicture?: string;
+}
+
 export interface Property {
   id: string;
   title: string;
@@ -33,7 +45,7 @@ export interface Property {
   availability: PropertyAvailability;
   isFeatured: boolean;
   viewCount: number;
-  // Realtor who listed this property
+  // Realtor who listed this property (legacy nested structure)
   realtorId?: string;
   realtor?: {
     id: string;
@@ -45,6 +57,8 @@ export interface Property {
       profilePicture?: string;
     };
   };
+  // New flat realtorContact object from API
+  realtorContact?: RealtorContact;
   createdAt: string;
   updatedAt: string;
 }

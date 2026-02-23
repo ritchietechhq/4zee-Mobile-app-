@@ -187,8 +187,9 @@ export default function PropertyDetailScreen() {
 
   /** Contact realtor via phone */
   const handleCall = () => {
-    // Use realtor phone from property OR from application
+    // Use realtorContact (new API) first, then fallback to legacy nested structure
     const phone =
+      property?.realtorContact?.phone ||
       property?.realtor?.user?.phone ||
       myApplication?.realtor?.user?.phone;
     if (!phone) {
@@ -201,14 +202,17 @@ export default function PropertyDetailScreen() {
 
   /** Contact realtor via WhatsApp */
   const handleWhatsApp = () => {
-    const phone =
+    // Prefer whatsapp field, then phone from realtorContact, then legacy
+    const whatsappNum =
+      property?.realtorContact?.whatsapp ||
+      property?.realtorContact?.phone ||
       property?.realtor?.user?.phone ||
       myApplication?.realtor?.user?.phone;
-    if (!phone) {
+    if (!whatsappNum) {
       Alert.alert('Phone Unavailable', "The realtor's phone number is not available. Try sending a message instead.");
       return;
     }
-    const cleanPhone = phone.replace(/[^0-9]/g, '');
+    const cleanPhone = whatsappNum.replace(/[^0-9]/g, '');
     const message = encodeURIComponent(`Hi, I'm interested in the property: ${property?.title}`);
     Linking.openURL(`https://wa.me/${cleanPhone}?text=${message}`);
     setContactSheetVisible(false);
@@ -226,13 +230,15 @@ export default function PropertyDetailScreen() {
       if (existing.exists && existing.conversationId) {
         // Navigate to existing conversation
         setContactSheetVisible(false);
+        const realtorName = property.realtorContact?.name 
+          || (property.realtor?.user 
+            ? `${property.realtor.user.firstName} ${property.realtor.user.lastName}`.trim()
+            : 'Realtor');
         router.push({
           pathname: '/(client)/messages/[id]' as any,
           params: {
             id: existing.conversationId,
-            name: property.realtor?.user 
-              ? `${property.realtor.user.firstName} ${property.realtor.user.lastName}`.trim()
-              : 'Realtor',
+            name: realtorName,
             propertyTitle: property.title,
           },
         });
@@ -469,26 +475,27 @@ export default function PropertyDetailScreen() {
             isApplying={isApplying}
           />
 
-          {/* ── Realtor Info (from property or application) ── */}
-          {(property.realtor || myApplication?.realtor) && (() => {
-            const realtor = property.realtor || myApplication?.realtor;
-            const firstName = realtor?.user?.firstName || 'R';
-            const lastName = realtor?.user?.lastName || '';
+          {/* ── Realtor Info (from realtorContact, property.realtor, or application) ── */}
+          {(property.realtorContact || property.realtor || myApplication?.realtor) && (() => {
+            // Prefer new realtorContact, fallback to legacy realtor
+            const realtorContact = property.realtorContact;
+            const legacyRealtor = property.realtor || myApplication?.realtor;
+            
+            const displayName = realtorContact?.name 
+              || (legacyRealtor?.user ? `${legacyRealtor.user.firstName} ${legacyRealtor.user.lastName}`.trim() : 'Realtor');
+            const initials = displayName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || 'R';
+            const agency = realtorContact?.agency;
+            
             return (
               <Card style={styles.realtorCard}>
                 <Text style={styles.sectionTitle}>Listed By</Text>
                 <View style={styles.realtorInfo}>
                   <View style={styles.realtorAvatar}>
-                    <Text style={styles.realtorInitials}>
-                      {firstName[0] || 'R'}
-                      {lastName[0] || ''}
-                    </Text>
+                    <Text style={styles.realtorInitials}>{initials}</Text>
                   </View>
                   <View style={styles.realtorDetails}>
-                    <Text style={styles.realtorName}>
-                      {firstName} {lastName}
-                    </Text>
-                    <Text style={styles.realtorLabel}>Licensed Realtor</Text>
+                    <Text style={styles.realtorName}>{displayName}</Text>
+                    <Text style={styles.realtorLabel}>{agency || 'Licensed Realtor'}</Text>
                   </View>
                   <TouchableOpacity 
                     style={styles.realtorChatBtn}
@@ -533,7 +540,7 @@ export default function PropertyDetailScreen() {
         onWhatsApp={handleWhatsApp}
         onChat={handleStartChat}
         isStartingChat={isStartingChat}
-        realtorName={property?.realtor?.user?.firstName || myApplication?.realtor?.user?.firstName || 'Realtor'}
+        realtorName={property?.realtorContact?.name || property?.realtor?.user?.firstName || myApplication?.realtor?.user?.firstName || 'Realtor'}
       />
 
       {/* ── Payment WebView Modal ── */}

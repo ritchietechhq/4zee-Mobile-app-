@@ -21,6 +21,7 @@ import { usePropertyStore } from '@/store/property.store';
 import { useDashboard } from '@/hooks/useDashboard';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useTheme } from '@/hooks/useTheme';
+import { messagingService } from '@/services/messaging.service';
 import { PropertyCard } from '@/components/property/PropertyCard';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { Skeleton } from '@/components/ui/Skeleton';
@@ -66,17 +67,28 @@ export default function DashboardScreen() {
 
   const [refreshing, setRefreshing] = useState(false);
   const [activeFilter, setActiveFilter] = useState<PropertyType | undefined>(undefined);
+  const [unreadMessages, setUnreadMessages] = useState(0);
 
   const headerAnim = useRef(new Animated.Value(0)).current;
   const contentAnim = useRef(new Animated.Value(0)).current;
 
   const dynamicStyles = useMemo(() => createStyles(colors), [colors]);
 
+  const fetchUnreadMessages = useCallback(async () => {
+    try {
+      const count = await messagingService.getUnreadCount();
+      setUnreadMessages(count);
+    } catch {
+      // Silent fail
+    }
+  }, []);
+
   useEffect(() => {
     fetchFeatured();
     searchProperties();
     fetchClientDashboard();
     fetchUnreadCount();
+    fetchUnreadMessages();
     Animated.stagger(120, [
       Animated.spring(headerAnim, { toValue: 1, useNativeDriver: true, tension: 60, friction: 12 }),
       Animated.spring(contentAnim, { toValue: 1, useNativeDriver: true, tension: 50, friction: 12 }),
@@ -85,9 +97,9 @@ export default function DashboardScreen() {
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await Promise.all([fetchFeatured(), searchProperties(), fetchClientDashboard(), fetchUnreadCount()]);
+    await Promise.all([fetchFeatured(), searchProperties(), fetchClientDashboard(), fetchUnreadCount(), fetchUnreadMessages()]);
     setRefreshing(false);
-  }, []);
+  }, [fetchUnreadMessages]);
 
   const handleFilterPress = (type: PropertyType | undefined) => {
     setActiveFilter(type);
@@ -130,19 +142,36 @@ export default function DashboardScreen() {
             <Text style={dynamicStyles.greetingName}>{firstName}</Text>
           </View>
         </TouchableOpacity>
-        <TouchableOpacity
-          style={dynamicStyles.notificationBtn}
-          onPress={() => router.push('/notifications')}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          activeOpacity={0.75}
-        >
-          <Ionicons name="notifications-outline" size={22} color={colors.textPrimary} />
-          {unreadCount > 0 && (
-            <View style={dynamicStyles.notifBadge}>
-              <Text style={dynamicStyles.notifBadgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
-            </View>
-          )}
-        </TouchableOpacity>
+        <View style={dynamicStyles.headerRight}>
+          {/* Messages icon */}
+          <TouchableOpacity
+            style={dynamicStyles.headerIconBtn}
+            onPress={() => router.push('/(client)/messages' as never)}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            activeOpacity={0.75}
+          >
+            <Ionicons name="chatbubble-ellipses-outline" size={21} color={colors.textPrimary} />
+            {unreadMessages > 0 && (
+              <View style={dynamicStyles.notifBadge}>
+                <Text style={dynamicStyles.notifBadgeText}>{unreadMessages > 9 ? '9+' : unreadMessages}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+          {/* Notifications icon */}
+          <TouchableOpacity
+            style={dynamicStyles.headerIconBtn}
+            onPress={() => router.push('/notifications')}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            activeOpacity={0.75}
+          >
+            <Ionicons name="notifications-outline" size={22} color={colors.textPrimary} />
+            {unreadCount > 0 && (
+              <View style={dynamicStyles.notifBadge}>
+                <Text style={dynamicStyles.notifBadgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        </View>
       </Animated.View>
 
       <ScrollView
@@ -618,6 +647,22 @@ const createStyles = (colors: any) =>
       color: colors.textPrimary,
       marginTop: 1,
       letterSpacing: -0.3,
+    },
+    headerRight: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: Spacing.sm,
+    },
+    headerIconBtn: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      backgroundColor: colors.surface,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 1,
+      borderColor: colors.border,
+      ...Shadows.sm,
     },
     notificationBtn: {
       width: 46,
