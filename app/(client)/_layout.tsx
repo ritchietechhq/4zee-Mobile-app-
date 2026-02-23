@@ -25,7 +25,8 @@ const HIDDEN_ROUTES = [
   'privacy',
   'terms',
   'payments',
-  'messages',
+  'messages/index',
+  'messages/[id]',
 ] as const;
 
 export default function ClientLayout() {
