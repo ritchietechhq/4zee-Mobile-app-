@@ -3,19 +3,33 @@ import { StyleSheet, View, Platform } from 'react-native';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/hooks/useTheme';
-import { Spacing, Shadows, Typography } from '@/constants/theme';
+import { Spacing, Shadows } from '@/constants/theme';
 
 const TAB_CONFIG = [
   { name: 'dashboard', title: 'Home', icon: 'home' },
-  { name: 'search', title: 'Search', icon: 'search' },
+  { name: 'search', title: 'Explore', icon: 'search' },
   { name: 'saved', title: 'Saved', icon: 'heart' },
   { name: 'map', title: 'Map', icon: 'map' },
   { name: 'profile', title: 'Profile', icon: 'person' },
 ] as const;
 
+/* Routes that live under the (client) folder but must NOT appear as tab items */
+const HIDDEN_ROUTES = [
+  'properties',
+  'edit-profile',
+  'inquiries',
+  'change-password',
+  'notifications',
+  'help',
+  'support',
+  'privacy',
+  'terms',
+  'payments',
+  'messages',
+] as const;
+
 export default function ClientLayout() {
   const { colors } = useTheme();
-
   const dynamicStyles = useMemo(() => createStyles(colors), [colors]);
 
   return (
@@ -35,11 +49,11 @@ export default function ClientLayout() {
           name={tab.name}
           options={{
             title: tab.title,
-            tabBarIcon: ({ focused, color, size }) => (
+            tabBarIcon: ({ focused, color }) => (
               <View style={[dynamicStyles.iconWrap, focused && dynamicStyles.iconWrapActive]}>
                 <Ionicons
                   name={focused ? (tab.icon as any) : (`${tab.icon}-outline` as any)}
-                  size={22}
+                  size={21}
                   color={color}
                 />
               </View>
@@ -47,18 +61,15 @@ export default function ClientLayout() {
           }}
         />
       ))}
-      {/* Hidden screens - accessible via navigation but not shown in tab bar */}
-      <Tabs.Screen name="properties" options={{ href: null }} />
-      <Tabs.Screen name="edit-profile" options={{ href: null }} />
-      <Tabs.Screen name="inquiries" options={{ href: null }} />
-      <Tabs.Screen name="change-password" options={{ href: null }} />
-      <Tabs.Screen name="notifications" options={{ href: null }} />
-      <Tabs.Screen name="help" options={{ href: null }} />
-      <Tabs.Screen name="support" options={{ href: null }} />
-      <Tabs.Screen name="privacy" options={{ href: null }} />
-      <Tabs.Screen name="terms" options={{ href: null }} />
-      <Tabs.Screen name="payments" options={{ href: null }} />
-      <Tabs.Screen name="messages" options={{ href: null }} />
+
+      {/* ── Every non-tab child MUST be declared with href: null ── */}
+      {HIDDEN_ROUTES.map((name) => (
+        <Tabs.Screen
+          key={name}
+          name={name}
+          options={{ href: null, tabBarStyle: { display: 'none' } }}
+        />
+      ))}
     </Tabs>
   );
 }
@@ -66,7 +77,7 @@ export default function ClientLayout() {
 const createStyles = (colors: any) =>
   StyleSheet.create({
     tabBar: {
-      backgroundColor: colors.tabBarBackground,
+      backgroundColor: colors.tabBarBackground ?? colors.surface,
       borderTopWidth: 1,
       borderTopColor: colors.border,
       height: Platform.OS === 'ios' ? 88 : 64,
