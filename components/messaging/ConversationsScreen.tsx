@@ -83,9 +83,11 @@ export default function ConversationsScreen() {
   }, [fetchConversations]);
 
   const openChat = (conversation: Conversation) => {
-    const firstName = conversation.participant?.firstName ?? '';
-    const lastName = conversation.participant?.lastName ?? '';
-    const participantName = `${firstName} ${lastName}`.trim() || 'Realtor';
+    const p = conversation.participant;
+    const participantName =
+      p?.name && p.name !== 'Unknown'
+        ? p.name
+        : `${p?.firstName ?? ''} ${p?.lastName ?? ''}`.trim() || 'Realtor';
     const route = isRealtor ? '/(realtor)/messages/[id]' : '/(client)/messages/[id]';
     
     router.push({
@@ -103,12 +105,18 @@ export default function ConversationsScreen() {
   };
 
   const renderConversation = ({ item }: { item: Conversation }) => {
+    const pName = item.participant?.name;
     const firstName = item.participant?.firstName ?? '';
     const lastName = item.participant?.lastName ?? '';
-    const name = `${firstName} ${lastName}`.trim() || item.propertyTitle?.replace('Inquiry: ', '') || 'Realtor';
+    const name =
+      pName && pName !== 'Unknown'
+        ? pName
+        : `${firstName} ${lastName}`.trim() || item.propertyTitle?.replace('Inquiry: ', '') || 'Realtor';
     const initial = firstName?.charAt(0)?.toUpperCase() || name.charAt(0)?.toUpperCase() || '?';
     const hasUnread = item.unreadCount > 0;
-    const lastMsg = item.lastMessage?.content || 'No messages yet';
+    const lastMsg = item.lastMessage?.isVoiceNote
+      ? '🎤 Voice message'
+      : item.lastMessage?.content || 'No messages yet';
     const time = timeAgo(item.lastMessage?.createdAt || item.updatedAt || '');
     const propertyImage = item.property?.images?.[0];
 

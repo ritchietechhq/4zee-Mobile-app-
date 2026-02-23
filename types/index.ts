@@ -136,6 +136,8 @@ export type {
   ConversationProperty,
   Conversation,
   MessageType,
+  MessageSender,
+  MessagePropertyContext,
   Message,
   SendMessageRequest,
   StartConversationRequest,

@@ -1,11 +1,12 @@
 // ============================================================
-// Chat Screen — Enhanced messaging UX
-// ✓ Optimistic sends (instant feel, no flicker)
-// ✓ Proper participant name resolution (no "Unknown")
-// ✓ Property context card for realtor awareness
-// ✓ Voice recording via expo-av
-// ✓ Smart polling that preserves optimistic messages
-// ✓ Polished animations, read receipts, date labels
+// Chat Screen — Full backend alignment
+// ✓ Uses isMine flag from backend (no guessing senderId)
+// ✓ Uses sender.name for display
+// ✓ Real voice upload → POST /uploads/direct → send VOICE_NOTE
+// ✓ Voice playback via expo-av Sound
+// ✓ Property context card from conversation.property
+// ✓ Smart optimistic sends with pending tracking
+// ✓ otherParticipant name, email, phone for header
 // ============================================================
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -55,31 +56,25 @@ function formatDuration(seconds: number): string {
 }
 
 /**
- * Robust participant name resolution:
- * 1. Nav param → 2. Conversation participant → 3. Subject → 4. Fallback
+ * Robust name resolution: nav param → otherParticipant → subject → fallback
  */
 function getParticipantDisplayName(
   nameParam: string | undefined,
   conversation: Conversation | null,
 ): string {
-  // 1. Try the name passed via navigation
   if (nameParam && nameParam !== 'Unknown' && nameParam.trim() !== '') {
     return nameParam.trim();
   }
-
-  // 2. Try conversation participant
   const p = conversation?.participant;
   if (p) {
+    // Prefer the `name` field from otherParticipant
+    if (p.name && p.name !== 'Unknown') return p.name;
     const full = `${p.firstName ?? ''} ${p.lastName ?? ''}`.trim();
     if (full && full !== 'Unknown') return full;
   }
-
-  // 3. Try extracting from subject
   if (conversation?.subject) {
     return conversation.subject.replace('Inquiry: ', '').substring(0, 30);
   }
-
-  // 4. Fallback
   return 'Realtor';
 }
 
@@ -120,7 +115,7 @@ export default function ChatScreen() {
   const [hasMore, setHasMore] = useState(false);
   const flatListRef = useRef<FlatList>(null);
 
-  // Track pending optimistic IDs so polling doesn't wipe them
+  // Optimistic tracking
   const pendingOptimisticIds = useRef<Set<string>>(new Set());
   const isSendingRef = useRef(false);
 
@@ -130,6 +125,11 @@ export default function ChatScreen() {
   const recordingRef = useRef<Audio.Recording | null>(null);
   const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [showVoiceUI, setShowVoiceUI] = useState(false);
+  const [isUploadingVoice, setIsUploadingVoice] = useState(false);
+
+  // Voice playback
+  const [playingMsgId, setPlayingMsgId] = useState<string | null>(null);
+  const soundRef = useRef<Audio.Sound | null>(null);
 
   // Animations
   const sendAnim = useRef(new Animated.Value(0)).current;
@@ -138,80 +138,73 @@ export default function ChatScreen() {
 
   // ── Init ──
   useEffect(() => {
-    if (user?.id) {
-      messagingService.setCurrentUserId(user.id);
-    }
+    if (user?.id) messagingService.setCurrentUserId(user.id);
   }, [user?.id]);
 
   // ── Fetch Messages (smart merge) ──
-  const fetchMessages = useCallback(async (loadMore = false) => {
-    if (!conversationId) return;
-    try {
-      if (!loadMore) {
-        const data = isRealtor
-          ? await messagingService.getRealtorConversation(conversationId)
-          : await messagingService.getConversation(conversationId);
+  const fetchMessages = useCallback(
+    async (loadMore = false) => {
+      if (!conversationId) return;
+      try {
+        if (!loadMore) {
+          const data = isRealtor
+            ? await messagingService.getRealtorConversation(conversationId)
+            : await messagingService.getConversation(conversationId);
 
-        setConversation(data.conversation);
-        const serverMessages = data.messages.reverse(); // newest-first for inverted list
+          setConversation(data.conversation);
+          const serverMessages = data.messages.reverse();
 
-        // Smart merge: keep any optimistic messages the server hasn't confirmed yet
-        setMessages((prev) => {
-          if (pendingOptimisticIds.current.size === 0) {
-            return serverMessages;
-          }
-          const serverIds = new Set(serverMessages.map((m) => m.id));
-          const pendingMessages = prev.filter(
-            (m) => pendingOptimisticIds.current.has(m.id) && !serverIds.has(m.id),
-          );
-          return [...pendingMessages, ...serverMessages];
-        });
+          setMessages((prev) => {
+            if (pendingOptimisticIds.current.size === 0) return serverMessages;
+            const serverIds = new Set(serverMessages.map((m) => m.id));
+            const pending = prev.filter(
+              (m) => pendingOptimisticIds.current.has(m.id) && !serverIds.has(m.id),
+            );
+            return [...pending, ...serverMessages];
+          });
 
-        // Mark as read silently
-        messagingService.markAsRead(conversationId).catch(() => {});
-      } else {
-        const res = await messagingService.getMessages(conversationId, cursor, 30);
-        setMessages((prev) => [...prev, ...res.items]);
-        setCursor(res.pagination?.nextCursor ?? undefined);
-        setHasMore(res.pagination?.hasNext ?? false);
+          messagingService.markAsRead(conversationId).catch(() => {});
+        } else {
+          const res = await messagingService.getMessages(conversationId, cursor, 30);
+          setMessages((prev) => [...prev, ...res.items]);
+          setCursor(res.pagination?.nextCursor ?? undefined);
+          setHasMore(res.pagination?.hasNext ?? false);
+        }
+      } catch (e) {
+        if (__DEV__) console.warn('[Chat] fetch error', e);
       }
-    } catch (e) {
-      if (__DEV__) console.warn('[Chat] fetch error', e);
-    }
-  }, [conversationId, cursor, isRealtor]);
+    },
+    [conversationId, cursor, isRealtor],
+  );
 
   useEffect(() => {
     setIsLoading(true);
     fetchMessages(false).finally(() => setIsLoading(false));
 
-    // Poll every 6s — skip while sending to prevent flicker
     const interval = setInterval(() => {
-      if (!isSendingRef.current) {
-        fetchMessages(false);
-      }
+      if (!isSendingRef.current) fetchMessages(false);
     }, 6_000);
 
     return () => clearInterval(interval);
   }, [conversationId]);
 
-  // ── Send Message ──
+  // ── Send Text Message ──
   const sendMessage = async (content?: string) => {
     const text = (content || inputText).trim();
     if (!text || !conversationId) return;
-    if (isSendingRef.current) return; // block double sends
+    if (isSendingRef.current) return;
 
     isSendingRef.current = true;
     setIsSending(true);
     setInputText('');
-
     Vibration.vibrate(10);
 
-    // Optimistic insert
     const optimisticId = `_opt_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
     const optimistic: Message = {
       id: optimisticId,
       content: text,
       senderId: user?.id || '',
+      isMine: true,
       createdAt: new Date().toISOString(),
       type: 'RESPONSE',
       isRead: false,
@@ -230,13 +223,9 @@ export default function ChatScreen() {
         ? await messagingService.realtorReply(conversationId, { content: text, type: 'RESPONSE' })
         : await messagingService.sendMessage(conversationId, { content: text, type: 'RESPONSE' });
 
-      // Replace optimistic with real
       pendingOptimisticIds.current.delete(optimisticId);
-      setMessages((prev) =>
-        prev.map((m) => (m.id === optimisticId ? sent : m)),
-      );
+      setMessages((prev) => prev.map((m) => (m.id === optimisticId ? sent : m)));
     } catch (e) {
-      // Revert on failure
       pendingOptimisticIds.current.delete(optimisticId);
       setMessages((prev) => prev.filter((m) => m.id !== optimisticId));
       setInputText(text);
@@ -245,6 +234,63 @@ export default function ChatScreen() {
     } finally {
       isSendingRef.current = false;
       setIsSending(false);
+    }
+  };
+
+  // ── Send Voice Note (real upload) ──
+  const sendVoiceNote = async (uri: string, duration: number) => {
+    if (!conversationId || !uri) return;
+    if (isSendingRef.current) return;
+
+    isSendingRef.current = true;
+    setIsSending(true);
+    setIsUploadingVoice(true);
+    Vibration.vibrate(10);
+
+    const optimisticId = `_opt_voice_${Date.now()}`;
+    const optimistic: Message = {
+      id: optimisticId,
+      content: '',
+      senderId: user?.id || '',
+      isMine: true,
+      createdAt: new Date().toISOString(),
+      type: 'VOICE_NOTE',
+      isVoiceNote: true,
+      voiceDuration: duration,
+      isRead: false,
+    };
+
+    pendingOptimisticIds.current.add(optimisticId);
+    setMessages((prev) => [optimistic, ...prev]);
+
+    try {
+      // 1. Upload voice file
+      const voiceNoteUrl = await messagingService.uploadVoiceNote(uri);
+
+      // 2. Send message with voice note fields
+      const payload = {
+        content: '',
+        type: 'VOICE_NOTE' as const,
+        voiceNoteUrl,
+        isVoiceNote: true,
+        voiceDuration: duration,
+      };
+
+      const sent = isRealtor
+        ? await messagingService.realtorReply(conversationId, payload)
+        : await messagingService.sendMessage(conversationId, payload);
+
+      pendingOptimisticIds.current.delete(optimisticId);
+      setMessages((prev) => prev.map((m) => (m.id === optimisticId ? sent : m)));
+    } catch (e) {
+      pendingOptimisticIds.current.delete(optimisticId);
+      setMessages((prev) => prev.filter((m) => m.id !== optimisticId));
+      Alert.alert('Send Failed', 'Voice note could not be sent. Please try again.');
+      if (__DEV__) console.warn('[Chat] voice send error', e);
+    } finally {
+      isSendingRef.current = false;
+      setIsSending(false);
+      setIsUploadingVoice(false);
     }
   };
 
@@ -279,7 +325,6 @@ export default function ChatScreen() {
         setRecordingDuration((d) => d + 1);
       }, 1000);
 
-      // Pulse animation
       Animated.loop(
         Animated.sequence([
           Animated.timing(voicePulse, { toValue: 1.3, duration: 600, useNativeDriver: true }),
@@ -313,9 +358,8 @@ export default function ChatScreen() {
       clearRecordingState();
 
       if (uri && duration >= 1) {
-        // Send as text note with voice indicator
-        const voiceText = `🎤 Voice message (${formatDuration(duration)})`;
-        await sendMessage(voiceText);
+        // Upload + send as real VOICE_NOTE
+        await sendVoiceNote(uri, duration);
       }
 
       await Audio.setAudioModeAsync({ allowsRecordingIOS: false });
@@ -336,19 +380,58 @@ export default function ChatScreen() {
     }
   };
 
+  // ── Voice Playback ──
+  const playVoice = async (msg: Message) => {
+    const url = msg.voiceNoteUrl;
+    if (!url) return;
+
+    try {
+      // Stop any currently playing sound
+      if (soundRef.current) {
+        await soundRef.current.stopAsync();
+        await soundRef.current.unloadAsync();
+        soundRef.current = null;
+      }
+
+      if (playingMsgId === msg.id) {
+        setPlayingMsgId(null);
+        return;
+      }
+
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: false,
+        playsInSilentModeIOS: true,
+      });
+
+      const { sound } = await Audio.Sound.createAsync({ uri: url });
+      soundRef.current = sound;
+      setPlayingMsgId(msg.id);
+
+      sound.setOnPlaybackStatusUpdate((status) => {
+        if (status.isLoaded && status.didJustFinish) {
+          setPlayingMsgId(null);
+          sound.unloadAsync();
+          soundRef.current = null;
+        }
+      });
+
+      await sound.playAsync();
+    } catch (e) {
+      if (__DEV__) console.warn('[Voice] play error', e);
+      setPlayingMsgId(null);
+    }
+  };
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      if (recordingRef.current) {
-        recordingRef.current.stopAndUnloadAsync().catch(() => {});
-      }
-      if (recordingTimerRef.current) {
-        clearInterval(recordingTimerRef.current);
-      }
+      if (recordingRef.current) recordingRef.current.stopAndUnloadAsync().catch(() => {});
+      if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
+      if (soundRef.current) soundRef.current.unloadAsync().catch(() => {});
     };
   }, []);
 
-  // Animate input bar in after load
+  // Animate input bar
   useEffect(() => {
     if (!isLoading) {
       Animated.spring(inputBarAnim, {
@@ -363,15 +446,20 @@ export default function ChatScreen() {
   // ── Render Message ──
   const renderMessage = useCallback(
     ({ item, index }: { item: Message; index: number }) => {
-      const isMe = item.senderId === user?.id;
+      // Use isMine from backend when available, fallback to senderId check
+      const isMe = item.isMine ?? item.senderId === user?.id;
       const isOptimistic = item.id.startsWith('_opt_');
-      const prevMsg = messages[index + 1]; // inverted list
+      const prevMsg = messages[index + 1];
       const showDateLabel =
         !prevMsg ||
         new Date(item.createdAt).toDateString() !== new Date(prevMsg.createdAt).toDateString();
 
       const showRead = isMe && index === 0 && item.isRead;
-      const isVoice = item.content?.startsWith('🎤');
+      const isVoice = item.isVoiceNote || item.type === 'VOICE_NOTE';
+      const isPlaying = playingMsgId === item.id;
+
+      // Sender display: use sender.name from backend
+      const senderDisplay = item.sender?.name ?? item.senderName;
 
       return (
         <>
@@ -395,33 +483,49 @@ export default function ChatScreen() {
               </View>
             )}
 
-            {/* Sender name */}
-            {!isMe && item.senderName && (
-              <Text style={styles.senderName}>{item.senderName}</Text>
+            {/* Sender name (from backend sender.name) */}
+            {!isMe && senderDisplay && (
+              <Text style={styles.senderName}>{senderDisplay}</Text>
             )}
 
-            {/* Voice message UI */}
+            {/* Voice note UI */}
             {isVoice ? (
-              <View style={styles.voiceMessageRow}>
-                <Ionicons name="mic" size={18} color={isMe ? colors.white : colors.primary} />
+              <TouchableOpacity
+                style={styles.voiceMessageRow}
+                onPress={() => playVoice(item)}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.voicePlayBtn, isMe && styles.voicePlayBtnMe]}>
+                  <Ionicons
+                    name={isPlaying ? 'pause' : 'play'}
+                    size={18}
+                    color={isMe ? colors.primary : colors.white}
+                  />
+                </View>
                 <View style={styles.voiceWaveform}>
-                  {Array.from({ length: 16 }).map((_, i) => (
+                  {Array.from({ length: 20 }).map((_, i) => (
                     <View
                       key={i}
                       style={[
                         styles.waveBar,
                         {
-                          height: 4 + Math.random() * 16,
-                          backgroundColor: isMe ? 'rgba(255,255,255,0.7)' : colors.primary + '80',
+                          height: 4 + Math.sin(i * 0.8) * 12 + Math.random() * 4,
+                          backgroundColor: isMe ? 'rgba(255,255,255,0.6)' : colors.primary + '70',
+                          opacity: isPlaying ? 1 : 0.7,
                         },
                       ]}
                     />
                   ))}
                 </View>
-                <Text style={[styles.voiceDuration, isMe ? styles.bubbleTimeMe : styles.bubbleTimeThem]}>
-                  {item.content.match(/\(([^)]+)\)/)?.[1] || '0:00'}
+                <Text
+                  style={[
+                    styles.voiceDurationLabel,
+                    isMe ? styles.bubbleTimeMe : styles.bubbleTimeThem,
+                  ]}
+                >
+                  {formatDuration(item.voiceDuration ?? 0)}
                 </Text>
-              </View>
+              </TouchableOpacity>
             ) : (
               <Text style={[styles.bubbleText, isMe ? styles.bubbleTextMe : styles.bubbleTextThem]}>
                 {item.content}
@@ -435,7 +539,11 @@ export default function ChatScreen() {
               {isMe && (
                 <Ionicons
                   name={
-                    isOptimistic ? 'time-outline' : showRead ? 'checkmark-done' : 'checkmark'
+                    isOptimistic
+                      ? 'time-outline'
+                      : showRead
+                        ? 'checkmark-done'
+                        : 'checkmark'
                   }
                   size={14}
                   color={
@@ -453,7 +561,7 @@ export default function ChatScreen() {
         </>
       );
     },
-    [messages, user?.id, colors, styles],
+    [messages, user?.id, colors, styles, playingMsgId],
   );
 
   // ── Property Context Card ──
@@ -466,7 +574,6 @@ export default function ChatScreen() {
 
   const renderPropertyCard = () => {
     if (!propTitle) return null;
-
     return (
       <TouchableOpacity
         style={styles.propertyCard}
@@ -488,19 +595,19 @@ export default function ChatScreen() {
           </View>
         )}
         <View style={styles.propertyCardBody}>
-          <View style={styles.propertyCardInfo}>
-            <Text style={styles.propertyCardTitle} numberOfLines={1}>{propTitle}</Text>
-            {propLocation && (
-              <View style={styles.propertyCardRow}>
-                <Ionicons name="location-outline" size={11} color={colors.textMuted} />
-                <Text style={styles.propertyCardLocation} numberOfLines={1}>{propLocation}</Text>
-              </View>
-            )}
-          </View>
+          <Text style={styles.propertyCardTitle} numberOfLines={1}>
+            {propTitle}
+          </Text>
+          {propLocation && (
+            <View style={styles.propertyCardRow}>
+              <Ionicons name="location-outline" size={11} color={colors.textMuted} />
+              <Text style={styles.propertyCardLocation} numberOfLines={1}>
+                {propLocation}
+              </Text>
+            </View>
+          )}
           {propPrice && Number(propPrice) > 0 && (
-            <Text style={styles.propertyCardPrice}>
-              {formatCurrency(Number(propPrice))}
-            </Text>
+            <Text style={styles.propertyCardPrice}>{formatCurrency(Number(propPrice))}</Text>
           )}
         </View>
         <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
@@ -510,6 +617,7 @@ export default function ChatScreen() {
 
   // ── Display Info ──
   const displayName = getParticipantDisplayName(participantName, conversation);
+  const participant = conversation?.participant;
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -521,9 +629,9 @@ export default function ChatScreen() {
 
         <TouchableOpacity style={styles.headerCenter} activeOpacity={0.7}>
           <View style={styles.headerAvatar}>
-            {conversation?.participant?.profilePicture ? (
+            {participant?.profilePicture ? (
               <Image
-                source={{ uri: conversation.participant.profilePicture }}
+                source={{ uri: participant.profilePicture }}
                 style={styles.headerAvatarImg}
                 contentFit="cover"
               />
@@ -535,18 +643,37 @@ export default function ChatScreen() {
             <View style={styles.headerOnline} />
           </View>
           <View style={styles.headerInfo}>
-            <Text style={styles.headerName} numberOfLines={1}>{displayName}</Text>
+            <Text style={styles.headerName} numberOfLines={1}>
+              {displayName}
+            </Text>
             <Text style={styles.headerRole} numberOfLines={1}>
-              {isRealtor ? 'Client' : 'Realtor'}
+              {participant?.role === 'REALTOR'
+                ? 'Realtor'
+                : participant?.role === 'CLIENT'
+                  ? 'Client'
+                  : isRealtor
+                    ? 'Client'
+                    : 'Realtor'}
               {propTitle ? ` • ${propTitle}` : ''}
             </Text>
           </View>
         </TouchableOpacity>
 
         <View style={styles.headerActions}>
-          <TouchableOpacity style={styles.headerActionBtn}>
-            <Ionicons name="call-outline" size={20} color={colors.primary} />
-          </TouchableOpacity>
+          {participant?.phone && (
+            <TouchableOpacity
+              style={styles.headerActionBtn}
+              onPress={() => {
+                const phone = participant?.phone;
+                if (phone) {
+                  const url = `tel:${phone}`;
+                  import('react-native').then(({ Linking }) => Linking.openURL(url));
+                }
+              }}
+            >
+              <Ionicons name="call-outline" size={20} color={colors.primary} />
+            </TouchableOpacity>
+          )}
           <TouchableOpacity style={styles.headerActionBtn}>
             <Ionicons name="ellipsis-vertical" size={20} color={colors.textPrimary} />
           </TouchableOpacity>
@@ -625,7 +752,11 @@ export default function ChatScreen() {
             </View>
 
             <TouchableOpacity onPress={finishRecording} style={styles.voiceSendBtn}>
-              <Ionicons name="send" size={22} color={colors.white} />
+              {isUploadingVoice ? (
+                <ActivityIndicator size="small" color={colors.white} />
+              ) : (
+                <Ionicons name="send" size={22} color={colors.white} />
+              )}
               <Text style={styles.voiceSendText}>Send</Text>
             </TouchableOpacity>
           </View>
@@ -710,7 +841,7 @@ const makeStyles = (colors: ThemeColors) =>
     container: { flex: 1, backgroundColor: colors.background },
     kav: { flex: 1 },
 
-    // ── Header ──
+    // Header
     header: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -768,7 +899,7 @@ const makeStyles = (colors: ThemeColors) =>
       justifyContent: 'center',
     },
 
-    // ── Property Context Card ──
+    // Property Context Card
     propertyCard: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -788,38 +919,19 @@ const makeStyles = (colors: ThemeColors) =>
       borderRadius: BorderRadius.md,
       backgroundColor: colors.borderLight,
     },
-    propertyCardImagePlaceholder: {
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
+    propertyCardImagePlaceholder: { alignItems: 'center', justifyContent: 'center' },
     propertyCardBody: { flex: 1, marginLeft: Spacing.sm },
-    propertyCardInfo: { flex: 1 },
-    propertyCardTitle: {
-      ...Typography.bodySemiBold,
-      color: colors.textPrimary,
-      fontSize: 13,
-    },
+    propertyCardTitle: { ...Typography.bodySemiBold, color: colors.textPrimary, fontSize: 13 },
     propertyCardRow: { flexDirection: 'row', alignItems: 'center', marginTop: 2 },
-    propertyCardLocation: {
-      ...Typography.small,
-      color: colors.textMuted,
-      marginLeft: 3,
-      fontSize: 11,
-    },
-    propertyCardPrice: {
-      ...Typography.bodySemiBold,
-      color: colors.primary,
-      fontSize: 13,
-      marginTop: 2,
-    },
+    propertyCardLocation: { ...Typography.small, color: colors.textMuted, marginLeft: 3, fontSize: 11 },
+    propertyCardPrice: { ...Typography.bodySemiBold, color: colors.primary, fontSize: 13, marginTop: 2 },
 
-    // ── Loading ──
+    // Loading
     loadingWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
     loadingText: { ...Typography.body, color: colors.textMuted, marginTop: Spacing.md },
 
-    // ── Messages ──
+    // Messages
     messagesContent: { paddingHorizontal: Spacing.md, paddingBottom: Spacing.sm },
-
     dateLabelWrap: { alignItems: 'center', marginVertical: Spacing.md },
     dateLabel: {
       ...Typography.small,
@@ -869,12 +981,7 @@ const makeStyles = (colors: ThemeColors) =>
       marginLeft: 4,
       fontSize: 10,
     },
-    senderName: {
-      ...Typography.small,
-      color: colors.primary,
-      fontWeight: '600',
-      marginBottom: 2,
-    },
+    senderName: { ...Typography.small, color: colors.primary, fontWeight: '600', marginBottom: 2 },
     bubbleText: { ...Typography.body, lineHeight: 22 },
     bubbleTextMe: { color: colors.white },
     bubbleTextThem: { color: colors.textPrimary },
@@ -888,24 +995,36 @@ const makeStyles = (colors: ThemeColors) =>
     bubbleTimeMe: { color: 'rgba(255,255,255,0.7)' },
     bubbleTimeThem: { color: colors.textMuted },
 
-    // ── Voice Message ──
+    // Voice Message Bubble
     voiceMessageRow: {
       flexDirection: 'row',
       alignItems: 'center',
       paddingVertical: 4,
+      minWidth: 180,
+    },
+    voicePlayBtn: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: colors.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    voicePlayBtnMe: {
+      backgroundColor: 'rgba(255,255,255,0.25)',
     },
     voiceWaveform: {
       flex: 1,
       flexDirection: 'row',
       alignItems: 'center',
       marginHorizontal: 8,
-      height: 24,
+      height: 28,
       gap: 2,
     },
     waveBar: { width: 3, borderRadius: 2 },
-    voiceDuration: { ...Typography.small, fontSize: 12, fontWeight: '500' },
+    voiceDurationLabel: { ...Typography.small, fontSize: 12, fontWeight: '500', minWidth: 32 },
 
-    // ── Empty ──
+    // Empty
     emptyChat: {
       alignItems: 'center',
       justifyContent: 'center',
@@ -929,7 +1048,7 @@ const makeStyles = (colors: ThemeColors) =>
       paddingHorizontal: Spacing.xxl,
     },
 
-    // ── Input Bar ──
+    // Input Bar
     inputBar: {
       flexDirection: 'row',
       alignItems: 'flex-end',
@@ -971,7 +1090,7 @@ const makeStyles = (colors: ThemeColors) =>
       marginLeft: Spacing.xs,
     },
 
-    // ── Voice Overlay ──
+    // Voice Overlay
     voiceOverlay: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -983,12 +1102,7 @@ const makeStyles = (colors: ThemeColors) =>
       backgroundColor: colors.background,
     },
     voiceCancelBtn: { alignItems: 'center', justifyContent: 'center' },
-    voiceCancelText: {
-      ...Typography.small,
-      color: colors.error,
-      marginTop: 4,
-      fontWeight: '600',
-    },
+    voiceCancelText: { ...Typography.small, color: colors.error, marginTop: 4, fontWeight: '600' },
     voiceCenter: { alignItems: 'center', justifyContent: 'center' },
     voiceRecordingCircle: {
       width: 64,
@@ -999,11 +1113,7 @@ const makeStyles = (colors: ThemeColors) =>
       justifyContent: 'center',
       marginBottom: 8,
     },
-    voiceDurationText: {
-      ...Typography.bodySemiBold,
-      color: colors.textPrimary,
-      fontSize: 18,
-    },
+    voiceDurationText: { ...Typography.bodySemiBold, color: colors.textPrimary, fontSize: 18 },
     voiceRecordingLabel: { ...Typography.small, color: colors.error, marginTop: 2 },
     voiceSendBtn: {
       alignItems: 'center',
