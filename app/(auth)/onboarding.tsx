@@ -31,9 +31,9 @@ const slides: Slide[] = [
   {
     id: '1',
     icon: 'home-outline',
-    title: 'Discover Premium\nProperties',
+    title: 'Welcome to 4Zee\nProperties',
     description:
-      'Browse curated property listings across Nigeria.\nFind your dream home or next big investment.',
+      'Discover premium properties across Nigeria.\nFind your dream home or next big investment with 4Zee.',
     iconColor: '#1E40AF',
     iconBg: '#DBEAFE',
   },
@@ -49,9 +49,9 @@ const slides: Slide[] = [
   {
     id: '3',
     icon: 'trending-up-outline',
-    title: 'Grow Your Real\nEstate Portfolio',
+    title: 'Grow With 4Zee\nProperties',
     description:
-      'Join as a realtor to earn commissions, manage\nclients, and scale your property business.',
+      'Join as a realtor to earn commissions, manage\nclients, and scale your property business with 4Zee.',
     iconColor: '#7C3AED',
     iconBg: '#EDE9FE',
   },
@@ -112,11 +112,13 @@ export default function OnboardingScreen() {
     <SafeAreaView style={styles.container}>
       {/* Top bar */}
       <View style={styles.topBar}>
-        <Image
-          source={require('../../assets/logo.png')}
-          style={styles.logo}
-          resizeMode="contain"
-        />
+        <View style={styles.logoContainer}>
+          <Image
+            source={require('../../assets/logo.png')}
+            style={styles.logo}
+            resizeMode="contain"
+          />
+        </View>
         {!isLast && (
           <TouchableOpacity
             onPress={handleSkip}
@@ -214,8 +216,19 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.sm,
   },
   logo: {
-    width: 48,
-    height: 48,
+    width: 70,
+    height: 70,
+  },
+  logoContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  appName: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: Colors.primary,
+    letterSpacing: 0.5,
   },
   skipButton: {
     paddingVertical: Spacing.sm,
