@@ -12,6 +12,7 @@ import { useThemeColors } from '@/hooks/useThemeColors';
 import type { ThemeColors } from '@/constants/colors';
 import { formatCurrency } from '@/utils/formatCurrency';
 import favoritesService from '@/services/favorites.service';
+import { showFavouriteToast } from '@/components/ui/FavouriteToast';
 
 interface PropertyCardProps {
   property: Property;
@@ -40,6 +41,7 @@ export function PropertyCard({ property, variant = 'vertical', isFavorite: initi
       const result = await favoritesService.toggle(property.id);
       setIsFavorite(result.isFavorite); // Sync with server
       onFavoriteChange?.(property.id, result.isFavorite);
+      showFavouriteToast({ title: property.title, action: result.action });
     } catch (error) {
       setIsFavorite(!optimistic); // Revert on error
       Alert.alert('Error', 'Failed to update favourite');

@@ -11,6 +11,7 @@ import { useTheme } from '@/hooks/useTheme';
 import { Colors } from '@/constants/theme';
 import AnimatedSplash from '@/components/splash/AnimatedSplash';
 import MessageNotificationToast from '@/components/messaging/MessageNotificationToast';
+import FavouriteToast from '@/components/ui/FavouriteToast';
 import { warmUpBackend } from '@/services/warmup.service';
 import { pushService } from '@/services/push.service';
 import { cacheService } from '@/services/cache.service';
@@ -151,6 +152,8 @@ export default function RootLayout() {
           </Stack>
           {/* Global in-app message notification toast */}
           <MessageNotificationToast />
+          {/* Global favourite save/remove toast */}
+          <FavouriteToast />
         </AuthGuard>
       </SafeAreaProvider>
     </GestureHandlerRootView>

@@ -10,6 +10,7 @@ import {
   Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/hooks/useTheme';
 import favoritesService from '@/services/favorites.service';
@@ -44,8 +45,14 @@ export default function SavedScreen() {
     }
   }, []);
 
+  // Re-fetch favourites every time this tab gains focus
+  useFocusEffect(
+    useCallback(() => {
+      fetchFavorites();
+    }, [fetchFavorites]),
+  );
+
   useEffect(() => {
-    fetchFavorites();
     Animated.spring(fadeAnim, { toValue: 1, useNativeDriver: true, tension: 50, friction: 12 }).start();
   }, []);
 

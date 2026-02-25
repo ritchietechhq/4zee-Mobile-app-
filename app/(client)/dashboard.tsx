@@ -16,11 +16,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
-import { useAuthStore } from '@/store/auth.store';``
+import { router, useFocusEffect } from 'expo-router';
+import { useAuthStore } from '@/store/auth.store';
 import { usePropertyStore } from '@/store/property.store';
+import { useNotificationStore } from '@/store/notification.store';
 import { useDashboard } from '@/hooks/useDashboard';
-import { useNotifications } from '@/hooks/useNotifications';
 import { useTheme } from '@/hooks/useTheme';
 import { messagingService } from '@/services/messaging.service';
 import { PropertyCard } from '@/components/property/PropertyCard';
@@ -40,13 +40,6 @@ const QUICK_FILTERS: { label: string; value: PropertyType | undefined; icon: key
   { label: 'Apartment', value: 'APARTMENT', icon: 'business-outline' },
   { label: 'Land', value: 'LAND', icon: 'layers-outline' },
   { label: 'Commercial', value: 'COMMERCIAL', icon: 'storefront-outline' },
-];
-
-// ── Market insight tiles (static/decorative — swap with real data if available)
-const MARKET_INSIGHTS = [
-  { label: 'Avg. Price', value: '₦45M', change: '+3.2%', up: true, icon: 'trending-up-outline' as keyof typeof Ionicons.glyphMap },
-  { label: 'New Listings', value: '128', change: '+12 today', up: true, icon: 'home-outline' as keyof typeof Ionicons.glyphMap },
-  { label: 'Avg. Days Listed', value: '21d', change: '-2 days', up: false, icon: 'time-outline' as keyof typeof Ionicons.glyphMap },
 ];
 
 function getGreeting(): string {
@@ -71,7 +64,7 @@ export default function DashboardScreen() {
     setFilters,
   } = usePropertyStore();
   const { clientData, isLoading: isDashLoading, fetchClientDashboard } = useDashboard();
-  const { unreadCount, fetchUnreadCount } = useNotifications();
+  const { unreadCount, fetchUnreadCount } = useNotificationStore();
 
   const [refreshing, setRefreshing] = useState(false);
   const [activeFilter, setActiveFilter] = useState<PropertyType | undefined>(undefined);
@@ -104,6 +97,14 @@ export default function DashboardScreen() {
       Animated.spring(contentAnim,{ toValue: 1, useNativeDriver: true, tension: 50, friction: 12 }),
     ]).start();
   }, []);
+
+  // Re-fetch badges when returning to the dashboard tab
+  useFocusEffect(
+    useCallback(() => {
+      fetchUnreadCount();
+      fetchUnreadMessages();
+    }, []),
+  );
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -241,11 +242,18 @@ export default function DashboardScreen() {
 
           {/* ── Quick Stats ── */}
           {clientData && (
-            <View style={dynamicStyles.statsRow}>
-              <StatCard icon="document-text-outline" label="Applications" value={clientData.applicationsSummary?.total ?? 0} color="#6366F1" bgColor="#EEF2FF" gradientColors={['#EEF2FF', '#E0E7FF'] as const} />
-              <StatCard icon="checkmark-circle-outline" label="Approved" value={clientData.applicationsSummary?.APPROVED ?? 0} color="#16A34A" bgColor="#DCFCE7" gradientColors={['#DCFCE7', '#BBF7D0'] as const} />
-              <StatCard icon="hourglass-outline" label="Pending" value={clientData.applicationsSummary?.PENDING ?? 0} color="#D97706" bgColor="#FEF3C7" gradientColors={['#FEF3C7', '#FDE68A'] as const} />
-            </View>
+            <>
+              <View style={dynamicStyles.statsRow}>
+                <StatCard icon="document-text-outline" label="Applications" value={clientData.applicationsSummary?.total ?? 0} color="#6366F1" bgColor="#EEF2FF" gradientColors={['#EEF2FF', '#E0E7FF'] as const} />
+                <StatCard icon="checkmark-circle-outline" label="Approved" value={clientData.applicationsSummary?.APPROVED ?? 0} color="#16A34A" bgColor="#DCFCE7" gradientColors={['#DCFCE7', '#BBF7D0'] as const} />
+                <StatCard icon="hourglass-outline" label="Pending" value={clientData.applicationsSummary?.PENDING ?? 0} color="#D97706" bgColor="#FEF3C7" gradientColors={['#FEF3C7', '#FDE68A'] as const} />
+              </View>
+              <View style={[dynamicStyles.statsRow, { marginTop: Spacing.sm }]}>
+                <StatCard icon="wallet-outline" label="Total Spent" value={formatCurrency(clientData.financials?.totalSpent ?? 0)} color="#0D9488" bgColor="#CCFBF1" gradientColors={['#CCFBF1', '#99F6E4'] as const} />
+                <StatCard icon="calendar-outline" label="Payment Plans" value={clientData.financials?.activePaymentPlans ?? 0} color="#8B5CF6" bgColor="#EDE9FE" gradientColors={['#EDE9FE', '#DDD6FE'] as const} />
+                <StatCard icon="close-circle-outline" label="Rejected" value={clientData.applicationsSummary?.REJECTED ?? 0} color="#DC2626" bgColor="#FEE2E2" gradientColors={['#FEE2E2', '#FECACA'] as const} />
+              </View>
+            </>
           )}
 
           {/* ── Quick Actions Row ── */}
@@ -403,7 +411,7 @@ function QuickActionBtn({
 }
 
 function StatCard({ icon, label, value, color, bgColor, gradientColors }: {
-  icon: keyof typeof Ionicons.glyphMap; label: string; value: number; color: string; bgColor: string; gradientColors: readonly [string, string, ...string[]];
+  icon: keyof typeof Ionicons.glyphMap; label: string; value: number | string; color: string; bgColor: string; gradientColors: readonly [string, string, ...string[]];
 }) {
   const { colors } = useTheme();
   const statStyles = useMemo(() => {
@@ -429,7 +437,7 @@ function StatCard({ icon, label, value, color, bgColor, gradientColors }: {
         overflow: 'hidden',
       },
       statValue: {
-        fontSize: 22,
+        fontSize: typeof value === 'string' && value.length > 6 ? 14 : 22,
         fontWeight: '700',
         color: colors.textPrimary,
         letterSpacing: -0.5,
@@ -441,7 +449,7 @@ function StatCard({ icon, label, value, color, bgColor, gradientColors }: {
         fontWeight: '500',
       },
     });
-  }, [colors]);
+  }, [colors, value]);
 
   return (
     <View style={statStyles.statCard}>

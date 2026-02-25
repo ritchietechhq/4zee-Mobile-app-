@@ -34,6 +34,7 @@ import { paymentService } from '@/services/payment.service';
 import { messagingService } from '@/services/messaging.service';
 import { paymentPlanService, type PaymentPlanTemplate } from '@/services/paymentPlan.service';
 import favoritesService from '@/services/favorites.service';
+import { showFavouriteToast } from '@/components/ui/FavouriteToast';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -143,6 +144,7 @@ export default function PropertyDetailScreen() {
     try {
       const result = await favoritesService.toggle(id);
       setIsFavorite(result.isFavorite); // Sync with server
+      showFavouriteToast({ title: property?.title ?? 'Property', action: result.action });
     } catch {
       setIsFavorite(!optimistic); // Revert on error
       Alert.alert('Error', 'Failed to update favourite');

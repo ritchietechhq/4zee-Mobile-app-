@@ -18,6 +18,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import notificationService from '@/services/notification.service';
+import { useNotificationStore } from '@/store/notification.store';
 import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Skeleton } from '@/components/ui/Skeleton';
@@ -46,6 +47,7 @@ const getNotificationIcon = (type: string): { icon: NotificationIcon; color: str
 export default function NotificationsScreen() {
   const insets = useSafeAreaInsets();
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  const notifStore = useNotificationStore();
 
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -104,6 +106,7 @@ export default function NotificationsScreen() {
     try {
       const count = await notificationService.getUnreadCount();
       setUnreadCount(count);
+      notifStore.setUnreadCount(count);
     } catch (error) {
       console.error('Failed to load unread count:', error);
     }
@@ -124,6 +127,7 @@ export default function NotificationsScreen() {
         prev.map((n) => (n.id === notification.id ? { ...n, isRead: true } : n))
       );
       setUnreadCount((prev) => Math.max(0, prev - 1));
+      notifStore.decrementUnread();
     } catch (error) {
       console.error('Failed to mark as read:', error);
     }
@@ -146,6 +150,7 @@ export default function NotificationsScreen() {
                 prev.map((n) => ({ ...n, isRead: true }))
               );
               setUnreadCount(0);
+              notifStore.clearUnread();
             } catch (error) {
               Alert.alert('Error', 'Failed to mark all as read');
             }
@@ -170,6 +175,7 @@ export default function NotificationsScreen() {
               setNotifications((prev) => prev.filter((n) => n.id !== notification.id));
               if (!notification.isRead) {
                 setUnreadCount((prev) => Math.max(0, prev - 1));
+                notifStore.decrementUnread();
               }
             } catch (error) {
               Alert.alert('Error', 'Failed to delete notification');
