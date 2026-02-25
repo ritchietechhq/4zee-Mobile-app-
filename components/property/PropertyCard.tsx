@@ -34,16 +34,18 @@ export function PropertyCard({ property, variant = 'vertical', isFavorite: initi
     e?.stopPropagation?.();
     if (isToggling) return;
     setIsToggling(true);
-    const optimistic = !isFavorite;
-    setIsFavorite(optimistic); // Optimistic update
+    const newState = !isFavorite;
+    setIsFavorite(newState); // Optimistic update
     try {
-      const result = await favoritesService.toggle(property.id);
-      // Sync with server truth in case optimistic was wrong
-      setIsFavorite(result.isFavorite);
-      onFavoriteChange?.(property.id, result.isFavorite);
+      if (newState) {
+        await favoritesService.add(property.id);
+      } else {
+        await favoritesService.remove(property.id);
+      }
+      onFavoriteChange?.(property.id, newState);
     } catch (error) {
-      setIsFavorite(!optimistic); // Revert on error
-      Alert.alert('Error', 'Failed to update favourite');
+      setIsFavorite(!newState); // Revert on error
+      Alert.alert('Error', newState ? 'Failed to save property' : 'Failed to remove from favourites');
     } finally {
       setIsToggling(false);
     }

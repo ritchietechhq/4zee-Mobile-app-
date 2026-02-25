@@ -1,23 +1,13 @@
 // ============================================================
 // Favourites Service (CLIENT role required)
-// Endpoints: GET  /properties/favorites
-//            POST /properties/favorites/:propertyId
+// Endpoints: GET    /properties/favorites
+//            POST   /properties/favorites/:propertyId
 //            DELETE /properties/favorites/:propertyId
-//            POST /properties/favorites/:propertyId/toggle  ⭐
-//            GET  /properties/favorites/:propertyId/check
+//            GET    /properties/favorites/:propertyId/check
 // ============================================================
 
 import api from './api';
 import type { Property } from '@/types';
-
-interface ToggleResult {
-  isFavorite: boolean;
-  action: 'added' | 'removed';
-}
-
-interface AddResult {
-  alreadySaved: boolean;
-}
 
 /**
  * Normalise a single property from the backend.
@@ -58,23 +48,13 @@ class FavouritesService {
   }
 
   /** POST /properties/favorites/:propertyId — add to favourites (idempotent) */
-  async add(propertyId: string): Promise<AddResult> {
-    const res = await api.post<any>(`/properties/favorites/${propertyId}`);
-    return { alreadySaved: res.data?.alreadySaved ?? false };
+  async add(propertyId: string): Promise<void> {
+    await api.post(`/properties/favorites/${propertyId}`);
   }
 
   /** DELETE /properties/favorites/:propertyId — remove from favourites */
   async remove(propertyId: string): Promise<void> {
     await api.delete(`/properties/favorites/${propertyId}`);
-  }
-
-  /** POST /properties/favorites/:propertyId/toggle — toggle favourite state ⭐ */
-  async toggle(propertyId: string): Promise<ToggleResult> {
-    const res = await api.post<any>(`/properties/favorites/${propertyId}/toggle`);
-    return {
-      isFavorite: res.data?.isFavorite ?? false,
-      action: res.data?.action ?? 'added',
-    };
   }
 
   /** GET /properties/favorites/:propertyId/check — check if favourited */
