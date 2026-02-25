@@ -138,17 +138,14 @@ export default function PropertyDetailScreen() {
   const handleToggleFavorite = async () => {
     if (isTogglingFavorite || !id) return;
     setIsTogglingFavorite(true);
-    const newState = !isFavorite;
-    setIsFavorite(newState); // Optimistic update
+    const optimistic = !isFavorite;
+    setIsFavorite(optimistic); // Optimistic update
     try {
-      if (newState) {
-        await favoritesService.add(id);
-      } else {
-        await favoritesService.remove(id);
-      }
+      const result = await favoritesService.toggle(id);
+      setIsFavorite(result.isFavorite); // Sync with server
     } catch {
-      setIsFavorite(!newState); // Revert on error
-      Alert.alert('Error', newState ? 'Failed to save property' : 'Failed to remove from favourites');
+      setIsFavorite(!optimistic); // Revert on error
+      Alert.alert('Error', 'Failed to update favourite');
     } finally {
       setIsTogglingFavorite(false);
     }
