@@ -22,7 +22,7 @@ import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { Spacing, Typography, BorderRadius, Shadows } from '@/constants/theme';
-import { useThemeColors } from '@/hooks/useThemeColors';
+import { useRealtorColors } from '@/hooks/useThemeColors';
 import type { ThemeColors } from '@/constants/colors';
 import type { Notification } from '@/types';
 
@@ -52,7 +52,7 @@ const getNotificationIcon = (type: string): { icon: NotificationIcon; color: str
 
 export default function NotificationsScreen() {
   const insets = useSafeAreaInsets();
-  const colors = useThemeColors();
+  const colors = useRealtorColors();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const fadeAnim = useRef(new Animated.Value(0)).current;
 

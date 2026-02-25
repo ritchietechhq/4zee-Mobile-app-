@@ -15,7 +15,7 @@ import { Button } from '@/components/ui/Button';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { PropertyGallery } from '@/components/property/PropertyGallery';
 import { Spacing, Typography, BorderRadius, Shadows } from '@/constants/theme';
-import { useThemeColors } from '@/hooks/useThemeColors';
+import { useRealtorColors } from '@/hooks/useThemeColors';
 import type { ThemeColors } from '@/constants/colors';
 
 const { width } = Dimensions.get('window');
@@ -29,7 +29,7 @@ export default function PropertyDetail() {
     clearSelectedProperty,
   } = usePropertyStore();
 
-  const colors = useThemeColors();
+  const colors = useRealtorColors();
   const styles = useMemo(() => makeStyles(colors), [colors]);
 
   useEffect(() => {

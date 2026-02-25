@@ -14,7 +14,7 @@ import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { Spacing, Typography, BorderRadius } from '@/constants/theme';
-import { useThemeColors } from '@/hooks/useThemeColors';
+import { useRealtorColors } from '@/hooks/useThemeColors';
 import type { ThemeColors } from '@/constants/colors';
 
 // ── helpers ────────────────────────────────────────────────
@@ -41,7 +41,7 @@ function formatDate(dateStr: string): string {
 // ── component ──────────────────────────────────────────────
 export default function ReferralHubScreen() {
   const router = useRouter();
-  const colors = useThemeColors();
+  const colors = useRealtorColors();
   const styles = useMemo(() => makeStyles(colors), [colors]);
 
   const [info, setInfo] = useState<ReferralInfo | null>(null);

@@ -23,7 +23,7 @@ import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Spacing, Typography, BorderRadius, Shadows } from '@/constants/theme';
-import { useThemeColors } from '@/hooks/useThemeColors';
+import { useRealtorColors } from '@/hooks/useThemeColors';
 import type { ThemeColors } from '@/constants/colors';
 
 interface PasswordStrength {
@@ -34,7 +34,7 @@ interface PasswordStrength {
 
 export default function ChangePasswordScreen() {
   const insets = useSafeAreaInsets();
-  const colors = useThemeColors();
+  const colors = useRealtorColors();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
@@ -291,7 +291,7 @@ export default function ChangePasswordScreen() {
 }
 
 function RequirementItem({ met, text }: { met: boolean; text: string }) {
-  const colors = useThemeColors();
+  const colors = useRealtorColors();
   const reqStyles = useMemo(() => makeReqStyles(colors), [colors]);
   return (
     <View style={reqStyles.item}>

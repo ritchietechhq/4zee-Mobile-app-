@@ -14,7 +14,7 @@ import type { KYCDocumentType, SubmitKYCDocumentRequest } from '@/types';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Spacing, Typography, BorderRadius, Shadows } from '@/constants/theme';
-import { useThemeColors } from '@/hooks/useThemeColors';
+import { useRealtorColors } from '@/hooks/useThemeColors';
 import type { ThemeColors } from '@/constants/colors';
 
 // ── Document type options matching backend KycDocumentType enum ──
@@ -49,7 +49,7 @@ export default function KYCSubmitScreen() {
   const [proofUri, setProofUri] = useState('');
   const [proofUpload, setProofUpload] = useState<UploadResult | null>(null);
 
-  const colors = useThemeColors();
+  const colors = useRealtorColors();
   const styles = useMemo(() => makeStyles(colors), [colors]);
 
   // ── Upload helper ──────────────────────────────────────────

@@ -14,7 +14,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import type { Property, PropertyAvailability, ListingStats } from '@/types';
 import { formatCurrency } from '@/utils/formatCurrency';
 import { Spacing, Typography, BorderRadius, Shadows } from '@/constants/theme';
-import { useThemeColors } from '@/hooks/useThemeColors';
+import { useRealtorColors } from '@/hooks/useThemeColors';
 import type { ThemeColors } from '@/constants/colors';
 
 type FilterKey = 'ALL' | PropertyAvailability;
@@ -45,7 +45,7 @@ export default function RealtorListings() {
   const [hasMore, setHasMore] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
 
-  const colors = useThemeColors();
+  const colors = useRealtorColors();
   const styles = useMemo(() => makeStyles(colors), [colors]);
 
   const fetchStats = useCallback(async () => {

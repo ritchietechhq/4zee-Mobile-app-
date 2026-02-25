@@ -24,7 +24,7 @@ import { Card } from '@/components/ui/Card';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { formatCurrency } from '@/utils/formatCurrency';
 import { Spacing, Typography, BorderRadius, Shadows } from '@/constants/theme';
-import { useThemeColors } from '@/hooks/useThemeColors';
+import { useRealtorColors } from '@/hooks/useThemeColors';
 import type { ThemeColors } from '@/constants/colors';
 
 const getGreeting = () => {
@@ -74,7 +74,7 @@ const formatScheduleTime = (dateStr: string): string => {
 export default function RealtorDashboard() {
   const user = useAuthStore((s) => s.user);
   const { realtorData, isLoading, fetchRealtorDashboard } = useDashboard();
-  const colors = useThemeColors();
+  const colors = useRealtorColors();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [fadeAnim] = useState(() => new Animated.Value(0));

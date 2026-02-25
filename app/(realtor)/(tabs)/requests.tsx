@@ -21,7 +21,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useThemeColors } from '@/hooks/useThemeColors';
+import { useRealtorColors } from '@/hooks/useThemeColors';
 import { realtorService } from '@/services/realtor.service';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -36,7 +36,7 @@ type FilterStatus = 'ALL' | InstallmentRequestStatus;
 
 export default function InstallmentRequestsScreen() {
   const insets = useSafeAreaInsets();
-  const colors = useThemeColors();
+  const colors = useRealtorColors();
   const styles = useMemo(() => makeStyles(colors), [colors]);
 
   const [requests, setRequests] = useState<InstallmentRequest[]>([]);

@@ -29,7 +29,7 @@ import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { Spacing, Typography, BorderRadius, Shadows } from '@/constants/theme';
-import { useThemeColors } from '@/hooks/useThemeColors';
+import { useRealtorColors } from '@/hooks/useThemeColors';
 import type { ThemeColors } from '@/constants/colors';
 import type { BankAccount, Bank, VerifyAndSaveResponse } from '@/types';
 
@@ -37,7 +37,7 @@ type AddStep = 'select-bank' | 'enter-number' | 'confirm';
 
 export default function BankAccountsScreen() {
   const insets = useSafeAreaInsets();
-  const colors = useThemeColors();
+  const colors = useRealtorColors();
   const styles = useMemo(() => makeStyles(colors), [colors]);
 
   // ── List state ──

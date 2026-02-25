@@ -22,7 +22,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { Card } from '@/components/ui/Card';
 import { Spacing, Typography, BorderRadius, Shadows } from '@/constants/theme';
-import { useThemeColors } from '@/hooks/useThemeColors';
+import { useRealtorColors } from '@/hooks/useThemeColors';
 import type { ThemeColors } from '@/constants/colors';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -132,7 +132,7 @@ const CATEGORIES = ['All', 'Getting Started', 'Commissions', 'Payouts', 'Referra
 
 export default function HelpScreen() {
   const insets = useSafeAreaInsets();
-  const colors = useThemeColors();
+  const colors = useRealtorColors();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
@@ -339,7 +339,7 @@ function FAQItemComponent({
   isExpanded: boolean;
   onToggle: () => void;
 }) {
-  const colors = useThemeColors();
+  const colors = useRealtorColors();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
     <TouchableOpacity

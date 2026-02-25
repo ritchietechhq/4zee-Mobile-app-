@@ -14,7 +14,7 @@ import { Card } from '@/components/ui/Card';
 import realtorService from '@/services/realtor.service';
 import type { PropertyType, CreateListingRequest } from '@/types';
 import { Spacing, Typography, BorderRadius, Shadows } from '@/constants/theme';
-import { useThemeColors } from '@/hooks/useThemeColors';
+import { useRealtorColors } from '@/hooks/useThemeColors';
 import type { ThemeColors } from '@/constants/colors';
 
 const PROPERTY_TYPES: { value: PropertyType; label: string; icon: string }[] = [
@@ -47,7 +47,7 @@ export default function AddListingScreen() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const colors = useThemeColors();
+  const colors = useRealtorColors();
   const styles = useMemo(() => makeStyles(colors), [colors]);
 
   const updateField = (field: string, value: string) => {

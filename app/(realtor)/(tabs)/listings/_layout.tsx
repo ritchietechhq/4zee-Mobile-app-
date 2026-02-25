@@ -1,8 +1,8 @@
 import { Stack } from 'expo-router';
-import { useThemeColors } from '@/hooks/useThemeColors';
+import { useRealtorColors } from '@/hooks/useThemeColors';
 
 export default function ListingsLayout() {
-  const colors = useThemeColors();
+  const colors = useRealtorColors();
   return (
     <Stack
       screenOptions={{

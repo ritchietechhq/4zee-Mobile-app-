@@ -16,7 +16,7 @@ import realtorService from '@/services/realtor.service';
 import { propertyService } from '@/services/property.service';
 import type { PropertyType, UpdateListingRequest } from '@/types';
 import { Spacing, Typography, BorderRadius, Shadows } from '@/constants/theme';
-import { useThemeColors } from '@/hooks/useThemeColors';
+import { useRealtorColors } from '@/hooks/useThemeColors';
 import type { ThemeColors } from '@/constants/colors';
 
 const PROPERTY_TYPES: { value: PropertyType; label: string; icon: string }[] = [
@@ -51,7 +51,7 @@ export default function EditListingScreen() {
   const [newImages, setNewImages] = useState<{ uri: string; uploading?: boolean; url?: string }[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const colors = useThemeColors();
+  const colors = useRealtorColors();
   const styles = useMemo(() => makeStyles(colors), [colors]);
 
   useEffect(() => {

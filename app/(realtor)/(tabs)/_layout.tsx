@@ -3,7 +3,7 @@ import { StyleSheet, View, Platform } from 'react-native';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Spacing, BorderRadius, Shadows } from '@/constants/theme';
-import { useLightColors } from '@/hooks/useThemeColors';
+import { useRealtorColors } from '@/hooks/useThemeColors';
 import type { ThemeColors } from '@/constants/colors';
 
 const TAB_CONFIG = [
@@ -14,9 +14,12 @@ const TAB_CONFIG = [
   { name: 'profile', title: 'Profile', iconFocused: 'person-circle', iconDefault: 'person-circle-outline' },
 ] as const;
 
+// Screens that exist in (tabs) but are NOT shown as tab items
+const HIDDEN_TABS = ['payments'] as const;
+
 export default function RealtorTabsLayout() {
-  // Force light mode for realtor (can enable dark later by changing to useThemeColors)
-  const colors = useLightColors();
+  // Light by default, auto dark at night, respects explicit user preference
+  const colors = useRealtorColors();
   const styles = useMemo(() => makeStyles(colors), [colors]);
 
   return (
@@ -50,6 +53,15 @@ export default function RealtorTabsLayout() {
               </View>
             ),
           }}
+        />
+      ))}
+
+      {/* Hidden tabs — files exist in (tabs) but shouldn't appear in the bottom nav */}
+      {HIDDEN_TABS.map((name) => (
+        <Tabs.Screen
+          key={name}
+          name={name}
+          options={{ href: null }}
         />
       ))}
     </Tabs>
