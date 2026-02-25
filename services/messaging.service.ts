@@ -7,9 +7,11 @@
 //   - voiceNoteUrl, isVoiceNote, voiceDuration support
 //   - propertyContext { id, title } on messages
 //   - VOICE_NOTE / IMAGE / DOCUMENT message types
+//   - With caching for instant loading
 // ============================================================
 
 import api from './api';
+import { cacheService, CACHE_KEYS, TTL } from './cache.service';
 import type {
   Conversation,
   Message,
@@ -287,8 +289,31 @@ class MessagingService {
   /**
    * GET /messaging/conversations
    * List all conversations for the authenticated user.
+   * With caching for instant loading
    */
   async getConversations(params?: {
+    page?: number;
+    limit?: number;
+    propertyId?: string;
+    unreadOnly?: boolean;
+    skipCache?: boolean;
+  }): Promise<{ conversations: Conversation[]; total: number; unreadTotal: number }> {
+    // Try cache first if not paginated and no filters
+    if (!params?.skipCache && !params?.page && !params?.propertyId && !params?.unreadOnly) {
+      const cached = await cacheService.get<{ conversations: Conversation[]; total: number; unreadTotal: number }>(
+        CACHE_KEYS.CONVERSATIONS
+      );
+      if (cached) {
+        // Background refresh
+        this.fetchAndCacheConversations(params).catch(() => {});
+        return cached;
+      }
+    }
+
+    return this.fetchAndCacheConversations(params);
+  }
+
+  private async fetchAndCacheConversations(params?: {
     page?: number;
     limit?: number;
     propertyId?: string;
@@ -307,11 +332,18 @@ class MessagingService {
       ? data
       : data?.conversations ?? data?.items ?? [];
 
-    return {
+    const result = {
       conversations: rawList.map((c: any) => normalizeConversation(c, this.currentUserId)),
       total: data?.total ?? rawList.length,
       unreadTotal: data?.unreadTotal ?? 0,
     };
+
+    // Cache if first page / no filters
+    if (!params?.page && !params?.propertyId && !params?.unreadOnly) {
+      await cacheService.set(CACHE_KEYS.CONVERSATIONS, result, { ttl: TTL.SHORT });
+    }
+
+    return result;
   }
 
   /**

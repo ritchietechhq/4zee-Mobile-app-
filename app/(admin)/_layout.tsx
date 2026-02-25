@@ -1,9 +1,10 @@
 import React from 'react';
 import { Stack } from 'expo-router';
-import { useThemeColors } from '@/hooks/useThemeColors';
+import { useLightColors } from '@/hooks/useThemeColors';
 
 export default function AdminLayout() {
-  const colors = useThemeColors();
+  // Force light mode for admin (can enable dark later by changing to useLightColors)
+  const colors = useLightColors();
   return (
     <Stack
       screenOptions={{

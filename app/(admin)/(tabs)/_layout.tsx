@@ -3,7 +3,7 @@ import { StyleSheet, View, Platform } from 'react-native';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Spacing, BorderRadius, Shadows } from '@/constants/theme';
-import { useThemeColors } from '@/hooks/useThemeColors';
+import { useLightColors } from '@/hooks/useThemeColors';
 import type { ThemeColors } from '@/constants/colors';
 
 const TAB_CONFIG = [
@@ -15,7 +15,8 @@ const TAB_CONFIG = [
 ] as const;
 
 export default function AdminTabsLayout() {
-  const colors = useThemeColors();
+  // Force light mode for admin (can enable dark later by changing to useThemeColors)
+  const colors = useLightColors();
   const styles = useMemo(() => makeStyles(colors), [colors]);
 
   return (

@@ -336,7 +336,7 @@ const createStyles = (colors: any) =>
   StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.background },
   loaderWrap: { alignItems: 'center', justifyContent: 'center', gap: Spacing.md },
-  loaderText: { ...Typography.caption, color: Colors.textMuted },
+  loaderText: { ...Typography.caption, color: colors.textMuted },
 
   header: {
     flexDirection: 'row',
@@ -366,19 +366,19 @@ const createStyles = (colors: any) =>
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: Colors.successLight,
+    backgroundColor: colors.successLight,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: Spacing.xs,
   },
   statValue: {
     ...Typography.bodySemiBold,
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
     fontSize: 14,
   },
   statLabel: {
     ...Typography.small,
-    color: Colors.textMuted,
+    color: colors.textMuted,
   },
 
   // Filter Tabs
@@ -392,18 +392,18 @@ const createStyles = (colors: any) =>
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
     borderRadius: BorderRadius.full,
-    backgroundColor: Colors.surface,
+    backgroundColor: colors.surface,
   },
   filterTabActive: {
-    backgroundColor: Colors.primary,
+    backgroundColor: colors.primary,
   },
   filterTabText: {
     ...Typography.caption,
-    color: Colors.textMuted,
+    color: colors.textMuted,
     fontWeight: '500',
   },
   filterTabTextActive: {
-    color: Colors.white,
+    color: colors.white,
   },
 
   // List
@@ -426,27 +426,27 @@ const createStyles = (colors: any) =>
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: Colors.warningLight,
+    backgroundColor: colors.warningLight,
     alignItems: 'center',
     justifyContent: 'center',
   },
   paymentIconSuccess: {
-    backgroundColor: Colors.successLight,
+    backgroundColor: colors.successLight,
   },
   paymentIconFailed: {
-    backgroundColor: Colors.errorLight,
+    backgroundColor: colors.errorLight,
   },
   paymentInfo: {
     flex: 1,
   },
   paymentTitle: {
     ...Typography.bodyMedium,
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
     marginBottom: 2,
   },
   paymentDate: {
     ...Typography.small,
-    color: Colors.textMuted,
+    color: colors.textMuted,
   },
   paymentAmountWrap: {
     alignItems: 'flex-end',
@@ -454,7 +454,7 @@ const createStyles = (colors: any) =>
   },
   paymentAmount: {
     ...Typography.bodySemiBold,
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
   },
   paymentFooter: {
     flexDirection: 'row',
@@ -462,16 +462,16 @@ const createStyles = (colors: any) =>
     marginTop: Spacing.md,
     paddingTop: Spacing.md,
     borderTopWidth: 1,
-    borderTopColor: Colors.borderLight,
+    borderTopColor: colors.borderLight,
     gap: Spacing.xs,
   },
   referenceLabel: {
     ...Typography.small,
-    color: Colors.textMuted,
+    color: colors.textMuted,
   },
   referenceValue: {
     ...Typography.small,
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     fontFamily: 'monospace',
   },
   channelRow: {
@@ -482,7 +482,7 @@ const createStyles = (colors: any) =>
   },
   channelText: {
     ...Typography.small,
-    color: Colors.textMuted,
+    color: colors.textMuted,
   },
 
   // Empty State
@@ -497,19 +497,19 @@ const createStyles = (colors: any) =>
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: Colors.surface,
+    backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: Spacing.lg,
   },
   emptyTitle: {
     ...Typography.h4,
-    color: Colors.textPrimary,
+    color: colors.textPrimary,
     marginBottom: Spacing.sm,
   },
   emptySubtitle: {
     ...Typography.body,
-    color: Colors.textMuted,
+    color: colors.textMuted,
     textAlign: 'center',
     lineHeight: 22,
   },

@@ -1,9 +1,10 @@
 import React from 'react';
 import { Stack } from 'expo-router';
-import { useThemeColors } from '@/hooks/useThemeColors';
+import { useLightColors } from '@/hooks/useThemeColors';
 
 export default function RealtorLayout() {
-  const colors = useThemeColors();
+  // Force light mode for realtor (can enable dark later by changing to useThemeColors)
+  const colors = useLightColors();
   return (
     <Stack
       screenOptions={{

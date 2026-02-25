@@ -16,6 +16,7 @@ import { is2FARequired } from '@/types';
 import authService from '@/services/auth.service';
 import userService from '@/services/user.service';
 import api, { setForceLogoutCallback } from '@/services/api';
+import { cacheService } from '@/services/cache.service';
 
 const ROLE_KEY = '4zee_user_role';
 const PROFILE_PIC_KEY = '4zee_profile_picture';
@@ -153,6 +154,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ isLoading: true });
     try {
       await authService.logout(logoutAll);
+      // Clear all cached data on logout
+      await cacheService.onLogout();
     } finally {
       set({
         user: null,

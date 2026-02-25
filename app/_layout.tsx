@@ -13,6 +13,7 @@ import AnimatedSplash from '@/components/splash/AnimatedSplash';
 import MessageNotificationToast from '@/components/messaging/MessageNotificationToast';
 import { warmUpBackend } from '@/services/warmup.service';
 import { pushService } from '@/services/push.service';
+import { cacheService } from '@/services/cache.service';
 
 const ONBOARDING_KEY = '4zee_onboarding_seen';
 
@@ -29,7 +30,7 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
 
   const [hasSeenOnboarding, setHasSeenOnboarding] = useState<boolean | null>(null);
 
-  // ─── Parallel init: session load + backend warm-up + theme load ───
+  // ─── Parallel init: session load + backend warm-up + theme load + cache init ───
   useEffect(() => {
     const init = async () => {
       // Fire the backend warm-up in parallel with session load.
@@ -39,6 +40,7 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
         AsyncStorage.getItem(ONBOARDING_KEY),
         warmUpBackend(), // ← wake up the server / DB during splash
         loadSavedTheme(), // ← load theme preference
+        cacheService.init(), // ← initialize cache service
       ]);
       await useAuthStore.getState().loadRole();
       setHasSeenOnboarding(onboardingSeen === 'true');

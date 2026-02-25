@@ -26,3 +26,11 @@ export function useTheme() {
     mode,
   };
 }
+
+/**
+ * Returns light colors always - for realtor/admin screens
+ * Dark mode can be enabled later by changing this to useThemeColors
+ */
+export function useLightColors(): ThemeColors {
+  return LightColors;
+}

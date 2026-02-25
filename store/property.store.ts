@@ -1,11 +1,13 @@
 // ============================================================
 // Property Store — Zustand
 // Cursor-paginated search, detail, featured
+// With caching for instant loading
 // ============================================================
 
 import { create } from 'zustand';
 import type { Property, PropertySearchFilters } from '@/types';
 import propertyService from '@/services/property.service';
+import { cacheService, CACHE_KEYS, TTL } from '@/services/cache.service';
 
 interface PropertyState {
   // Search results
@@ -149,10 +151,24 @@ export const usePropertyStore = create<PropertyState>((set, get) => ({
   clearSelectedProperty: () => set({ selectedProperty: null }),
 
   fetchFeatured: async (limit = 10) => {
+    // Try cache first for instant display
+    const cached = await cacheService.get<Property[]>(CACHE_KEYS.FEATURED_PROPERTIES);
+    if (cached && cached.length > 0) {
+      set({ featured: cached, isLoadingFeatured: false });
+      // Background refresh
+      propertyService.getFeatured(limit).then((data) => {
+        set({ featured: data });
+        cacheService.set(CACHE_KEYS.FEATURED_PROPERTIES, data, { ttl: TTL.MEDIUM });
+      }).catch(() => {});
+      return;
+    }
+    
     set({ isLoadingFeatured: true });
     try {
       const data = await propertyService.getFeatured(limit);
       set({ featured: data, isLoadingFeatured: false });
+      // Cache the results
+      await cacheService.set(CACHE_KEYS.FEATURED_PROPERTIES, data, { ttl: TTL.MEDIUM });
     } catch {
       set({ isLoadingFeatured: false });
     }
