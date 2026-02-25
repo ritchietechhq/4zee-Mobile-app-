@@ -12,8 +12,14 @@ import type { Property } from '@/types';
 class FavoritesService {
   /** GET /properties/favorites — list saved properties */
   async list(): Promise<Property[]> {
-    const res = await api.get<Property[]>('/properties/favorites');
-    return res.data ?? [];
+    const res = await api.get<any>('/properties/favorites');
+    const data = res.data;
+    // Backend now returns { favorites: [...], total: number }
+    if (data?.favorites && Array.isArray(data.favorites)) {
+      return data.favorites;
+    }
+    // Fallback for plain array response
+    return Array.isArray(data) ? data : [];
   }
 
   /** POST /properties/favorites/:propertyId — add to favorites */

@@ -3,7 +3,7 @@
 // Matches: GET /properties/search, /properties/:id, /properties/featured
 // ============================================================
 
-export type PropertyType = 'LAND' | 'APARTMENT' | 'DUPLEX' | 'BUNGALOW' | 'TERRACE' | 'COMMERCIAL';
+export type PropertyType = 'HOUSE' | 'APARTMENT' | 'LAND' | 'COMMERCIAL' | 'INDUSTRIAL';
 
 export type PropertyAvailability = 'AVAILABLE' | 'SOLD' | 'RESERVED';
 

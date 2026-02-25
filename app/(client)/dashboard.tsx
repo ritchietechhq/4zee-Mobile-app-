@@ -36,10 +36,10 @@ const FEATURED_CARD_WIDTH = SCREEN_WIDTH * 0.78;
 
 const QUICK_FILTERS: { label: string; value: PropertyType | undefined; icon: keyof typeof Ionicons.glyphMap }[] = [
   { label: 'All', value: undefined, icon: 'apps-outline' },
-  { label: 'House', value: 'House' as PropertyType, icon: 'home-outline' },
-  { label: 'Apartment', value: 'Apartment' as PropertyType, icon: 'business-outline' },
-  { label: 'Land', value: 'Land' as PropertyType, icon: 'layers-outline' },
-  { label: 'Commercial', value: 'Commercial' as PropertyType, icon: 'storefront-outline' },
+  { label: 'House', value: 'HOUSE', icon: 'home-outline' },
+  { label: 'Apartment', value: 'APARTMENT', icon: 'business-outline' },
+  { label: 'Land', value: 'LAND', icon: 'layers-outline' },
+  { label: 'Commercial', value: 'COMMERCIAL', icon: 'storefront-outline' },
 ];
 
 // ── Market insight tiles (static/decorative — swap with real data if available)

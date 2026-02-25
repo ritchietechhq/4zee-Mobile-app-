@@ -76,6 +76,15 @@ class PropertyService {
     return arr.map(normalizeProperty);
   }
 
+  /** GET /properties/category/:type — get properties by category */
+  async getByCategory(
+    type: string,
+    params?: { limit?: number; cursor?: string },
+  ): Promise<PaginatedResponse<Property>> {
+    const res = await api.get<any>(`/properties/category/${type}`, params);
+    return normalizePaginated(res.data);
+  }
+
   /** GET /properties — list all (same filters as search) */
   async list(filters?: PropertySearchFilters): Promise<PaginatedResponse<Property>> {
     const params: Record<string, unknown> = {};

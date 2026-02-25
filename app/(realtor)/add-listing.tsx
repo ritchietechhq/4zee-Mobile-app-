@@ -18,12 +18,11 @@ import { useThemeColors } from '@/hooks/useThemeColors';
 import type { ThemeColors } from '@/constants/colors';
 
 const PROPERTY_TYPES: { value: PropertyType; label: string; icon: string }[] = [
-  { value: 'LAND', label: 'Land', icon: 'earth-outline' },
+  { value: 'HOUSE', label: 'House', icon: 'home-outline' },
   { value: 'APARTMENT', label: 'Apartment', icon: 'business-outline' },
-  { value: 'DUPLEX', label: 'Duplex', icon: 'home-outline' },
-  { value: 'BUNGALOW', label: 'Bungalow', icon: 'bed-outline' },
-  { value: 'TERRACE', label: 'Terrace', icon: 'grid-outline' },
+  { value: 'LAND', label: 'Land', icon: 'earth-outline' },
   { value: 'COMMERCIAL', label: 'Commercial', icon: 'storefront-outline' },
+  { value: 'INDUSTRIAL', label: 'Industrial', icon: 'construct-outline' },
 ];
 
 const AMENITY_OPTIONS = [
