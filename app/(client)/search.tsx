@@ -49,7 +49,7 @@ export default function SearchScreen() {
   const [query, setQuery] = useState('');
   const [activeType, setActiveType] = useState<PropertyType | undefined>(undefined);
   const [activeSort, setActiveSort] = useState<PropertySearchFilters['sortBy']>('createdAt');
-  const [isGridView, setIsGridView] = useState(false);
+  const [isGridView, setIsGridView] = useState(true);
   const [isFocused, setIsFocused] = useState(false);
   const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inputRef = useRef<TextInput>(null);

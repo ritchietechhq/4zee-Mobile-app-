@@ -20,6 +20,7 @@ import type {
   ScheduleResponse,
   InstallmentRequest,
   InstallmentRequestsResponse,
+  Application,
 } from '@/types';
 
 /**
@@ -115,6 +116,65 @@ class RealtorService {
   async getSchedule(): Promise<ScheduleResponse> {
     const res = await api.get<ScheduleResponse>('/realtor/schedule');
     return res.data ?? { items: [], total: 0, pendingApplications: 0, unreadInquiries: 0 };
+  }
+
+  // ── Property Applications ─────────────────────────────────────────────────
+
+  /** GET /realtor/applications — list property applications received by this realtor */
+  async getApplications(
+    status?: string,
+    page = 1,
+    limit = 20,
+  ): Promise<{ items: Application[]; total: number; pending: number }> {
+    const params: Record<string, unknown> = { page, limit };
+    if (status) params.status = status;
+
+    try {
+      const res = await api.get<any>('/realtor/applications', params);
+      const envelope = res as any;
+      const inner = envelope?.data;
+
+      if (__DEV__) {
+        console.log('[Realtor] applications envelope keys:', Object.keys(envelope ?? {}));
+        console.log('[Realtor] applications inner:', JSON.stringify(inner)?.slice(0, 500));
+      }
+
+      const candidates = [inner, envelope];
+      for (const raw of candidates) {
+        if (!raw) continue;
+        // Plain array
+        if (Array.isArray(raw)) {
+          return { items: raw, total: raw.length, pending: raw.filter((a: any) => a.status === 'PENDING').length };
+        }
+        // { items: [...] } or { applications: [...] }
+        const list = raw.items ?? raw.applications ?? raw.data;
+        if (Array.isArray(list)) {
+          return {
+            items: list,
+            total: raw.total ?? raw.pagination?.total ?? list.length,
+            pending: raw.pending ?? list.filter((a: any) => a.status === 'PENDING').length,
+          };
+        }
+      }
+
+      if (__DEV__) console.warn('[Realtor] applications: no recognized shape — returning empty');
+      return { items: [], total: 0, pending: 0 };
+    } catch (error: any) {
+      if (__DEV__) console.error('[Realtor] applications fetch error:', error?.message);
+      throw error;
+    }
+  }
+
+  /** PATCH /realtor/applications/:id/approve — approve a property application */
+  async approveApplication(id: string): Promise<Application> {
+    const res = await api.patch<Application>(`/realtor/applications/${id}/approve`);
+    return res.data!;
+  }
+
+  /** PATCH /realtor/applications/:id/reject — reject a property application */
+  async rejectApplication(id: string, reason?: string): Promise<Application> {
+    const res = await api.patch<Application>(`/realtor/applications/${id}/reject`, reason ? { reason } : undefined);
+    return res.data!;
   }
 
   // ── Installment Requests ──────────────────────────────────────────────────
