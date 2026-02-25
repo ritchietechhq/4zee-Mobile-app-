@@ -23,7 +23,7 @@ interface PropertyCardProps {
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-export function PropertyCard({ property, variant = 'vertical', isFavorite: initialFavorite, onFavoriteChange }: PropertyCardProps) {
+export const PropertyCard = React.memo(function PropertyCard({ property, variant = 'vertical', isFavorite: initialFavorite, onFavoriteChange }: PropertyCardProps) {
   const colors = useThemeColors();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const [isFavorite, setIsFavorite] = useState(initialFavorite ?? false);
@@ -66,6 +66,8 @@ export function PropertyCard({ property, variant = 'vertical', isFavorite: initi
               contentFit="cover"
               placeholder="L6PZfSi_.AyE_3t7t7R**0o#DgR4"
               transition={200}
+              cachePolicy="memory-disk"
+              recyclingKey={property.id}
             />
             <View style={styles.horizontalBadge}>
               <Badge label={property.type} variant="info" size="sm" />
@@ -127,6 +129,8 @@ export function PropertyCard({ property, variant = 'vertical', isFavorite: initi
             contentFit="cover"
             placeholder="L6PZfSi_.AyE_3t7t7R**0o#DgR4"
             transition={200}
+            cachePolicy="memory-disk"
+            recyclingKey={property.id}
           />
           <LinearGradient colors={['transparent', 'rgba(0,0,0,0.4)']} style={styles.imageGradient} />
           <View style={styles.imageOverlay}>
@@ -170,7 +174,7 @@ export function PropertyCard({ property, variant = 'vertical', isFavorite: initi
       </View>
     </TouchableOpacity>
   );
-}
+});
 
 const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   // Vertical card

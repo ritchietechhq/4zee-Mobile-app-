@@ -1,10 +1,11 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, RefreshControl,
   TouchableOpacity, Animated, Share, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -14,6 +15,8 @@ import { useDashboard } from '@/hooks/useDashboard';
 import { realtorService } from '@/services/realtor.service';
 import { notificationService } from '@/services/notification.service';
 import { messagingService } from '@/services/messaging.service';
+import { runAfterInteractions, prefetchImages } from '@/utils/performance';
+import { preloadRealtorRoutes } from '@/utils/routePreloader';
 import type {
   RealtorDashboardApplication, ListingStats, Notification,
   ActivityFeedItem, GoalsResponse, ScheduleItem,
@@ -104,44 +107,87 @@ export default function RealtorDashboard() {
     COMMISSION: { icon: 'cash-outline', color: colors.warning, bg: colors.warningLight },
   }), [colors]);
 
-  const loadExtras = useCallback(async () => {
-    try {
-      const results = await Promise.allSettled([
-        realtorService.getListingStats(),
-        notificationService.getNotifications(false, undefined, 3),
-        notificationService.getUnreadCount(),
-        realtorService.getActivityFeed(5),
-        realtorService.getGoals(),
-        realtorService.getSchedule(),
-        realtorService.getListingAnalytics(),
-        messagingService.getUnreadCount(),
-      ]);
-      if (results[0].status === 'fulfilled') setListingStats(results[0].value);
-      if (results[1].status === 'fulfilled') setRecentNotifications(results[1].value.notifications);
-      if (results[2].status === 'fulfilled') setUnreadCount(results[2].value);
-      if (results[3].status === 'fulfilled') setActivityFeed(results[3].value.items);
-      if (results[4].status === 'fulfilled') setGoals(results[4].value);
-      if (results[5].status === 'fulfilled') {
-        const sched = results[5].value;
-        setSchedule(sched.items.slice(0, 3));
-        setScheduleSummary({ pendingApplications: sched.pendingApplications, unreadInquiries: sched.unreadInquiries });
-      }
-      if (results[6].status === 'fulfilled') setAnalyticsSummary(results[6].value.summary);
-      if (results[7].status === 'fulfilled') setUnreadMessages(results[7].value);
-    } catch {}
+  // Phase 1: Critical data — badge counts + listing stats (visible above the fold)
+  const loadCritical = useCallback(async () => {
+    const results = await Promise.allSettled([
+      realtorService.getListingStats(),
+      notificationService.getUnreadCount(),
+      messagingService.getUnreadCount(),
+      realtorService.getListingAnalytics(),
+    ]);
+    if (results[0].status === 'fulfilled') setListingStats(results[0].value);
+    if (results[1].status === 'fulfilled') setUnreadCount(results[1].value);
+    if (results[2].status === 'fulfilled') setUnreadMessages(results[2].value);
+    if (results[3].status === 'fulfilled') setAnalyticsSummary(results[3].value.summary);
   }, []);
 
+  // Phase 2: Deferred data — below-fold sections loaded after interactions
+  const loadDeferred = useCallback(async () => {
+    const results = await Promise.allSettled([
+      notificationService.getNotifications(false, undefined, 3),
+      realtorService.getActivityFeed(5),
+      realtorService.getGoals(),
+      realtorService.getSchedule(),
+    ]);
+    if (results[0].status === 'fulfilled') setRecentNotifications(results[0].value.notifications);
+    if (results[1].status === 'fulfilled') setActivityFeed(results[1].value.items);
+    if (results[2].status === 'fulfilled') setGoals(results[2].value);
+    if (results[3].status === 'fulfilled') {
+      const sched = results[3].value;
+      setSchedule(sched.items.slice(0, 3));
+      setScheduleSummary({ pendingApplications: sched.pendingApplications, unreadInquiries: sched.unreadInquiries });
+    }
+  }, []);
+
+  // Refresh badge counts when returning to dashboard tab (lightweight)
+  useFocusEffect(
+    useCallback(() => {
+      Promise.allSettled([
+        notificationService.getUnreadCount().then(setUnreadCount),
+        messagingService.getUnreadCount().then(setUnreadMessages),
+      ]);
+    }, []),
+  );
+
+  // Track deferred interaction handle for cleanup
+  const deferredRef = useRef<{ cancel: () => void } | null>(null);
+
   useEffect(() => {
+    // Phase 1: Start dashboard + critical data immediately
     fetchRealtorDashboard().catch(() => {});
-    loadExtras();
+    loadCritical().catch(() => {});
+
     Animated.timing(fadeAnim, {
-      toValue: 1, duration: 600, useNativeDriver: true,
+      toValue: 1, duration: 400, useNativeDriver: true,
     }).start();
-  }, [fetchRealtorDashboard, loadExtras]);
+
+    // Phase 2: Defer secondary data until after transition animations
+    deferredRef.current = runAfterInteractions(() => {
+      loadDeferred().catch(() => {});
+      // Preload other realtor routes for instant navigation
+      preloadRealtorRoutes();
+    });
+
+    return () => { deferredRef.current?.cancel(); };
+  }, [fetchRealtorDashboard, loadCritical, loadDeferred]);
+
+  // Prefetch property images when dashboard data arrives
+  useEffect(() => {
+    if (realtorData?.recentApplications?.length) {
+      const urls = realtorData.recentApplications
+        .map((app: any) => app.propertyImage || app.property?.images?.[0])
+        .filter(Boolean);
+      prefetchImages(urls);
+    }
+  }, [realtorData?.recentApplications]);
 
   const onRefresh = async () => {
     setIsRefreshing(true);
-    await Promise.allSettled([fetchRealtorDashboard(), loadExtras()]);
+    await Promise.allSettled([
+      fetchRealtorDashboard(true), // force refresh bypasses cache
+      loadCritical(),
+      loadDeferred(),
+    ]);
     setIsRefreshing(false);
   };
 

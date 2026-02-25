@@ -13,6 +13,7 @@ import { Skeleton } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
 import type { Property, PropertyAvailability, ListingStats } from '@/types';
 import { formatCurrency } from '@/utils/formatCurrency';
+import { FLATLIST_PERF_PROPS } from '@/utils/performance';
 import { Spacing, Typography, BorderRadius, Shadows } from '@/constants/theme';
 import { useRealtorColors } from '@/hooks/useThemeColors';
 import type { ThemeColors } from '@/constants/colors';
@@ -25,6 +26,9 @@ const FILTERS: { key: FilterKey; label: string }[] = [
   { key: 'RESERVED', label: 'Reserved' },
   { key: 'SOLD', label: 'Sold' },
 ];
+
+// Memoized separator to avoid re-creating on every render
+const ListingSeparator = React.memo(() => <View style={{ height: Spacing.md }} />);
 
 const availabilityVariant = (a: PropertyAvailability) => {
   switch (a) {
@@ -135,7 +139,7 @@ export default function RealtorListings() {
     </View>
   );
 
-  const renderListing = ({ item }: { item: Property }) => (
+  const renderListing = useCallback(({ item }: { item: Property }) => (
     <TouchableOpacity
       style={styles.listingCard}
       onPress={() => router.push(`/(realtor)/listings/${item.id}`)}
@@ -148,6 +152,8 @@ export default function RealtorListings() {
           contentFit="cover"
           placeholder={{ blurhash: 'LKO2:N%2Tw=w]~RBVZRi};RPxuwH' }}
           transition={200}
+          recyclingKey={item.id}
+          cachePolicy="memory-disk"
         />
         <View style={styles.badgeOverlay}>
           <Badge label={item.availability} variant={availabilityVariant(item.availability)} size="sm" />
@@ -193,7 +199,7 @@ export default function RealtorListings() {
         </View>
       </View>
     </TouchableOpacity>
-  );
+  ), [styles, colors]);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -240,7 +246,8 @@ export default function RealtorListings() {
           ListFooterComponent={isLoadingMore ? <View style={styles.footer}><ActivityIndicator size="small" color={colors.primary} /></View> : null}
           onEndReached={loadMore}
           onEndReachedThreshold={0.3}
-          ItemSeparatorComponent={() => <View style={{ height: Spacing.md }} />}
+          ItemSeparatorComponent={ListingSeparator}
+          {...FLATLIST_PERF_PROPS}
         />
       )}
     </SafeAreaView>

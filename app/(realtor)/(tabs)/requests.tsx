@@ -28,6 +28,7 @@ import { Button } from '@/components/ui/Button';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Spacing, Typography, BorderRadius, Shadows, Colors } from '@/constants/theme';
+import { FLATLIST_PERF_PROPS } from '@/utils/performance';
 import { formatCurrency } from '@/utils/formatCurrency';
 import type { ThemeColors } from '@/constants/colors';
 import type { InstallmentRequest, InstallmentRequestStatus } from '@/types';
@@ -330,6 +331,7 @@ export default function InstallmentRequestsScreen() {
             />
           }
           ListFooterComponent={<View style={{ height: Spacing.xxxxl }} />}
+          {...FLATLIST_PERF_PROPS}
         />
       )}
 

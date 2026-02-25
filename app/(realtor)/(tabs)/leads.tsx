@@ -18,6 +18,7 @@ import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { Spacing, Typography, BorderRadius } from '@/constants/theme';
+import { FLATLIST_PERF_PROPS } from '@/utils/performance';
 import { useRealtorColors } from '@/hooks/useThemeColors';
 import type { ThemeColors } from '@/constants/colors';
 
@@ -298,6 +299,7 @@ export default function LeadsScreen() {
           refreshControl={
             <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} tintColor={colors.primary} />
           }
+          {...FLATLIST_PERF_PROPS}
         />
       )}
     </SafeAreaView>
