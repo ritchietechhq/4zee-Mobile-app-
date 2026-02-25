@@ -37,8 +37,8 @@ export default function SavedScreen() {
       const data = await favoritesService.list();
       setFavorites(data);
       setFavoriteIds(new Set(data.map(p => p.id)));
-    } catch {
-      // Silently fail — show empty state
+    } catch (err) {
+      if (__DEV__) console.warn('[Favourites] fetch error', err);
     } finally {
       setIsLoading(false);
     }
@@ -72,7 +72,7 @@ export default function SavedScreen() {
       {/* Header */}
       <View style={dynamicStyles.header}>
         <View>
-          <Text style={dynamicStyles.title}>Saved Properties</Text>
+          <Text style={dynamicStyles.title}>Favourites</Text>
           <Text style={dynamicStyles.subtitle}>
             {isLoading ? 'Loading...' : `${favorites.length} ${favorites.length === 1 ? 'property' : 'properties'} saved`}
           </Text>
@@ -123,8 +123,8 @@ export default function SavedScreen() {
             ListEmptyComponent={
               <EmptyState
                 icon="heart-outline"
-                title="No saved properties"
-                description="Properties you save will appear here for quick access. Start exploring to find your dream property!"
+                title="No favourites yet"
+                description="Tap the heart icon on any property to add it to your favourites for quick access."
               />
             }
             ListFooterComponent={<View style={{ height: Spacing.xxxxl }} />}

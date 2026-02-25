@@ -100,6 +100,19 @@ export function PropertyCard({ property, variant = 'vertical', isFavorite: initi
               )}
             </View>
           </View>
+          {/* Favourite button on the right */}
+          <TouchableOpacity
+            style={[styles.hFavBtn, isFavorite && styles.hFavBtnActive]}
+            activeOpacity={0.7}
+            onPress={handleToggleFavorite}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Ionicons
+              name={isFavorite ? 'heart' : 'heart-outline'}
+              size={20}
+              color={isFavorite ? colors.error : colors.textMuted}
+            />
+          </TouchableOpacity>
         </View>
       </TouchableOpacity>
     );
@@ -179,9 +192,11 @@ const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   horizontalImageWrap: { position: 'relative' },
   horizontalImage: { width: 130, height: 130 },
   horizontalBadge: { position: 'absolute', top: Spacing.xs, left: Spacing.xs },
-  horizontalContent: { flex: 1, padding: Spacing.md, justifyContent: 'center' },
+  horizontalContent: { flex: 1, padding: Spacing.md, justifyContent: 'center', paddingRight: Spacing.xs },
   hTitle: { ...Typography.bodyMedium, color: colors.textPrimary, marginBottom: 4 },
   hPrice: { ...Typography.bodySemiBold, color: colors.primary, marginBottom: Spacing.xs },
+  hFavBtn: { position: 'absolute', right: Spacing.sm, top: Spacing.sm, width: 36, height: 36, borderRadius: 18, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.borderLight },
+  hFavBtnActive: { backgroundColor: colors.errorLight, borderColor: colors.error },
 
   // Common
   locationRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: Spacing.sm },

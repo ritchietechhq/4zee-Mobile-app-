@@ -8,7 +8,7 @@ import { Spacing, Shadows } from '@/constants/theme';
 const TAB_CONFIG = [
   { name: 'dashboard', title: 'Home', icon: 'home' },
   { name: 'search', title: 'Explore', icon: 'search' },
-  { name: 'saved', title: 'Saved', icon: 'heart' },
+  { name: 'saved', title: 'Favourites', icon: 'heart' },
   { name: 'messages/index', title: 'Messages', icon: 'chatbubbles' },
   { name: 'profile', title: 'Profile', icon: 'person' },
 ] as const;

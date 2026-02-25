@@ -1,5 +1,5 @@
 // ============================================================
-// Favorites Service (CLIENT role required)
+// Favourites Service (CLIENT role required)
 // Endpoints: GET /properties/favorites,
 //            POST /properties/favorites/:propertyId,
 //            DELETE /properties/favorites/:propertyId,
@@ -9,37 +9,66 @@
 import api from './api';
 import type { Property } from '@/types';
 
-class FavoritesService {
-  /** GET /properties/favorites — list saved properties */
+/**
+ * Normalise a single property from the backend.
+ * Maps `mediaUrls` → `images` so all UI components can use `property.images`.
+ */
+function normalizeProperty(raw: any): Property {
+  if (!raw) return raw;
+  return {
+    ...raw,
+    images: raw.images?.length ? raw.images : (raw.mediaUrls ?? []),
+    amenities: raw.amenities ?? [],
+  };
+}
+
+class FavouritesService {
+  /** GET /properties/favorites — list favourites */
   async list(): Promise<Property[]> {
     const res = await api.get<any>('/properties/favorites');
     const data = res.data;
-    // Backend now returns { favorites: [...], total: number }
+
+    let items: any[] = [];
+
+    // Backend returns { favorites: [...], total: number }
     if (data?.favorites && Array.isArray(data.favorites)) {
-      return data.favorites;
+      items = data.favorites;
     }
-    // Fallback for plain array response
-    return Array.isArray(data) ? data : [];
+    // Fallback: plain array response
+    else if (Array.isArray(data)) {
+      items = data;
+    }
+    // Fallback: { items: [...] } shape
+    else if (data?.items && Array.isArray(data.items)) {
+      items = data.items;
+    }
+
+    // Normalise each property (mediaUrls → images)
+    return items.map(normalizeProperty);
   }
 
-  /** POST /properties/favorites/:propertyId — add to favorites */
+  /** POST /properties/favorites/:propertyId — add to favourites */
   async add(propertyId: string): Promise<void> {
     await api.post(`/properties/favorites/${propertyId}`);
   }
 
-  /** DELETE /properties/favorites/:propertyId — remove from favorites */
+  /** DELETE /properties/favorites/:propertyId — remove from favourites */
   async remove(propertyId: string): Promise<void> {
     await api.delete(`/properties/favorites/${propertyId}`);
   }
 
-  /** GET /properties/favorites/:propertyId/check — check if favorited */
+  /** GET /properties/favorites/:propertyId/check — check if favourited */
   async check(propertyId: string): Promise<boolean> {
-    const res = await api.get<{ isFavorite: boolean }>(
-      `/properties/favorites/${propertyId}/check`,
-    );
-    return res.data?.isFavorite ?? false;
+    try {
+      const res = await api.get<any>(
+        `/properties/favorites/${propertyId}/check`,
+      );
+      return res.data?.isFavorite ?? res.data?.isFavourite ?? false;
+    } catch {
+      return false;
+    }
   }
 }
 
-export const favoritesService = new FavoritesService();
+export const favoritesService = new FavouritesService();
 export default favoritesService;
