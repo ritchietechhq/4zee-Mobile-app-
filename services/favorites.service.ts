@@ -21,10 +21,12 @@ interface ToggleResult {
  */
 function normalizeProperty(raw: any): Property {
   if (!raw) return raw;
+  // If this is a favourite record with a nested `property`, unwrap it
+  const prop = raw.property ?? raw;
   return {
-    ...raw,
-    images: raw.images?.length ? raw.images : (raw.mediaUrls ?? []),
-    amenities: raw.amenities ?? [],
+    ...prop,
+    images: prop.images?.length ? prop.images : (prop.mediaUrls ?? []),
+    amenities: prop.amenities ?? [],
   };
 }
 
@@ -33,6 +35,8 @@ class FavouritesService {
   async list(): Promise<Property[]> {
     const res = await api.get<any>('/properties/favorites');
     const data = res.data;
+
+    if (__DEV__) console.log('[Favourites] raw response:', JSON.stringify(res).slice(0, 500));
 
     let items: any[] = [];
 
@@ -48,9 +52,15 @@ class FavouritesService {
     else if (data?.items && Array.isArray(data.items)) {
       items = data.items;
     }
+    // Fallback: maybe res itself is the array (interceptor already unwrapped)
+    else if (Array.isArray(res)) {
+      items = res as any[];
+    }
 
-    // Normalise each property (mediaUrls → images)
-    return items.map(normalizeProperty);
+    if (__DEV__) console.log('[Favourites] parsed items count:', items.length, 'first item keys:', items[0] ? Object.keys(items[0]) : 'none');
+
+    // Normalise each property (unwrap nested .property + mediaUrls → images)
+    return items.map(normalizeProperty).filter(Boolean);
   }
 
   /** POST /properties/favorites/:propertyId — add to favourites (idempotent) */
