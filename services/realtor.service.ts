@@ -119,14 +119,36 @@ class RealtorService {
 
   // ── Installment Requests ──────────────────────────────────────────────────
 
-  /** GET /realtor/installment-requests — list payment plan requests from clients */
-  async getInstallmentRequests(status?: 'PENDING' | 'APPROVED' | 'REJECTED'): Promise<InstallmentRequestsResponse> {
-    const res = await api.get<any>('/realtor/installment-requests', status ? { status } : undefined);
+  /** GET /realtor/installment-requests — list payment plan enrollments for realtor's apps */
+  async getInstallmentRequests(
+    status?: string,
+    page = 1,
+    limit = 20,
+  ): Promise<InstallmentRequestsResponse> {
+    const params: Record<string, unknown> = { page, limit };
+    if (status) params.status = status;
+    const res = await api.get<any>('/realtor/installment-requests', params);
     const raw = res.data;
+
+    if (__DEV__) console.log('[Realtor] installment-requests raw:', JSON.stringify(raw).slice(0, 500));
+
+    // New backend shape: { enrollments: [...], summary: {...}, pagination: {...} }
+    if (raw?.enrollments && Array.isArray(raw.enrollments)) {
+      return {
+        items: raw.enrollments,
+        total: raw.pagination?.total ?? raw.enrollments.length,
+        pending: raw.summary?.active ?? raw.enrollments.filter((r: any) => r.status === 'PENDING' || r.status === 'active').length,
+      };
+    }
+    // Fallback: plain array
     if (Array.isArray(raw)) {
       return { items: raw, total: raw.length, pending: raw.filter((r: any) => r.status === 'PENDING').length };
     }
-    return raw ?? { items: [], total: 0, pending: 0 };
+    // Fallback: { items: [...] } shape
+    if (raw?.items && Array.isArray(raw.items)) {
+      return { items: raw.items, total: raw.total ?? raw.items.length, pending: raw.pending ?? 0 };
+    }
+    return { items: [], total: 0, pending: 0 };
   }
 
   /** GET /realtor/installment-requests/:id — get single request details */

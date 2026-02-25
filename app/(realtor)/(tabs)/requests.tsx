@@ -54,9 +54,10 @@ export default function InstallmentRequestsScreen() {
     try {
       const statusFilter = filter === 'ALL' ? undefined : filter;
       const response = await realtorService.getInstallmentRequests(statusFilter);
-      setRequests(response.items);
+      setRequests(response.items ?? []);
     } catch (error) {
-      console.error('Failed to fetch installment requests:', error);
+      if (__DEV__) console.error('Failed to fetch installment requests:', error);
+      setRequests([]);
     } finally {
       setIsLoading(false);
     }
@@ -132,11 +133,12 @@ export default function InstallmentRequestsScreen() {
   }, []);
 
   const filteredRequests = useMemo(() => {
+    if (!requests) return [];
     if (filter === 'ALL') return requests;
     return requests.filter(r => r.status === filter);
   }, [requests, filter]);
 
-  const pendingCount = useMemo(() => requests.filter(r => r.status === 'PENDING').length, [requests]);
+  const pendingCount = useMemo(() => (requests ?? []).filter(r => r.status === 'PENDING').length, [requests]);
 
   const renderFilterPill = (status: FilterStatus, label: string) => (
     <TouchableOpacity
