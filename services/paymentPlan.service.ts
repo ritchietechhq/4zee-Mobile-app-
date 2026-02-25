@@ -79,7 +79,9 @@ class PaymentPlanService {
 
   /** POST /payment-plans/enroll — CLIENT role */
   async enroll(payload: EnrollRequest): Promise<PaymentPlanEnrollment> {
+    if (__DEV__) console.log('[PaymentPlan] enrolling:', JSON.stringify(payload));
     const res = await api.post<PaymentPlanEnrollment>('/payment-plans/enroll', payload);
+    if (__DEV__) console.log('[PaymentPlan] enroll response:', JSON.stringify(res).slice(0, 500));
     return res.data!;
   }
 

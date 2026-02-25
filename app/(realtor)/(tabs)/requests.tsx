@@ -49,14 +49,20 @@ export default function InstallmentRequestsScreen() {
   const [selectedRequest, setSelectedRequest] = useState<InstallmentRequest | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   const fetchRequests = useCallback(async () => {
     try {
+      setFetchError(null);
       const statusFilter = filter === 'ALL' ? undefined : filter;
       const response = await realtorService.getInstallmentRequests(statusFilter);
+      if (__DEV__) console.log('[Requests] received items:', response.items?.length, 'total:', response.total, 'pending:', response.pending);
       setRequests(response.items ?? []);
-    } catch (error) {
-      if (__DEV__) console.error('Failed to fetch installment requests:', error);
+    } catch (error: any) {
+      const code = error?.error?.code || error?.code || '';
+      const msg = error?.error?.message || error?.message || 'Unknown error';
+      if (__DEV__) console.error('[Requests] fetch error:', JSON.stringify(error)?.slice(0, 500));
+      setFetchError(`${code ? code + ': ' : ''}${msg}`);
       setRequests([]);
     } finally {
       setIsLoading(false);
@@ -312,11 +318,14 @@ export default function InstallmentRequestsScreen() {
           }
           ListEmptyComponent={
             <EmptyState
-              icon="document-text-outline"
-              title="No requests"
-              description={filter === 'ALL' 
-                ? "You don't have any installment requests yet. They'll appear here when clients request payment plans for your properties."
-                : `No ${filter.toLowerCase()} requests found.`
+              icon={fetchError ? "alert-circle-outline" : "document-text-outline"}
+              title={fetchError ? "Failed to load requests" : "No requests"}
+              description={
+                fetchError
+                  ? `Error: ${fetchError}\n\nPull down to retry.`
+                  : filter === 'ALL' 
+                    ? "You don't have any installment requests yet. They'll appear here when clients request payment plans for your properties."
+                    : `No ${filter.toLowerCase()} requests found.`
               }
             />
           }

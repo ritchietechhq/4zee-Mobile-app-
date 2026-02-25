@@ -128,26 +128,47 @@ class RealtorService {
     const params: Record<string, unknown> = { page, limit };
     if (status) params.status = status;
     const res = await api.get<any>('/realtor/installment-requests', params);
-    const raw = res.data;
 
-    if (__DEV__) console.log('[Realtor] installment-requests raw:', JSON.stringify(raw).slice(0, 500));
+    // The interceptor unwraps axios response.data → ApiResponse<T>
+    // res.data is the payload inside { success, data: <payload> }
+    // But some endpoints skip the envelope, so res itself IS the payload
+    const envelope = res as any;
+    const inner = envelope?.data; // payload inside ApiResponse envelope
 
-    // New backend shape: { enrollments: [...], summary: {...}, pagination: {...} }
-    if (raw?.enrollments && Array.isArray(raw.enrollments)) {
-      return {
-        items: raw.enrollments,
-        total: raw.pagination?.total ?? raw.enrollments.length,
-        pending: raw.summary?.active ?? raw.enrollments.filter((r: any) => r.status === 'PENDING' || r.status === 'active').length,
-      };
+    if (__DEV__) {
+      console.log('[Realtor] installment-requests envelope keys:', Object.keys(envelope ?? {}));
+      console.log('[Realtor] installment-requests inner (res.data):', JSON.stringify(inner)?.slice(0, 500));
+      console.log('[Realtor] installment-requests full res:', JSON.stringify(envelope)?.slice(0, 800));
     }
-    // Fallback: plain array
-    if (Array.isArray(raw)) {
-      return { items: raw, total: raw.length, pending: raw.filter((r: any) => r.status === 'PENDING').length };
+
+    // Try inner first (standard envelope), then envelope itself (no wrapper)
+    const candidates = [inner, envelope];
+    for (const raw of candidates) {
+      if (!raw) continue;
+
+      // Shape: { enrollments: [...], summary?, pagination? }
+      if (raw.enrollments && Array.isArray(raw.enrollments)) {
+        return {
+          items: raw.enrollments,
+          total: raw.pagination?.total ?? raw.enrollments.length,
+          pending: raw.summary?.active ?? raw.summary?.pending ?? raw.enrollments.filter((r: any) => r.status === 'PENDING' || r.status === 'active').length,
+        };
+      }
+      // Shape: plain array
+      if (Array.isArray(raw)) {
+        return { items: raw, total: raw.length, pending: raw.filter((r: any) => r.status === 'PENDING').length };
+      }
+      // Shape: { items: [...] }
+      if (raw.items && Array.isArray(raw.items)) {
+        return { items: raw.items, total: raw.total ?? raw.items.length, pending: raw.pending ?? 0 };
+      }
+      // Shape: { requests: [...] }
+      if (raw.requests && Array.isArray(raw.requests)) {
+        return { items: raw.requests, total: raw.total ?? raw.requests.length, pending: raw.requests.filter((r: any) => r.status === 'PENDING').length };
+      }
     }
-    // Fallback: { items: [...] } shape
-    if (raw?.items && Array.isArray(raw.items)) {
-      return { items: raw.items, total: raw.total ?? raw.items.length, pending: raw.pending ?? 0 };
-    }
+
+    if (__DEV__) console.warn('[Realtor] installment-requests: no recognized shape — returning empty');
     return { items: [], total: 0, pending: 0 };
   }
 
