@@ -56,11 +56,11 @@ export async function prefetchImages(urls: (string | undefined | null)[]): Promi
  * Spread into any <FlatList /> for consistent performance.
  */
 export const FLATLIST_PERF_PROPS = {
-  windowSize: 5,
-  maxToRenderPerBatch: 8,
-  initialNumToRender: 6,
+  windowSize: 7,
+  maxToRenderPerBatch: 12,
+  initialNumToRender: 8,
   removeClippedSubviews: Platform.OS !== 'web',
-  updateCellsBatchingPeriod: 50,
+  updateCellsBatchingPeriod: 30,
 } as const;
 
 /**
@@ -68,8 +68,8 @@ export const FLATLIST_PERF_PROPS = {
  */
 export const FLATLIST_SHORT_PROPS = {
   windowSize: 10,
-  maxToRenderPerBatch: 10,
-  initialNumToRender: 10,
+  maxToRenderPerBatch: 15,
+  initialNumToRender: 12,
   removeClippedSubviews: false,
 } as const;
 

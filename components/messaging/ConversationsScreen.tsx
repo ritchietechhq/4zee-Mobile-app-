@@ -54,12 +54,12 @@ export default function ConversationsScreen() {
     }
   }, [user?.id]);
 
-  const fetchConversations = useCallback(async () => {
+  const fetchConversations = useCallback(async (skipCache = false) => {
     try {
-      // Use role-specific endpoint
+      // Use role-specific endpoint; skip cache on poll for real-time data
       const res = isRealtor
         ? await messagingService.getRealtorConversations()
-        : await messagingService.getConversations();
+        : await messagingService.getConversations({ skipCache });
       setConversations(res.conversations);
       setUnreadTotal(res.unreadTotal);
     } catch (e) {
@@ -68,17 +68,18 @@ export default function ConversationsScreen() {
   }, [isRealtor]);
 
   useEffect(() => {
-    setIsLoading(true);
-    fetchConversations().finally(() => setIsLoading(false));
+    // Only show loading skeleton on first mount with no data
+    if (conversations.length === 0) setIsLoading(true);
+    fetchConversations(false).finally(() => setIsLoading(false));
 
-    // Poll for new messages every 15 seconds
-    const interval = setInterval(fetchConversations, 15_000);
+    // Poll every 8 seconds for near real-time updates — skip cache
+    const interval = setInterval(() => fetchConversations(true), 8_000);
     return () => clearInterval(interval);
   }, [fetchConversations]);
 
   const onRefresh = useCallback(async () => {
     setIsRefreshing(true);
-    await fetchConversations();
+    await fetchConversations(true);
     setIsRefreshing(false);
   }, [fetchConversations]);
 
@@ -190,8 +191,8 @@ export default function ConversationsScreen() {
     );
   };
 
-  // ─── Loading State ───
-  if (isLoading) {
+  // ─── Loading State (only shown on first load with no cached data) ───
+  if (isLoading && conversations.length === 0) {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.header}>

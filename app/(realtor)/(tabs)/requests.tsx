@@ -484,7 +484,7 @@ export default function RequestsScreen() {
 
   // ---- Main render ----
 
-  const isLoading = segment === 'applications' ? appsLoading : instLoading;
+  const isLoading = segment === 'applications' ? (appsLoading && applications.length === 0) : (instLoading && instRequests.length === 0);
   const isRefreshing = segment === 'applications' ? appsRefreshing : instRefreshing;
   const onRefresh = segment === 'applications' ? onRefreshApps : onRefreshInst;
   const isProcessing = segment === 'applications' ? appsProcessing : instProcessing;

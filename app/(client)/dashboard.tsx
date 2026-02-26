@@ -86,15 +86,19 @@ export default function DashboardScreen() {
   }, []);
 
   useEffect(() => {
-    fetchFeatured();
-    searchProperties();
-    fetchClientDashboard();
-    fetchUnreadCount();
-    fetchUnreadMessages();
-    Animated.stagger(80, [
-      Animated.spring(headerAnim, { toValue: 1, useNativeDriver: true, tension: 60, friction: 12 }),
-      Animated.spring(heroAnim,   { toValue: 1, useNativeDriver: true, tension: 55, friction: 13 }),
-      Animated.spring(contentAnim,{ toValue: 1, useNativeDriver: true, tension: 50, friction: 12 }),
+    // Fire all fetches in parallel — cache provides instant data, network refreshes in background
+    Promise.allSettled([
+      fetchFeatured(),
+      searchProperties(),
+      fetchClientDashboard(),
+      fetchUnreadCount(),
+      fetchUnreadMessages(),
+    ]);
+    // Start animations immediately without waiting for data
+    Animated.stagger(60, [
+      Animated.spring(headerAnim, { toValue: 1, useNativeDriver: true, tension: 65, friction: 11 }),
+      Animated.spring(heroAnim,   { toValue: 1, useNativeDriver: true, tension: 60, friction: 12 }),
+      Animated.spring(contentAnim,{ toValue: 1, useNativeDriver: true, tension: 55, friction: 11 }),
     ]).start();
   }, []);
 
@@ -306,22 +310,24 @@ export default function DashboardScreen() {
             <SectionHeader title="Recommended for You" actionLabel="View All" onAction={() => router.push('/search')} style={dynamicStyles.sectionHeader} />
           </View>
           {isLoadingProperties ? (
-            <View style={dynamicStyles.recSkeletonWrap}>
-              {[1, 2, 3].map((i) => (
-                <View key={i} style={dynamicStyles.recSkeleton}>
-                  <Skeleton width={116} height={96} borderRadius={BorderRadius.lg} />
-                  <View style={{ flex: 1, marginLeft: Spacing.md }}>
-                    <Skeleton width="70%" height={14} style={{ marginBottom: 8 }} />
-                    <Skeleton width="50%" height={12} style={{ marginBottom: 8 }} />
-                    <Skeleton width="40%" height={14} />
-                  </View>
+            <View style={dynamicStyles.recGrid}>
+              {[1, 2, 3, 4].map((i) => (
+                <View key={i} style={dynamicStyles.recGridItem}>
+                  <Skeleton width="100%" height={170} borderRadius={BorderRadius.xl} style={{ marginBottom: 8 }} />
+                  <Skeleton width="70%" height={14} style={{ marginBottom: 6 }} />
+                  <Skeleton width="50%" height={12} style={{ marginBottom: 6 }} />
+                  <Skeleton width="40%" height={14} />
                 </View>
               ))}
             </View>
           ) : properties.length > 0 ? (
-            properties.slice(0, 6).map((p) => (
-              <View key={p.id} style={dynamicStyles.recItem}><PropertyCard property={p} variant="horizontal" /></View>
-            ))
+            <View style={dynamicStyles.recGrid}>
+              {properties.slice(0, 6).map((p) => (
+                <View key={p.id} style={dynamicStyles.recGridItem}>
+                  <PropertyCard property={p} variant="vertical" />
+                </View>
+              ))}
+            </View>
           ) : (
             <EmptyState icon="search-outline" title="No properties yet" description="Pull down to refresh or try a different filter." style={dynamicStyles.emptyInline} />
           )}
@@ -1097,22 +1103,15 @@ const createStyles = (colors: any) =>
     emptyInline: {
       paddingVertical: Spacing.xxl,
     },
-    recItem: {
+    recGrid: {
+      flexDirection: 'row' as const,
+      flexWrap: 'wrap' as const,
       paddingHorizontal: Spacing.xl,
+      justifyContent: 'space-between' as const,
+    },
+    recGridItem: {
+      width: '48%' as any,
       marginBottom: Spacing.sm,
-    },
-    recSkeletonWrap: {
-      paddingHorizontal: Spacing.xl,
-      gap: Spacing.md,
-    },
-    recSkeleton: {
-      flexDirection: 'row',
-      backgroundColor: colors.surface,
-      borderRadius: BorderRadius.lg,
-      padding: Spacing.md,
-      borderWidth: 1,
-      borderColor: colors.border,
-      ...Shadows.sm,
     },
     // ── Browse CTA
     browseCTAWrap: {

@@ -201,12 +201,14 @@ export default function ChatScreen() {
   );
 
   useEffect(() => {
-    setIsLoading(true);
+    // Only show loading on first entry with no messages
+    if (messages.length === 0) setIsLoading(true);
     fetchMessages(false).finally(() => setIsLoading(false));
 
+    // Poll every 3 seconds for near real-time messaging
     const interval = setInterval(() => {
       if (!isSendingRef.current) fetchMessages(false);
-    }, 6_000);
+    }, 3_000);
 
     return () => clearInterval(interval);
   }, [conversationId]);
@@ -551,7 +553,7 @@ export default function ChatScreen() {
         behavior="padding"
         keyboardVerticalOffset={Platform.select({ ios: 0, android: 0 })}
       >
-        {isLoading ? (
+        {isLoading && messages.length === 0 ? (
           <View style={styles.loadingWrap}>
             <ActivityIndicator size="large" color={colors.primary} />
             <Text style={styles.loadingText}>Loading messages...</Text>

@@ -35,15 +35,19 @@ export const PropertyCard = React.memo(function PropertyCard({ property, variant
     e?.stopPropagation?.();
     if (isToggling) return;
     setIsToggling(true);
-    const optimistic = !isFavorite;
-    setIsFavorite(optimistic); // Optimistic update
+    const newState = !isFavorite;
+    setIsFavorite(newState); // Optimistic update
     try {
-      const result = await favoritesService.toggle(property.id);
-      setIsFavorite(result.isFavorite); // Sync with server
-      onFavoriteChange?.(property.id, result.isFavorite);
-      showFavouriteToast({ title: property.title, action: result.action });
+      // Use explicit add/remove based on intended action to avoid server desync
+      if (newState) {
+        await favoritesService.add(property.id);
+      } else {
+        await favoritesService.remove(property.id);
+      }
+      onFavoriteChange?.(property.id, newState);
+      showFavouriteToast({ title: property.title, action: newState ? 'added' : 'removed' });
     } catch (error) {
-      setIsFavorite(!optimistic); // Revert on error
+      setIsFavorite(!newState); // Revert on error
       Alert.alert('Error', 'Failed to update favourite');
     } finally {
       setIsToggling(false);
