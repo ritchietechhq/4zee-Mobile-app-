@@ -29,17 +29,31 @@ export default function SavedScreen() {
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const dynamicStyles = useMemo(() => createStyles(colors), [colors]);
 
   const fetchFavorites = useCallback(async () => {
     try {
+      setFetchError(null);
       const data = await favoritesService.list();
       setFavorites(data);
       setFavoriteIds(new Set(data.map(p => p.id)));
-    } catch (err) {
-      if (__DEV__) console.warn('[Favourites] fetch error', err);
+    } catch (err: any) {
+      const errMsg =
+        err?.error?.message || err?.message || 'Failed to load favourites';
+      const errCode = err?.error?.code;
+      if (__DEV__) console.warn('[Favourites] fetch error', errCode, errMsg);
+
+      // If a deleted property is causing RESOURCE_NOT_FOUND, tell the user
+      if (errCode === 'RESOURCE_NOT_FOUND') {
+        setFetchError(
+          'A saved property may have been removed by the owner. Pull down to refresh — this should resolve on its own.',
+        );
+      } else {
+        setFetchError(errMsg);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -81,7 +95,7 @@ export default function SavedScreen() {
         <View>
           <Text style={dynamicStyles.title}>Favourites</Text>
           <Text style={dynamicStyles.subtitle}>
-            {isLoading ? 'Loading...' : `${favorites.length} ${favorites.length === 1 ? 'property' : 'properties'} saved`}
+            {isLoading ? 'Loading...' : fetchError ? 'Error loading favourites' : `${favorites.length} ${favorites.length === 1 ? 'property' : 'properties'} saved`}
           </Text>
         </View>
         <TouchableOpacity
@@ -128,11 +142,19 @@ export default function SavedScreen() {
               </View>
             )}
             ListEmptyComponent={
-              <EmptyState
-                icon="heart-outline"
-                title="No favourites yet"
-                description="Tap the heart icon on any property to add it to your favourites for quick access."
-              />
+              fetchError ? (
+                <EmptyState
+                  icon="alert-circle-outline"
+                  title="Couldn't load favourites"
+                  description={`${fetchError}\n\nPull down to retry.`}
+                />
+              ) : (
+                <EmptyState
+                  icon="heart-outline"
+                  title="No favourites yet"
+                  description="Tap the heart icon on any property to add it to your favourites for quick access."
+                />
+              )
             }
             ListFooterComponent={<View style={{ height: Spacing.xxxxl }} />}
           />

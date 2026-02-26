@@ -33,7 +33,27 @@ function normalizeProperty(raw: any): Property {
 class FavouritesService {
   /** GET /properties/favorites — list favourites */
   async list(): Promise<Property[]> {
-    const res = await api.get<any>('/properties/favorites');
+    let res: any;
+    try {
+      res = await api.get<any>('/properties/favorites');
+    } catch (err: any) {
+      // Backend may return RESOURCE_NOT_FOUND if a favourited property was
+      // deleted. Try to extract partial data from the error, otherwise
+      // re-throw so the UI can show a meaningful error message.
+      if (__DEV__) console.warn('[Favourites] list API error:', err?.error?.code, err?.error?.message);
+
+      // If the error envelope still contains some data, try to use it
+      const errData = err?.data;
+      if (errData) {
+        const partial =
+          errData.favorites ?? errData.items ?? (Array.isArray(errData) ? errData : null);
+        if (partial && Array.isArray(partial)) {
+          return partial.map(normalizeProperty).filter(Boolean);
+        }
+      }
+      throw err;
+    }
+
     const data = res.data;
 
     if (__DEV__) console.log('[Favourites] raw response:', JSON.stringify(res).slice(0, 500));
